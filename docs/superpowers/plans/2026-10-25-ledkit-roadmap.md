@@ -29,3 +29,21 @@ ends with something that works and is tested on its own.
 
 **Repository:** `C:\Dev\jrowe88\ledkit`, to be pushed to `github.com/jrowe88/ledkit` once
 milestone 1 is done.
+
+## Notes for the milestone 3 plan (from the milestone 2 final review)
+
+- **SPI, byte alignment:** encodings with 3, 5, 6 or 7 bits per LED bit put high pulses across byte boundaries. Blocking (non-DMA) SPI often leaves small gaps between bytes, which stretch a high pulse and corrupt the bit. Add a byte-aligned option (N ∈ {4, 8}) and use it whenever gap-free transfer isn't guaranteed. `encode` always adds the lead-in and reset bytes, so for small-RAM streaming, add a framing-free `encode_bits` or a stateful encoder.
+- **RMT:** `PulseTicks` is enough (one symbol per bit, plus an end marker; split long resets over 32767 ticks). Compute it once in the constructor. Buffers are sized with a user-side `const` (encoders are `const fn`) or a caller-provided `&'static mut` buffer.
+- **PIO:** the standard ws2812 program needs zero and one bits to have the same period (T1/T2/T3). `PulseTicks` doesn't guarantee that (WS2812B at 10 MHz is 13 vs 14 ticks), so add an equal-period search; it also serves PWM+DMA later.
+- **Chip kind at compile time:** use `const { ClocklessTiming::of::<C>() }` in backends so a DotStar chip on a clockless backend is a compile error. Optionally add `ClocklessChip` / `ClockedChip` sub-traits.
+- **Reset gap:** RMT and PIO backends must keep consecutive `show()` calls at least `reset_us` apart. SPI includes the reset bytes.
+- **Clocked chips:** add a `MAX_CLOCK_HZ` (about 20 MHz for APA102, about 15 MHz for SK9822).
+- **Error types:** consider an optional `defmt::Format` on error types for Embassy and esp-hal users.
+- **Hardware verification checklist:**
+  - WS2812B (V5 and older) at 2.3, 2.4, 3.2, 4.0 and 6.4 MHz SPI
+  - the zero-high upper bound (450 ns) and the one-low lower bound (450 ns)
+  - the SK9822 end frame
+  - RGBW byte order
+  - backfill datasheet citations in `chips.rs`
+- **Constructors:** give backends one-line constructors so a hobbyist's first program stays short.
+- **Power limiter cost:** with a limit set, `show()` runs the pipeline over all pixels about three or more extra times. Measure it on a Cortex-M0 with 300 LEDs. If it matters, process once at full brightness to get per-channel sums, use them to pick a close candidate, then verify only once or twice. (From the milestone 2 code review, item 4.)

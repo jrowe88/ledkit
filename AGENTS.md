@@ -23,7 +23,21 @@ replacing it. The design lives in `docs/superpowers/specs/`.
 | `ledkit-rp` | RP2040/RP2350 PIO backend | `ledkit-core`, an RP HAL |
 | `ledkit-sim` | Desktop simulator (`std`) | `ledkit-anim` |
 
-Only `ledkit-color` exists so far; the rest are planned.
+Only `ledkit-color` and `ledkit-core` exist so far; the rest are planned.
+
+## ledkit-core modules
+
+- `chips` / `chip`: the `Chip` trait and the catalogue (`Ws2812b`, `Apa102`, ...). Chips are zero-sized marker types carrying pixel type, color order, protocol/timing and power model.
+- `pixel`: `Pixel`, `Channel`, `ChannelOrder` (wire order).
+- `timing`: `Phase`, `ClocklessTiming`, `ClockedFormat`, `Protocol`, `PowerModel`.
+- `brightness`, `pipeline`, `power`: brightness (perceptual by default), color gamma (opt-in), correction, dithering and the power limit, applied in `show`.
+- `strip`: `Strip<C, N, O>`, the pixel buffer.
+- `output`: the `Output` / `OutputAsync` traits.
+- `wire`: pixels to bytes in chip order (`clockless_bytes`, `clocked_frame`).
+- `encode`: timing to peripheral data (`SpiEncoding`, `PulseTicks`).
+- `testing`: `MemoryOutput`, for host tests. `interop`: `smart-leds` feature.
+
+Rule: a backend implements `Output` (and/or `OutputAsync`) using the `wire` and `encode` helpers. It never re-implements color order, timing math or the SPI bit patterns, and never applies brightness or gamma itself (`Strip` already did).
 
 ## Conventions
 
@@ -33,6 +47,6 @@ Only `ledkit-color` exists so far; the rest are planned.
 - Every public item has docs and an example.
 - Tests live in the module they test (`#[cfg(test)] mod tests`).
 - Before committing run `cargo test --workspace --all-features` and the CI commands:
-  `cargo fmt --all -- --check`, `cargo clippy --workspace --all-features -- -D warnings`,
+  `cargo fmt --all -- --check`, `cargo clippy --workspace --all-features --all-targets -- -D warnings`,
   and the `no_std` builds for `thumbv6m-none-eabi` and `riscv32imc-unknown-none-elf`.
 - Never copy code from LGPL/EUPL projects. MIT/Apache sources may be used with attribution in `NOTICE`.

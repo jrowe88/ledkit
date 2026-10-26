@@ -13,6 +13,8 @@ mod chip;
 mod chips;
 pub mod encode;
 mod error;
+#[cfg(feature = "smart-leds")]
+pub mod interop;
 mod output;
 pub mod pipeline;
 mod pixel;

@@ -8,10 +8,12 @@
 //! - `smart-leds`: interoperability with the `smart-leds-trait` crate.
 #![cfg_attr(not(test), no_std)]
 
+mod brightness;
 mod chip;
 mod chips;
 pub mod encode;
 mod error;
+pub mod pipeline;
 mod pixel;
 mod timing;
 pub mod wire;
@@ -19,6 +21,7 @@ pub mod wire;
 pub use ledkit_color as color;
 pub use ledkit_color::{Color, Rgb, Rgbw};
 
+pub use brightness::Brightness;
 pub use chip::Chip;
 pub use chips::*;
 pub use error::*;

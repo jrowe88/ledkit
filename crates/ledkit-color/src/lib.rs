@@ -6,12 +6,14 @@
 #![cfg_attr(not(test), no_std)]
 
 mod gamma;
+mod gradient;
 mod hue;
 mod named;
 mod rgb;
 mod temperature;
 
 pub use gamma::{GammaTable, GAMMA_2_2, GAMMA_2_6};
+pub use gradient::{Gradient, Palette};
 pub use hue::{Hsv, Hue};
 pub use rgb::{Rgb, Rgbw};
 pub use temperature::correction;

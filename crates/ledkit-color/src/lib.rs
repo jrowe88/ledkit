@@ -5,10 +5,12 @@
 //! allocator. It is part of the ledkit family of crates.
 #![cfg_attr(not(test), no_std)]
 
+mod gamma;
 mod hue;
 mod named;
 mod rgb;
 
+pub use gamma::{GammaTable, GAMMA_2_2, GAMMA_2_6};
 pub use hue::{Hsv, Hue};
 pub use rgb::{Rgb, Rgbw};
 

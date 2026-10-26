@@ -162,6 +162,7 @@ mod tests {
         }
     }
     #[test]
+    #[allow(clippy::cast_sign_loss)] // the reference value is always in 0.0..=255.0
     fn matches_float_reference_exactly() {
         for x in 0..=255u8 {
             let expected = (255.0 * (f64::from(x) / 255.0).powf(2.6)).round() as u8;

@@ -47,6 +47,6 @@ Rule: a backend implements `Output` (and/or `OutputAsync`) using the `wire` and 
 - Every public item has docs and an example.
 - Tests live in the module they test (`#[cfg(test)] mod tests`).
 - Before committing run `cargo test --workspace --all-features` and the CI commands:
-  `cargo fmt --all -- --check`, `cargo clippy --workspace --all-features -- -D warnings`,
+  `cargo fmt --all -- --check`, `cargo clippy --workspace --all-features --all-targets -- -D warnings`,
   and the `no_std` builds for `thumbv6m-none-eabi` and `riscv32imc-unknown-none-elf`.
 - Never copy code from LGPL/EUPL projects. MIT/Apache sources may be used with attribution in `NOTICE`.

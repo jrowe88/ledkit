@@ -7,8 +7,6 @@ wire, keeps your colors in a `Strip`, and hands finished frames to an
 `Output` (a driver for your board). It works without `std` or an
 allocator. It is part of the ledkit family of crates.
 
-
-
 ## Quick tour
 
 This runs on your computer using `testing::MemoryOutput`, which just

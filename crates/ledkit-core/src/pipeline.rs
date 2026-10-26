@@ -19,6 +19,9 @@ use ledkit_color::{GammaTable, Rgb};
 /// ```
 pub const DITHER_SEQUENCE: [u8; 8] = [0, 128, 64, 192, 32, 160, 96, 224];
 
+/// The offset used when dithering is off: plain rounding.
+pub(crate) const NO_DITHER: u8 = 128;
+
 /// Scales one channel by a brightness level, adding a dither offset.
 pub(crate) const fn scale_channel(value: u8, brightness: u8, dither: u8) -> u8 {
     if brightness == 0 {

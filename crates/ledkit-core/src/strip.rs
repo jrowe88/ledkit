@@ -1,7 +1,7 @@
 //! The [`Strip`] pixel buffer.
 
-use crate::pipeline::{process, PipelineSettings, DITHER_SEQUENCE};
-use crate::power::limited_brightness;
+use crate::pipeline::{process, PipelineSettings, DITHER_SEQUENCE, NO_DITHER};
+use crate::power::{limited_brightness, WORST_CASE_DITHER};
 use crate::{Brightness, Chip, Milliamps, Output, OutputAsync, Rgb};
 use core::marker::PhantomData;
 use core::ops::{Bound, RangeBounds};
@@ -241,11 +241,17 @@ impl<C: Chip, const N: usize, O> Strip<C, N, O> {
             dither: if self.dithering {
                 DITHER_SEQUENCE[usize::from(self.frame % 8)]
             } else {
-                128
+                NO_DITHER
             },
         };
         if let Some(limit) = self.power_limit {
-            settings.brightness = limited_brightness(&self.pixels, &settings, C::POWER, limit);
+            let assumed = if self.dithering {
+                WORST_CASE_DITHER
+            } else {
+                NO_DITHER
+            };
+            settings.brightness =
+                limited_brightness(&self.pixels, &settings, C::POWER, limit, assumed);
         }
         self.last_raw = Some(settings.brightness);
         self.frame = self.frame.wrapping_add(1);
@@ -426,6 +432,17 @@ mod tests {
         s.show().unwrap();
         assert_eq!(s.effective_brightness(), Brightness::exact(122));
         assert_eq!(s.output().last_frame()[0], Rgb::new(123, 123, 123));
+    }
+    #[test]
+    fn power_limit_follows_the_dithering_setting() {
+        let mut s = strip::<10>();
+        s.fill(Rgb::WHITE);
+        s.set_power_limit(Milliamps(363));
+        s.show().unwrap();
+        assert_eq!(s.effective_brightness(), Brightness::exact(149));
+        s.set_dithering(false);
+        s.show().unwrap();
+        assert_eq!(s.effective_brightness(), Brightness::exact(150));
     }
     #[test]
     fn dithering_is_on_by_default_and_varies_over_frames() {

@@ -29,13 +29,15 @@ pub struct PulseTicks {
     /// Ticks the line is low for a `1` bit.
     pub one_low: u32,
     /// Ticks the line stays low to latch the colors. It may exceed the
-    /// per-pulse limit; split it across several pulses if needed.
+    /// per-pulse limit; split it across several pulses if needed. Very long
+    /// resets saturate at `u32::MAX`.
     pub reset: u32,
 }
 
 /// Converts nanoseconds to the nearest whole number of ticks.
 fn ns_to_ticks(ns: u64, ticks_per_second: u32) -> u64 {
-    (ns * u64::from(ticks_per_second) + 500_000_000) / 1_000_000_000
+    let ticks = (u128::from(ns) * u128::from(ticks_per_second) + 500_000_000) / 1_000_000_000;
+    u64::try_from(ticks).unwrap_or(u64::MAX)
 }
 
 impl ClocklessTiming {
@@ -90,12 +92,18 @@ impl ClocklessTiming {
     ) -> Result<PulseTicks, TimingError> {
         let phase = |p: Phase, which: BitPhase| -> Result<u32, TimingError> {
             let ticks = ns_to_ticks(u64::from(p.typical_ns), ticks_per_second);
-            let actual = ticks * 1_000_000_000 / u64::from(ticks_per_second);
-            let actual_ns = u32::try_from(actual).unwrap_or(u32::MAX);
+            // A zero-tick phase (including a zero clock rate) is never valid;
+            // return before dividing by `ticks_per_second`.
+            let actual_ns = if ticks == 0 {
+                0
+            } else {
+                let actual = ticks * 1_000_000_000 / u64::from(ticks_per_second);
+                u32::try_from(actual).unwrap_or(u32::MAX)
+            };
             if ticks == 0 || !p.contains(actual_ns) {
                 return Err(TimingError::PhaseOutOfRange {
                     phase: which,
-                    actual_ns: if ticks == 0 { 0 } else { actual_ns },
+                    actual_ns,
                     min_ns: p.min_ns,
                     max_ns: p.max_ns,
                 });
@@ -177,6 +185,65 @@ mod tests {
         assert!(matches!(
             ClocklessTiming::of::<Ws2812b>().pulse_ticks(80_000_000, 50),
             Err(TimingError::TooManyTicks { .. })
+        ));
+    }
+    #[test]
+    fn zero_clock_rate_is_an_error_not_a_panic() {
+        assert!(matches!(
+            ClocklessTiming::of::<Ws2812b>().pulse_ticks(0, 32_767),
+            Err(TimingError::PhaseOutOfRange {
+                phase: BitPhase::ZeroHigh,
+                actual_ns: 0,
+                ..
+            })
+        ));
+    }
+    #[test]
+    fn huge_reset_saturates() {
+        let mut t = ClocklessTiming::of::<Ws2812b>();
+        t.reset_us = u32::MAX;
+        let p = t.pulse_ticks(u32::MAX, u32::MAX).unwrap();
+        assert_eq!(p.reset, u32::MAX);
+    }
+    #[test]
+    fn spi_message_with_both_neighbours() {
+        let e = TimingError::SpiClockUnusable {
+            spi_hz: 4_000_000,
+            nearest_lower_hz: Some(3_300_000),
+            nearest_higher_hz: Some(4_500_000),
+        };
+        let msg = format!("{e}");
+        assert!(msg.contains("3.3 MHz") && msg.contains("4.5 MHz"), "{msg}");
+    }
+    #[test]
+    fn spi_message_with_no_neighbours() {
+        let e = TimingError::SpiClockUnusable {
+            spi_hz: 4_000_000,
+            nearest_lower_hz: None,
+            nearest_higher_hz: None,
+        };
+        let msg = format!("{e}");
+        assert!(msg.contains("no SPI clock works for this LED"), "{msg}");
+    }
+    #[test]
+    fn mhz_is_truncated_to_one_decimal() {
+        let e = TimingError::SpiClockUnusable {
+            spi_hz: 1_950_000,
+            nearest_lower_hz: None,
+            nearest_higher_hz: None,
+        };
+        assert!(format!("{e}").contains("1.9 MHz"));
+    }
+    #[test]
+    fn window_error_beats_tick_limit() {
+        let mut t = ClocklessTiming::of::<Ws2812b>();
+        t.zero_high = Phase::new(400, 300, 350);
+        assert!(matches!(
+            t.pulse_ticks(80_000_000, 10),
+            Err(TimingError::PhaseOutOfRange {
+                phase: BitPhase::ZeroHigh,
+                ..
+            })
         ));
     }
     #[test]

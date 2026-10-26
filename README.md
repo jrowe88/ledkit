@@ -13,7 +13,7 @@ than replacing it.
 | Crate | Purpose | Status |
 |---|---|---|
 | `ledkit` | The one crate hobbyists add; re-exports everything with a prelude | planned |
-| `ledkit-color` | Color types and utilities | available |
+| `ledkit-color` | Color types and utilities | available (0.1, unreleased) |
 | `ledkit-core` | LED chip catalogue, color orders, encoders, pixel buffer, output traits | planned |
 | `ledkit-layout` | Segments, matrices and coordinate mapping | planned |
 | `ledkit-anim` | Animation trait, built-in effects and combinators | planned |

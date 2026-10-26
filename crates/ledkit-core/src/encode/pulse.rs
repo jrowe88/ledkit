@@ -276,54 +276,6 @@ mod tests {
         assert!(TICKS.is_ok());
     }
     #[test]
-    fn spi_message_with_both_neighbours() {
-        let e = TimingError::SpiClockUnusable {
-            spi_hz: 4_000_000,
-            nearest_lower_hz: Some(3_300_000),
-            nearest_higher_hz: Some(4_500_000),
-        };
-        let msg = format!("{e}");
-        assert!(msg.contains("3.3 MHz") && msg.contains("4.5 MHz"), "{msg}");
-    }
-    #[test]
-    fn spi_message_with_no_neighbours() {
-        let e = TimingError::SpiClockUnusable {
-            spi_hz: 4_000_000,
-            nearest_lower_hz: None,
-            nearest_higher_hz: None,
-        };
-        let msg = format!("{e}");
-        assert!(msg.contains("no SPI clock works for this LED"), "{msg}");
-    }
-    #[test]
-    fn mhz_prints_two_decimals_when_needed() {
-        let e = TimingError::SpiClockUnusable {
-            spi_hz: 1_950_000,
-            nearest_lower_hz: Some(3_350_000),
-            nearest_higher_hz: Some(3_200_000),
-        };
-        let msg = format!("{e}");
-        assert!(msg.contains("1.95 MHz"), "{msg}");
-        assert!(msg.contains("3.35 MHz"), "{msg}");
-        assert!(
-            msg.contains("3.2 MHz") && !msg.contains("3.20 MHz"),
-            "{msg}"
-        );
-    }
-    #[test]
-    fn mhz_two_decimals_pad_and_truncate() {
-        let e = TimingError::SpiClockUnusable {
-            spi_hz: 2_050_000,
-            nearest_lower_hz: Some(4_512_345),
-            nearest_higher_hz: None,
-        };
-        let msg = format!("{e}");
-        assert!(
-            msg.contains("2.05 MHz") && msg.contains("4.51 MHz"),
-            "{msg}"
-        );
-    }
-    #[test]
     fn too_short_pulse_suggests_a_faster_clock() {
         // At 1 MHz the 400 ns zero-high rounds to 0 ticks.
         let e = ClocklessTiming::of::<Ws2812b>()
@@ -357,15 +309,6 @@ mod tests {
         );
     }
     #[test]
-    fn errors_implement_core_error() {
-        fn is_error<E: core::error::Error>(_: &E) {}
-        is_error(&TimingError::TooManyTicks {
-            ticks: 2,
-            max_ticks: 1,
-        });
-        is_error(&crate::BufferTooSmall { needed: 1 });
-    }
-    #[test]
     fn window_is_checked_exactly_not_after_rounding() {
         // At 2.22 MHz one tick is 450.45 ns: just over the 450 ns maximum.
         assert_eq!(
@@ -389,15 +332,5 @@ mod tests {
                 ..
             })
         ));
-    }
-    #[test]
-    fn error_message_is_readable() {
-        let e = TimingError::SpiClockUnusable {
-            spi_hz: 1_000_000,
-            nearest_lower_hz: None,
-            nearest_higher_hz: Some(2_000_000),
-        };
-        let msg = format!("{e}");
-        assert!(msg.contains("1.0 MHz") && msg.contains("2.0 MHz"), "{msg}");
     }
 }

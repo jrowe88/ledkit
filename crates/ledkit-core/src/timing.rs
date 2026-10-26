@@ -129,3 +129,21 @@ impl PowerModel {
         idle_microamps: 1_000,
     };
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{Chip, Ws2812b};
+
+    #[test]
+    fn phase_window_includes_both_edges_only() {
+        let p = Phase::new(400, 220, 450);
+        assert!(p.contains(220) && p.contains(450));
+        assert!(!p.contains(219) && !p.contains(451));
+    }
+
+    #[test]
+    fn default_power_model() {
+        assert_eq!(Ws2812b::POWER, PowerModel::TYPICAL_5V);
+    }
+}

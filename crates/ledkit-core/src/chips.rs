@@ -309,16 +309,4 @@ mod tests {
             assert_eq!(channels, 3, "{name}");
         }
     }
-
-    #[test]
-    fn phase_window_includes_both_edges_only() {
-        let p = Phase::new(400, 220, 450);
-        assert!(p.contains(220) && p.contains(450));
-        assert!(!p.contains(219) && !p.contains(451));
-    }
-
-    #[test]
-    fn default_power_model() {
-        assert_eq!(Ws2812b::POWER, PowerModel::TYPICAL_5V);
-    }
 }

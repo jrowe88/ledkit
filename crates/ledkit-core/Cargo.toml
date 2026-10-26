@@ -1,0 +1,28 @@
+[package]
+name = "ledkit-core"
+description = "Core of ledkit: LED chip catalogue, signal encoders and the Strip pixel buffer. no_std."
+keywords = ["led", "neopixel", "ws2812", "no-std", "embedded"]
+categories = ["embedded", "no-std", "hardware-support"]
+readme = "README.md"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+ledkit-color = { path = "../ledkit-color", version = "0.1.0" }
+smart-leds-trait = { version = "0.3", optional = true, default-features = false }
+
+[dev-dependencies]
+embassy-futures = "0.1"
+
+[features]
+smart-leds = ["dep:smart-leds-trait", "ledkit-color/smart-leds"]
+
+[package.metadata.docs.rs]
+all-features = true
+
+[lints]
+workspace = true

@@ -71,7 +71,7 @@ hedge for scale. It should be good, clear, and easy to contribute to.
 |---|---|---|
 | **First-class** (examples, guide pages, tested on hardware) | **ESP32** (original ESP32, S2, S3, C3, C6; `no_std` via esp-hal *and* `std` via ESP-IDF) and **RP2040 / RP2350** (Pico, Pico 2) | The large majority of hobby boards: Adafruit Feather, Seeed XIAO, Arduino Nano ESP32 and Raspberry Pi Pico all use these. |
 | **Supported** (works via the universal SPI technique, community-tested) | nRF52840, SAMD21/51, STM32, **Teensy 4.x** (via `teensy4-rs` / `imxrt-hal`), **Raspberry Pi computers running Linux** (via `linux-embedded-hal`'s spidev SPI), anything with an `embedded-hal` 1.0 SPI bus | Covers the remaining Feather/XIAO variants. The owner's Pi Zero and Pi 3 A+ provide early test hardware for `ledkit-spi`. A Teensy FlexIO backend is a natural later addition. |
-| **Out of scope** | AVR; Teensy 3.x (NXP Kinetis: no maintained Rust HAL, last activity 2019) | See non-goals. |
+| **Out of scope** | AVR; Teensy 3.x (NXP Kinetis: no maintained Rust HAL, last activity 2019); ESP8266 (no maintained Rust HAL; dropped by esp-rs) | See non-goals. |
 
 **LED types (phase 1):**
 
@@ -99,12 +99,33 @@ the RMT peripheral and a pin, so the setup a hobbyist sees is as short as the HA
 
 ## Test hardware
 
-The owner will buy the first-class test boards: a **Raspberry Pi Pico 2**, an **ESP32-S3**
-board (Xtensa), plus the existing **ESP32-C6 DevKit**, a **Teensy 4** (for `ledkit-spi` on
-an Arm Cortex-M7), and a **Raspberry Pi Zero and 3 A+** (for `ledkit-spi` on Linux). They
-expect to already own WS2812B,
-SK6812 RGBW and APA102/SK9822 strips (inventory to be confirmed). Anything not tested on
-real hardware is labeled "untested on hardware" in the docs until someone confirms it.
+| Chip family | Board | Status |
+|---|---|---|
+| ESP32-C6 (RISC-V, newer RMT) | Espressif DevKit | Owned |
+| ESP32-S3 (Xtensa, PSRAM) | Adafruit ESP32-S3 Feather 4 MB + 2 MB PSRAM (#5477) | To buy |
+| Classic ESP32 (older RMT) | Adafruit ESP32 Feather V2 | Optional |
+| RP2350 | Raspberry Pi Pico 2 | To buy |
+| RP2040 (8 PIO strip outputs, 5 V level shifting) | Adafruit Feather RP2040 SCORPIO | To buy |
+| SAMD21 (Cortex-M0+, no FPU) | Adafruit Feather M0 WiFi (#3010) | Owned |
+| STM32F2 (Cortex-M3) | Adafruit WICED WiFi Feather (#3056); flashing via SWD | Owned |
+| i.MX RT1062 (Cortex-M7) | Teensy 4 | Owned |
+| nRF52840 (PWM + EasyDMA reference) | Seeed XIAO nRF52840 or Adafruit Feather nRF52840 Express | Optional |
+| Linux SPI | Raspberry Pi Zero, Pi 3 A+ | Owned |
+| Debug probe | Raspberry Pi Debug Probe (`probe-rs`) | To buy (recommended) |
+
+The owner expects to already own WS2812B, SK6812 RGBW and APA102/SK9822 strips (inventory
+to be confirmed). Anything not tested on real hardware is labeled "untested on hardware" in
+the docs until someone confirms it.
+
+## Notes carried into milestone 2 (from the milestone 1 final review)
+
+- `Strip` should hold a `&'static GammaTable` rather than a 256-byte table by value.
+- Brightness convention: the API sketch above shows `set_brightness(0.3)` (a float), while
+  `ledkit-color` scales with `u8` (0–255). `ledkit-core` must pick one convention for the
+  public API and convert internally.
+- `smart-leds-trait` color conversions live in `ledkit-color` (feature `smart-leds`),
+  because the orphan rule prevents `ledkit-core` from implementing `From` between two
+  foreign types.
 
 ## Key design decision: support techniques, not boards
 

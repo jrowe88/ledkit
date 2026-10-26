@@ -46,3 +46,4 @@ milestone 1 is done.
   - RGBW byte order
   - backfill datasheet citations in `chips.rs`
 - **Constructors:** give backends one-line constructors so a hobbyist's first program stays short.
+- **Power limiter cost:** with a limit set, `show()` runs the pipeline over all pixels about three or more extra times. Measure it on a Cortex-M0 with 300 LEDs. If it matters, process once at full brightness to get per-channel sums, use them to pick a close candidate, then verify only once or twice. (From the milestone 2 code review, item 4.)

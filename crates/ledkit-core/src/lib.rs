@@ -10,6 +10,8 @@
 
 mod chip;
 mod chips;
+pub mod encode;
+mod error;
 mod pixel;
 mod timing;
 
@@ -18,5 +20,6 @@ pub use ledkit_color::{Color, Rgb, Rgbw};
 
 pub use chip::Chip;
 pub use chips::*;
+pub use error::*;
 pub use pixel::{Channel, ChannelOrder, Pixel};
 pub use timing::*;

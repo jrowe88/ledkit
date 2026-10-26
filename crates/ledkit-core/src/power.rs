@@ -56,7 +56,6 @@ pub fn estimate_microamps<P: Pixel>(pixels: &[P], model: PowerModel) -> u32 {
 /// estimated current within `limit`. Returns 0 if even a black strip would
 /// exceed the limit. Uses the largest dither offset so the limit holds on
 /// every dithered frame.
-#[cfg_attr(not(test), expect(dead_code, reason = "used by Strip in Task 8"))]
 pub(crate) fn limited_brightness<P: Pixel>(
     pixels: &[P],
     settings: &PipelineSettings,

@@ -13,9 +13,12 @@ mod chip;
 mod chips;
 pub mod encode;
 mod error;
+mod output;
 pub mod pipeline;
 mod pixel;
 pub mod power;
+mod strip;
+pub mod testing;
 mod timing;
 pub mod wire;
 
@@ -26,6 +29,15 @@ pub use brightness::Brightness;
 pub use chip::Chip;
 pub use chips::*;
 pub use error::*;
+pub use output::{Output, OutputAsync};
 pub use pixel::{Channel, ChannelOrder, Pixel};
 pub use power::{Milliamps, PowerModel};
+pub use strip::Strip;
 pub use timing::*;
+
+/// Everything you usually need, in one import: `use ledkit_core::prelude::*;`.
+pub mod prelude {
+    pub use crate::chips::*;
+    pub use crate::{Brightness, Chip, Color, Milliamps, Output, OutputAsync, Rgb, Rgbw, Strip};
+    pub use ledkit_color::{correction, Hsv, Hue, GAMMA_2_2, GAMMA_2_6};
+}

@@ -20,7 +20,6 @@ use ledkit_color::{GammaTable, Rgb};
 pub const DITHER_SEQUENCE: [u8; 8] = [0, 128, 64, 192, 32, 160, 96, 224];
 
 /// Scales one channel by a brightness level, adding a dither offset.
-#[allow(dead_code)] // first used by Strip in a later task
 pub(crate) const fn scale_channel(value: u8, brightness: u8, dither: u8) -> u8 {
     if brightness == 0 {
         0
@@ -32,7 +31,6 @@ pub(crate) const fn scale_channel(value: u8, brightness: u8, dither: u8) -> u8 {
 }
 
 /// Everything the pipeline needs to process one pixel.
-#[allow(dead_code)] // first used by Strip in a later task
 pub(crate) struct PipelineSettings {
     /// White-balance correction for the R, G and B channels.
     pub correction: Rgb,
@@ -45,7 +43,6 @@ pub(crate) struct PipelineSettings {
 }
 
 /// Runs a pixel through correction, gamma and brightness, in that order.
-#[allow(dead_code)] // first used by Strip in a later task
 pub(crate) fn process<P: Pixel>(pixel: P, s: &PipelineSettings) -> P {
     let rgb = Rgb::new(
         pixel.channel(Channel::Red),

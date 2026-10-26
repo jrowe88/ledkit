@@ -114,7 +114,7 @@
 //!     const NAME: &'static str = "MyLed";
 //!     const ORDER: ChannelOrder = ChannelOrder::GRB;
 //!     const PROTOCOL: Protocol = Protocol::Clockless(ClocklessTiming {
-//!         zero_high: Phase::new(400, 220, 550),
+//!         zero_high: Phase::new(400, 220, 450),
 //!         zero_low: Phase::new(900, 580, 5000),
 //!         one_high: Phase::new(800, 580, 1000),
 //!         one_low: Phase::new(600, 450, 5000),

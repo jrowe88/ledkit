@@ -45,6 +45,7 @@ impl fmt::Display for BitPhase {
 /// assert!(format!("{e}").contains("90"));
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum TimingError {
     /// A pulse would be too short or too long for the chip to accept.
     PhaseOutOfRange {

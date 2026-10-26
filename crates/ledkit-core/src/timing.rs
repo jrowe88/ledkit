@@ -10,9 +10,9 @@
 /// ```
 /// use ledkit_core::Phase;
 ///
-/// let p = Phase::new(400, 220, 550);
+/// let p = Phase::new(400, 220, 450);
 /// assert!(p.contains(400));
-/// assert!(!p.contains(551));
+/// assert!(!p.contains(451));
 /// ```
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct Phase {
@@ -81,6 +81,7 @@ pub struct ClocklessTiming {
 /// assert_eq!(ClockedFormat::Apa102, ClockedFormat::Apa102);
 /// ```
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum ClockedFormat {
     /// The APA102 frame format. Also used by the SK9822.
     Apa102,
@@ -96,6 +97,7 @@ pub enum ClockedFormat {
 /// assert_eq!(Apa102::PROTOCOL, Protocol::Clocked(ClockedFormat::Apa102));
 /// ```
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum Protocol {
     /// One data wire, timing carries the bits (NeoPixels).
     Clockless(ClocklessTiming),

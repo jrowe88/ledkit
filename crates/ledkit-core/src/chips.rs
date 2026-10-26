@@ -91,7 +91,7 @@ clockless_chip!(
 clockless_chip!(
     /// The WS2812B: the chip in most NeoPixel strips, rings and matrices sold today.
     Ws2812b, "WS2812B", Rgb, GRB,
-    [ph(400, 220, 550), ph(900, 580, 5000), ph(800, 580, 1000), ph(600, 450, 5000)], 280
+    [ph(400, 220, 450), ph(900, 580, 5000), ph(800, 580, 1000), ph(600, 450, 5000)], 280
 );
 
 clockless_chip!(
@@ -179,7 +179,7 @@ mod tests {
             (t.zero_high.typical_ns, t.one_high.typical_ns, t.reset_us),
             (400, 800, 280)
         );
-        assert!(t.zero_high.contains(550) && !t.zero_high.contains(551));
+        assert!(t.zero_high.contains(450) && !t.zero_high.contains(451));
     }
 
     #[test]

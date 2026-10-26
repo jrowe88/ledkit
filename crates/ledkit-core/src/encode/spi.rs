@@ -305,7 +305,7 @@ mod tests {
             Err(TimingError::SpiClockUnusable {
                 spi_hz: 1_000_000,
                 nearest_lower_hz: None,
-                nearest_higher_hz: Some(2_000_000)
+                nearest_higher_hz: Some(2_300_000)
             })
         );
     }

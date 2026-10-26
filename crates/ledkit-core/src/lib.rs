@@ -14,6 +14,7 @@ pub mod encode;
 mod error;
 mod pixel;
 mod timing;
+pub mod wire;
 
 pub use ledkit_color as color;
 pub use ledkit_color::{Color, Rgb, Rgbw};

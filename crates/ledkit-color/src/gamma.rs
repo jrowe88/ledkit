@@ -58,8 +58,11 @@ impl GammaTable {
     /// correction (dim levels get dimmer).
     ///
     /// This is a `const fn`, so put it in a `const` and the table is made at
-    /// compile time. Keep the numbers small (like 13 and 5), and don't use 0
-    /// for the denominator.
+    /// compile time. Keep the numbers small (like 13 and 5).
+    ///
+    /// # Panics
+    ///
+    /// Panics if `denominator` is 0 (at compile time, if used in a `const`).
     ///
     /// ```
     /// use ledkit_color::GammaTable;
@@ -70,6 +73,7 @@ impl GammaTable {
     /// ```
     #[allow(clippy::cast_possible_truncation)] // x and y are at most 255
     pub const fn new(numerator: u32, denominator: u32) -> Self {
+        assert!(denominator > 0);
         let mut table = [0u8; 256];
         let mut y: u32 = 0;
         let mut x: u32 = 0;
@@ -111,7 +115,7 @@ impl GammaTable {
     }
 }
 
-/// Gamma 2.6, the exponent Adafruit and `FastLED` use. A good default for LEDs.
+/// Gamma 2.6, the exponent Adafruit's NeoPixel library uses. A good default for LEDs.
 pub const GAMMA_2_6: GammaTable = GammaTable::new(13, 5);
 
 /// Gamma 2.2, the exponent of typical screens. Gentler than [`GAMMA_2_6`].

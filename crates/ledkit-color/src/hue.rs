@@ -91,7 +91,11 @@ impl Hue {
     /// Makes a hue from degrees around the color wheel.
     ///
     /// Any value works: 360 is the same as 0, and negative values count
-    /// backwards, so -60 is the same as 300.
+    /// backwards, so -60 is the same as 300. NaN and infinity give
+    /// [`Hue::RED`].
+    ///
+    /// This uses floating point on every call, so on chips without a
+    /// floating-point unit call it once and reuse the result.
     ///
     /// ```
     /// use ledkit_color::Hue;
@@ -102,7 +106,11 @@ impl Hue {
     }
 
     /// Makes a hue from a fraction of a turn: 0.0 to 1.0 is a full turn, and
-    /// larger or negative values wrap around.
+    /// larger or negative values wrap around. NaN and infinity give
+    /// [`Hue::RED`].
+    ///
+    /// This uses floating point on every call, so on chips without a
+    /// floating-point unit call it once and reuse the result.
     ///
     /// ```
     /// use ledkit_color::Hue;
@@ -201,6 +209,12 @@ mod tests {
         assert_eq!(Hue::from_degrees(-60.0), Hue::from_degrees(300.0));
         assert_eq!(Hue::from_degrees(780.0), Hue::from_degrees(60.0));
         assert_eq!(Hue::from_degrees(-1e-7), Hue::RED);
+    }
+    #[test]
+    fn non_finite_gives_red() {
+        assert_eq!(Hue::from_degrees(f32::NAN), Hue::RED);
+        assert_eq!(Hue::from_degrees(f32::INFINITY), Hue::RED);
+        assert_eq!(Hue::from_fraction(f32::NEG_INFINITY), Hue::RED);
     }
     #[test]
     fn fraction_wraps() {

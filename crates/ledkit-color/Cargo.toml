@@ -15,8 +15,14 @@ authors.workspace = true
 libm = "0.2"
 rgb = { version = "0.8", optional = true, default-features = false }
 
+smart-leds-trait = { version = "0.3", optional = true, default-features = false }
+
 [features]
 rgb = ["dep:rgb"]
+smart-leds = ["dep:smart-leds-trait", "rgb"]
+
+[package.metadata.docs.rs]
+all-features = true
 
 [lints]
 workspace = true

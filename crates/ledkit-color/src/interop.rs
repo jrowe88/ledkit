@@ -1,9 +1,12 @@
 //! Conversions to and from the `rgb` crate's pixel types (feature `rgb`).
 //!
 //! `smart-leds-trait` drivers take `rgb::RGB8`, so with these conversions a
-//! ledkit [`Rgb`] can be handed straight to them.
+//! ledkit [`Rgb`] can be handed straight to them. The `smart-leds` feature
+//! adds the same conversions for `smart-leds-trait`'s RGBW type.
 
-use crate::{Rgb, Rgbw};
+use crate::Rgb;
+#[cfg(feature = "smart-leds")]
+use crate::Rgbw;
 
 /// Converts an `rgb` crate color into a ledkit color.
 impl From<rgb::RGB8> for Rgb {
@@ -20,22 +23,25 @@ impl From<Rgb> for rgb::RGB8 {
     }
 }
 
-/// Converts an `rgb` crate color with alpha into an RGBW color. The alpha
-/// channel becomes the white channel.
-///
-/// `smart-leds-trait` has its own RGBW type; interop with it arrives in
-/// `ledkit-core` (milestone 2).
-impl From<rgb::RGBA8> for Rgbw {
-    fn from(color: rgb::RGBA8) -> Self {
-        Self::new(color.r, color.g, color.b, color.a)
+/// Converts a `smart-leds-trait` RGBW color into a ledkit [`Rgbw`].
+#[cfg(feature = "smart-leds")]
+impl From<smart_leds_trait::RGBW<u8>> for Rgbw {
+    fn from(color: smart_leds_trait::RGBW<u8>) -> Self {
+        Self::new(color.r, color.g, color.b, color.a.0)
     }
 }
 
-/// Converts an RGBW color into an `rgb` crate color with alpha. The white
-/// channel becomes the alpha channel.
-impl From<Rgbw> for rgb::RGBA8 {
+/// Converts a ledkit [`Rgbw`] into a `smart-leds-trait` RGBW color, ready for
+/// any RGBW driver.
+#[cfg(feature = "smart-leds")]
+impl From<Rgbw> for smart_leds_trait::RGBW<u8> {
     fn from(color: Rgbw) -> Self {
-        Self::new(color.r, color.g, color.b, color.w)
+        Self {
+            r: color.r,
+            g: color.g,
+            b: color.b,
+            a: smart_leds_trait::White(color.w),
+        }
     }
 }
 
@@ -51,11 +57,12 @@ mod tests {
         assert_eq!(Rgb::from(theirs), c);
     }
 
+    #[cfg(feature = "smart-leds")]
     #[test]
-    fn rgba8_alpha_is_white() {
-        assert_eq!(
-            Rgbw::from(rgb::RGBA8::new(1, 2, 3, 4)),
-            Rgbw::new(1, 2, 3, 4)
-        );
+    fn round_trips_smart_leds_rgbw() {
+        let c = Rgbw::new(1, 2, 3, 4);
+        let theirs: smart_leds_trait::RGBW<u8> = c.into();
+        assert_eq!((theirs.r, theirs.g, theirs.b, theirs.a.0), (1, 2, 3, 4));
+        assert_eq!(Rgbw::from(theirs), c);
     }
 }

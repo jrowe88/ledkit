@@ -16,7 +16,7 @@
 //! let dim_red = red.scale(64);
 //!
 //! // A fully saturated color from a position on the color wheel.
-//! let sky = Rgb::from_hue(Hue::BLUE);
+//! let blue = Rgb::from_hue(Hue::BLUE);
 //!
 //! // Gamma correction makes mid-level colors look right to your eyes.
 //! let corrected = GAMMA_2_6.apply_rgb(Rgb::new(128, 64, 32));
@@ -31,37 +31,42 @@
 //!     *pixel = Palette::RAINBOW.color_at(position);
 //! }
 //! assert_eq!(strip[0], Palette::RAINBOW.color_at(0));
-//! # let _ = (dim_red, sky, corrected, candle);
+//! # let _ = (dim_red, blue, corrected, candle);
 //! ```
 //!
 //! ## Why integer math?
 //!
 //! Small chips such as the Cortex-M0+ and many RISC-V parts have no floating-point
-//! unit, so float math is slow there. Every per-pixel operation in this crate
-//! uses integers only. Floating point appears just where a value is computed once,
-//! such as building a gamma table.
+//! unit, so float math is slow there. Per-pixel operations (`scale`, `lerp`,
+//! `from_hue`, gamma `apply` and `color_at`) use integers only, and gamma tables
+//! are computed at compile time. `Hue::from_degrees`, `Hue::from_fraction` and
+//! `Rgb::from_kelvin` use floating point on every call, so on chips without a
+//! floating-point unit compute them once and reuse the result. In per-pixel code,
+//! use `Hue(u16)` and `Hue::shifted` instead.
 //!
 //! ## Features
 //!
 //! - `rgb`: conversions to and from the [`rgb`](https://crates.io/crates/rgb)
-//!   crate's `RGB8` and `RGBA8` types, so ledkit colors work directly with
+//!   crate's `RGB8` type, so ledkit colors work directly with
 //!   `smart-leds-trait` drivers.
+//! - `smart-leds`: also converts between [`Rgbw`] and `smart-leds-trait`'s RGBW
+//!   type (implies `rgb`).
 //!
 #![cfg_attr(not(test), no_std)]
 
+mod channels;
 mod gamma;
 mod gradient;
 mod hue;
 #[cfg(feature = "rgb")]
 mod interop;
 mod named;
-mod rgb;
 mod temperature;
 
+pub use channels::{Rgb, Rgbw};
 pub use gamma::{GammaTable, GAMMA_2_2, GAMMA_2_6};
 pub use gradient::{Gradient, Palette};
 pub use hue::{Hsv, Hue};
-pub use rgb::{Rgb, Rgbw};
 pub use temperature::correction;
 
 /// A friendlier name for [`Rgb`], so you can write `Color::BLUE`.

@@ -1,6 +1,6 @@
 //! Color temperature (warm to cool white) and white-balance correction.
 
-use crate::rgb::scale_channel;
+use crate::channels::scale_channel;
 use crate::Rgb;
 
 /// Turns a float into a channel value: clamped to 0-255 and rounded.
@@ -68,6 +68,22 @@ impl Rgb {
 }
 
 /// Ready-made white-balance corrections for [`Rgb::corrected`].
+///
+/// A correction is just a color that says how much of each channel to keep.
+/// Use [`TYPICAL_LED_STRIP`](correction::TYPICAL_LED_STRIP) to fix the green tint of most strips, or pass a
+/// Kelvin color to match a color temperature.
+///
+/// ```
+/// use ledkit_color::{correction, Rgb};
+///
+/// // Typical WS2812-type strips look too green; this evens them out.
+/// let white = Rgb::WHITE.corrected(correction::TYPICAL_LED_STRIP);
+/// assert_eq!(white, correction::TYPICAL_LED_STRIP);
+///
+/// // A Kelvin color works as a color-temperature correction.
+/// let warm = Rgb::new(200, 200, 200).corrected(Rgb::from_kelvin(3000));
+/// assert!(warm.r > warm.b);
+/// ```
 pub mod correction {
     use crate::Rgb;
 

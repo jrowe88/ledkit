@@ -15,6 +15,7 @@ pub mod encode;
 mod error;
 pub mod pipeline;
 mod pixel;
+pub mod power;
 mod timing;
 pub mod wire;
 
@@ -26,4 +27,5 @@ pub use chip::Chip;
 pub use chips::*;
 pub use error::*;
 pub use pixel::{Channel, ChannelOrder, Pixel};
+pub use power::{Milliamps, PowerModel};
 pub use timing::*;

@@ -422,6 +422,60 @@ mod tests {
         assert!(out[117..].iter().all(|&b| b == 0xAA));
     }
 
+    /// Reads bit `pos` of `out`, most significant bit first.
+    fn bit(out: &[u8], pos: usize) -> bool {
+        out[pos / 8] & (0x80 >> (pos % 8)) != 0
+    }
+
+    #[test]
+    fn every_pattern_length_encodes_odd_length_data() {
+        let cases: [(SpiEncoding, u8); 6] = [
+            (enc::<Ws2813>(2_400_000).unwrap(), 3),
+            (enc::<Ws2812b>(3_200_000).unwrap(), 4),
+            (enc::<Ws2812b>(4_000_000).unwrap(), 5),
+            (enc::<Ws2812b>(4_500_000).unwrap(), 6),
+            (enc::<Ws2812b>(4_800_000).unwrap(), 7),
+            (enc::<Ws2812b>(6_400_000).unwrap(), 8),
+        ];
+        let data = [0xA5u8, 0x3C, 0xFF, 0x00, 0x81];
+        for (e, n) in cases {
+            assert_eq!(e.bits_per_led_bit, n);
+            for len in [1, 3, 5] {
+                let wire = &data[..len];
+                let mut out = [0xAAu8; 400];
+                let used = e.encode(wire.iter().copied(), &mut out).unwrap();
+                assert_eq!(used, e.buffer_len(len), "n {n} len {len}");
+                assert_eq!(out[0], 0, "lead-in byte, n {n}");
+                // Each LED bit is `ones` high SPI bits, then low ones.
+                let mut pos = 8;
+                for &byte in wire {
+                    for i in (0..8).rev() {
+                        let ones = if (byte >> i) & 1 == 1 {
+                            e.one_high_bits
+                        } else {
+                            e.zero_high_bits
+                        };
+                        for j in 0..n {
+                            assert_eq!(bit(&out, pos), j < ones, "n {n} len {len} pos {pos}");
+                            pos += 1;
+                        }
+                    }
+                }
+                // 8 * n SPI bits per data byte always fill whole bytes, so
+                // the data ends on a byte boundary; everything after it
+                // (the reset bytes) must be zero, up to the returned length.
+                assert_eq!(pos % 8, 0);
+                let data_end = pos / 8;
+                assert_eq!(used - data_end, e.reset_bytes as usize);
+                assert!(
+                    out[data_end..used].iter().all(|&b| b == 0),
+                    "n {n} len {len}"
+                );
+                assert!(out[used..].iter().all(|&b| b == 0xAA), "n {n} len {len}");
+            }
+        }
+    }
+
     #[test]
     fn small_buffer_is_an_error() {
         let e = enc::<Ws2812b>(3_200_000).unwrap();

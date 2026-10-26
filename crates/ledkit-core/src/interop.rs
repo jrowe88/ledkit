@@ -128,9 +128,9 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Rgb, Rgbw, Sk6812Rgbw, Strip, Ws2812b};
+    use crate::{Brightness, Rgb, Rgbw, Sk6812Rgbw, Strip, Ws2812b};
     use core::convert::Infallible;
-    use smart_leds_trait::{SmartLedsWrite, RGB8, RGBW};
+    use smart_leds_trait::{SmartLedsWrite, SmartLedsWriteAsync, RGB8, RGBW};
     use std::vec::Vec;
 
     #[derive(Default)]
@@ -167,6 +167,40 @@ mod tests {
             self.received = iterator.into_iter().map(Into::into).collect();
             Ok(())
         }
+    }
+
+    #[derive(Default)]
+    struct FakeAsyncDriver {
+        received: Vec<RGB8>,
+    }
+
+    impl SmartLedsWriteAsync for FakeAsyncDriver {
+        type Error = Infallible;
+        type Color = RGB8;
+        #[allow(clippy::unused_async_trait_impl)] // the trait requires an async fn; a fake has nothing to wait for
+        async fn write<T, I>(&mut self, iterator: T) -> Result<(), Infallible>
+        where
+            T: IntoIterator<Item = I>,
+            I: Into<RGB8>,
+        {
+            self.received = iterator.into_iter().map(Into::into).collect();
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn strip_drives_an_async_smart_leds_driver() {
+        let mut s: Strip<Ws2812b, 2, SmartLedsOutput<FakeAsyncDriver>> =
+            Strip::new(SmartLedsOutput(FakeAsyncDriver::default()));
+        s.set(1, Rgb::new(7, 8, 9));
+        s.set_brightness(Brightness::exact(128));
+        s.set_dithering(false);
+        embassy_futures::block_on(s.show_async()).unwrap();
+        // (v * 129 + 128) >> 8 for 7, 8, 9.
+        assert_eq!(
+            s.output().0.received,
+            [RGB8::new(0, 0, 0), RGB8::new(4, 4, 5)]
+        );
     }
 
     #[test]

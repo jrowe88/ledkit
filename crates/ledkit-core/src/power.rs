@@ -207,8 +207,8 @@ mod tests {
     #[test]
     fn never_exceeds_limit_and_is_the_largest_that_fits() {
         let gammas: [Option<&'static GammaTable>; 2] = [None, Some(&GAMMA_2_6)];
-        let rgb_colors = [Rgb::WHITE, Rgb::RED, Rgb::new(10, 200, 90)];
-        let rgbw_colors = [
+        let colors_rgb = [Rgb::WHITE, Rgb::RED, Rgb::new(10, 200, 90)];
+        let colors_rgbw = [
             Rgbw::new(255, 255, 255, 255),
             Rgbw::new(0, 0, 0, 255),
             Rgbw::new(10, 200, 90, 40),
@@ -216,10 +216,10 @@ mod tests {
         for limit in [50, 100, 250, 333, 499, 777] {
             for requested in [255, 200, 128, 30] {
                 for gamma in gammas {
-                    for color in rgb_colors {
+                    for color in colors_rgb {
                         check_limit(&[color; 24], requested, gamma, limit);
                     }
-                    for color in rgbw_colors {
+                    for color in colors_rgbw {
                         check_limit(&[color; 24], requested, gamma, limit);
                     }
                 }

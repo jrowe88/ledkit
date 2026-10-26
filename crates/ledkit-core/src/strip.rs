@@ -207,8 +207,12 @@ impl<C: Chip, const N: usize, O> Strip<C, N, O> {
 
     /// The brightness the last `show` really used, after power limiting.
     ///
-    /// Before the first `show` this is the brightness you set. It is always
-    /// an exact output level.
+    /// It reflects the last `show`: it is updated each time you call `show`
+    /// (or `show_async`), so changing the colors, brightness or power limit
+    /// afterwards does not change it until the next `show`. Before the first
+    /// `show` it is the brightness you set. It is always an exact output
+    /// level ([`Brightness::exact`]), so compare it with another exact value
+    /// or use [`Brightness::output_level`].
     #[must_use]
     pub fn effective_brightness(&self) -> Brightness {
         Brightness::exact(
@@ -318,6 +322,58 @@ mod tests {
         s.fill(Rgb::BLUE);
         s.clear();
         assert!(s.pixels().iter().all(|p| *p == Rgb::BLACK));
+    }
+    #[test]
+    #[allow(clippy::reversed_empty_ranges)] // the backwards range is the point of the test
+    fn fill_range_edge_cases_never_panic() {
+        let mut s = strip::<4>();
+        s.fill_range(..=usize::MAX, Rgb::RED);
+        assert_eq!(s.pixels(), &[Rgb::RED; 4]);
+
+        s.clear();
+        s.fill_range((Bound::Excluded(usize::MAX), Bound::Unbounded), Rgb::RED);
+        assert_eq!(s.pixels(), &[Rgb::BLACK; 4]);
+
+        s.fill_range(3..1, Rgb::RED);
+        assert_eq!(s.pixels(), &[Rgb::BLACK; 4]);
+
+        s.fill_range(10..20, Rgb::RED);
+        assert_eq!(s.pixels(), &[Rgb::BLACK; 4]);
+
+        s.fill_range((Bound::Excluded(0), Bound::Included(2)), Rgb::BLUE);
+        assert_eq!(s.pixels(), &[Rgb::BLACK, Rgb::BLUE, Rgb::BLUE, Rgb::BLACK]);
+
+        s.fill_range(3..=3, Rgb::GREEN);
+        assert_eq!(s.pixels(), &[Rgb::BLACK, Rgb::BLUE, Rgb::BLUE, Rgb::GREEN]);
+    }
+    #[test]
+    fn many_shows_keep_the_dither_phase() {
+        let mut s = strip::<1>();
+        s.set(0, Rgb::new(200, 0, 0));
+        s.set_brightness(Brightness::exact(128));
+        for _ in 0..300 {
+            s.show().unwrap();
+        }
+        // The 300th show was frame 299: 299 % 8 = 3, offset 192, red 101.
+        assert_eq!(s.output().last_frame()[0].r, 101);
+        // The next one is frame 300: 300 % 8 = 4, DITHER_SEQUENCE[4] = 32, red 100.
+        assert_eq!(DITHER_SEQUENCE[4], 32);
+        s.show().unwrap();
+        assert_eq!(s.output().last_frame()[0].r, 100);
+        assert_eq!(s.output().frames_written, 301);
+    }
+    #[test]
+    fn effective_brightness_reflects_the_last_show() {
+        let mut s = strip::<10>();
+        s.fill(Rgb::WHITE);
+        s.set_power_limit(Milliamps(300));
+        s.set_dithering(false);
+        s.show().unwrap();
+        assert_eq!(s.effective_brightness(), Brightness::exact(122));
+        s.clear_power_limit();
+        assert_eq!(s.effective_brightness(), Brightness::exact(122));
+        s.show().unwrap();
+        assert_eq!(s.effective_brightness(), Brightness::exact(255));
     }
     #[test]
     fn show_sends_processed_pixels_without_changing_stored_ones() {

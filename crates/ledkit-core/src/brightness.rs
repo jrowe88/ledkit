@@ -14,6 +14,13 @@ use ledkit_color::GAMMA_2_2;
 /// you give it straight to the LEDs with no curve applied, so `exact(128)` is
 /// half of full power, which looks much brighter than "half".
 ///
+/// Two brightnesses are equal only if they were made the same way: the
+/// perceived [`Brightness::FULL`] and `Brightness::exact(255)` both send 255
+/// to the LEDs, but `Brightness::exact(255) != Brightness::FULL`. To compare
+/// what the LEDs actually get, compare [`output_level`](Brightness::output_level).
+/// [`Strip::effective_brightness`](crate::Strip::effective_brightness) is
+/// always an exact brightness.
+///
 /// # Example
 ///
 /// ```
@@ -23,6 +30,10 @@ use ledkit_color::GAMMA_2_2;
 /// assert_eq!(Brightness::from_fraction(0.5).output_level(), 56);
 /// // Exactly 128 out of 255, no curve.
 /// assert_eq!(Brightness::exact(128).output_level(), 128);
+///
+/// // Same output level, made differently, so not equal.
+/// assert_ne!(Brightness::exact(255), Brightness::FULL);
+/// assert_eq!(Brightness::exact(255).output_level(), Brightness::FULL.output_level());
 /// ```
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct Brightness {
@@ -139,6 +150,15 @@ mod tests {
     #[test]
     fn float_literal_into_brightness() {
         let _: Brightness = 0.5.into();
+    }
+    #[test]
+    fn equality_compares_how_it_was_made() {
+        assert_ne!(Brightness::exact(255), Brightness::FULL);
+        assert_ne!(Brightness::exact(0), Brightness::OFF);
+        assert_eq!(
+            Brightness::exact(255).output_level(),
+            Brightness::FULL.output_level()
+        );
     }
     #[test]
     fn exact_brightness_has_no_curve() {

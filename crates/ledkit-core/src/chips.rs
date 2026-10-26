@@ -11,12 +11,12 @@
 //! | "WS2815", 12 V strip | [`Ws2815`] |
 //! | "WS2811", 12 V pixel strings or bullet lights | [`Ws2811`] |
 //! | "WS2811" at 400 kHz (very old strings) | [`Ws2811Slow`] |
-//! | "SK6812", "SK6812 Mini", "SK6805" | [`Sk6812`] |
+//! | "SK6812", "SK6812 Mini", "SK6805" | [`Sk6812`] (aliases [`Sk6812Mini`], [`Sk6805`]) |
 //! | "SK6812 RGBW", RGBW NeoPixel | [`Sk6812Rgbw`] |
 //! | "APA106", 8 mm through-hole pixels | [`Apa106`] |
 //! | "DotStar", "APA102", "APA102C" | [`Apa102`] |
 //! | "SK9822" (APA102 clone) | [`Sk9822`] |
-//! | SparkFun "LuMini" | [`Apa102_2020`] |
+//! | SparkFun LuMini | [`Apa102_2020`] (alias of [`Apa102`]) |
 
 use crate::{ChannelOrder, Chip, ClockedFormat, ClocklessTiming, Phase, Protocol, Rgb, Rgbw};
 
@@ -154,7 +154,7 @@ clocked_chip!(
 /// The SK6812 Mini, found in compact NeoPixel-style boards. Same as [`Sk6812`].
 pub type Sk6812Mini = Sk6812;
 
-/// The SK6805, a tiny 2020-size NeoPixel-style LED. Same as [`Sk6812`].
+/// The SK6805, a very small NeoPixel-style LED. Same as [`Sk6812`].
 pub type Sk6805 = Sk6812;
 
 /// The tiny APA102-2020 LEDs on the SparkFun LuMini. Same as [`Apa102`].
@@ -227,6 +227,94 @@ mod tests {
                 assert!(p.contains(p.typical_ns), "{p:?}");
             }
         }
+    }
+
+    /// One row of the catalogue table: `(typical, min, max)` per phase.
+    type Row = (
+        &'static str,
+        ClocklessTiming,
+        ChannelOrder,
+        usize,
+        [(u32, u32, u32); 4],
+        u32,
+    );
+
+    fn row<C: Chip>(phases: [(u32, u32, u32); 4], reset_us: u32) -> Row {
+        (
+            C::NAME,
+            clockless::<C>(),
+            C::ORDER,
+            <C::Pixel as Pixel>::CHANNELS,
+            phases,
+            reset_us,
+        )
+    }
+
+    #[test]
+    fn clockless_catalogue_matches_the_table() {
+        use ChannelOrder as O;
+        let ws2813 = [
+            (375, 300, 450),
+            (875, 300, 5000),
+            (875, 750, 1000),
+            (375, 300, 5000),
+        ];
+        let sk6812 = [
+            (300, 150, 450),
+            (900, 750, 5000),
+            (600, 450, 750),
+            (600, 450, 5000),
+        ];
+        #[rustfmt::skip]
+        let table: [(Row, ChannelOrder, usize); 9] = [
+            (row::<Ws2812>([(350, 200, 500), (800, 650, 5000), (700, 550, 850), (600, 450, 5000)], 50), O::GRB, 3),
+            (row::<Ws2812b>([(400, 220, 450), (900, 580, 5000), (800, 580, 1000), (600, 450, 5000)], 280), O::GRB, 3),
+            (row::<Ws2813>(ws2813, 300), O::GRB, 3),
+            (row::<Ws2815>(ws2813, 300), O::GRB, 3),
+            (row::<Ws2811>([(250, 100, 400), (1000, 850, 5000), (600, 450, 750), (650, 500, 5000)], 280), O::RGB, 3),
+            (row::<Ws2811Slow>([(500, 350, 650), (2000, 1850, 10000), (1200, 1050, 1350), (1300, 1150, 10000)], 280), O::RGB, 3),
+            (row::<Sk6812>(sk6812, 80), O::GRB, 3),
+            (row::<Sk6812Rgbw>(sk6812, 80), O::GRBW, 4),
+            (row::<Apa106>([(350, 200, 500), (1360, 1210, 5000), (1360, 1210, 1510), (350, 200, 5000)], 50), O::RGB, 3),
+        ];
+        for ((name, t, order, channels, phases, reset_us), want_order, want_channels) in table {
+            let got = [t.zero_high, t.zero_low, t.one_high, t.one_low]
+                .map(|p| (p.typical_ns, p.min_ns, p.max_ns));
+            assert_eq!(got, phases, "{name} phases");
+            assert_eq!(t.reset_us, reset_us, "{name} reset");
+            assert_eq!(order, want_order, "{name} order");
+            assert_eq!(channels, want_channels, "{name} pixel channels");
+            assert_eq!(order.len(), channels, "{name} order length");
+        }
+    }
+
+    #[test]
+    fn clocked_catalogue_matches_the_table() {
+        for (name, protocol, order, channels) in [
+            (
+                Apa102::NAME,
+                Apa102::PROTOCOL,
+                Apa102::ORDER,
+                <Apa102 as Chip>::Pixel::CHANNELS,
+            ),
+            (
+                Sk9822::NAME,
+                Sk9822::PROTOCOL,
+                Sk9822::ORDER,
+                <Sk9822 as Chip>::Pixel::CHANNELS,
+            ),
+        ] {
+            assert_eq!(protocol, Protocol::Clocked(ClockedFormat::Apa102), "{name}");
+            assert_eq!(order, ChannelOrder::BGR, "{name}");
+            assert_eq!(channels, 3, "{name}");
+        }
+    }
+
+    #[test]
+    fn phase_window_includes_both_edges_only() {
+        let p = Phase::new(400, 220, 450);
+        assert!(p.contains(220) && p.contains(450));
+        assert!(!p.contains(219) && !p.contains(451));
     }
 
     #[test]

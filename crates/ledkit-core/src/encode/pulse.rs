@@ -35,9 +35,54 @@ pub struct PulseTicks {
 }
 
 /// Converts nanoseconds to the nearest whole number of ticks.
-fn ns_to_ticks(ns: u64, ticks_per_second: u32) -> u64 {
-    let ticks = (u128::from(ns) * u128::from(ticks_per_second) + 500_000_000) / 1_000_000_000;
-    u64::try_from(ticks).unwrap_or(u64::MAX)
+const fn ns_to_ticks(ns: u64, ticks_per_second: u32) -> u64 {
+    let ticks = (ns as u128 * ticks_per_second as u128 + 500_000_000) / 1_000_000_000;
+    if ticks > u64::MAX as u128 {
+        u64::MAX
+    } else {
+        ticks as u64
+    }
+}
+
+/// Clamps a `u64` into a `u32`, saturating at `u32::MAX`.
+const fn saturate_u32(value: u64) -> u32 {
+    if value > u32::MAX as u64 {
+        u32::MAX
+    } else {
+        value as u32
+    }
+}
+
+/// Ticks for one pulse, checked against its window and the tick limit.
+const fn phase_ticks(
+    p: Phase,
+    which: BitPhase,
+    ticks_per_second: u32,
+    max_ticks: u32,
+) -> Result<u32, TimingError> {
+    let ticks = ns_to_ticks(p.typical_ns as u64, ticks_per_second);
+    // A zero-tick phase (including a zero clock rate) is never valid;
+    // return before dividing by `ticks_per_second`.
+    let actual_ns = if ticks == 0 {
+        0
+    } else {
+        saturate_u32(ticks * 1_000_000_000 / ticks_per_second as u64)
+    };
+    if ticks == 0 || !p.contains(actual_ns) {
+        return Err(TimingError::PhaseOutOfRange {
+            phase: which,
+            actual_ns,
+            min_ns: p.min_ns,
+            max_ns: p.max_ns,
+        });
+    }
+    if ticks > max_ticks as u64 {
+        return Err(TimingError::TooManyTicks {
+            ticks: saturate_u32(ticks),
+            max_ticks,
+        });
+    }
+    Ok(saturate_u32(ticks))
 }
 
 impl ClocklessTiming {
@@ -76,6 +121,8 @@ impl ClocklessTiming {
     /// Returns a [`TimingError`] if the clock is too slow, too fast or
     /// too coarse for this chip.
     ///
+    /// This is a `const fn`, so it also works at compile time.
+    ///
     /// # Example
     ///
     /// ```
@@ -85,48 +132,50 @@ impl ClocklessTiming {
     /// assert!(t.pulse_ticks(10_000_000, 32_767).is_ok());
     /// assert!(t.pulse_ticks(1_000_000, 32_767).is_err());
     /// ```
-    pub fn pulse_ticks(
+    pub const fn pulse_ticks(
         &self,
         ticks_per_second: u32,
         max_ticks: u32,
     ) -> Result<PulseTicks, TimingError> {
-        let phase = |p: Phase, which: BitPhase| -> Result<u32, TimingError> {
-            let ticks = ns_to_ticks(u64::from(p.typical_ns), ticks_per_second);
-            // A zero-tick phase (including a zero clock rate) is never valid;
-            // return before dividing by `ticks_per_second`.
-            let actual_ns = if ticks == 0 {
-                0
-            } else {
-                let actual = ticks * 1_000_000_000 / u64::from(ticks_per_second);
-                u32::try_from(actual).unwrap_or(u32::MAX)
-            };
-            if ticks == 0 || !p.contains(actual_ns) {
-                return Err(TimingError::PhaseOutOfRange {
-                    phase: which,
-                    actual_ns,
-                    min_ns: p.min_ns,
-                    max_ns: p.max_ns,
-                });
-            }
-            match u32::try_from(ticks) {
-                Ok(t) if t <= max_ticks => Ok(t),
-                _ => Err(TimingError::TooManyTicks {
-                    ticks: u32::try_from(ticks).unwrap_or(u32::MAX),
-                    max_ticks,
-                }),
-            }
+        let zero_high = match phase_ticks(
+            self.zero_high,
+            BitPhase::ZeroHigh,
+            ticks_per_second,
+            max_ticks,
+        ) {
+            Ok(t) => t,
+            Err(e) => return Err(e),
         };
-        let zero_high = phase(self.zero_high, BitPhase::ZeroHigh)?;
-        let zero_low = phase(self.zero_low, BitPhase::ZeroLow)?;
-        let one_high = phase(self.one_high, BitPhase::OneHigh)?;
-        let one_low = phase(self.one_low, BitPhase::OneLow)?;
-        let reset = ns_to_ticks(u64::from(self.reset_us) * 1000, ticks_per_second);
+        let zero_low = match phase_ticks(
+            self.zero_low,
+            BitPhase::ZeroLow,
+            ticks_per_second,
+            max_ticks,
+        ) {
+            Ok(t) => t,
+            Err(e) => return Err(e),
+        };
+        let one_high = match phase_ticks(
+            self.one_high,
+            BitPhase::OneHigh,
+            ticks_per_second,
+            max_ticks,
+        ) {
+            Ok(t) => t,
+            Err(e) => return Err(e),
+        };
+        let one_low = match phase_ticks(self.one_low, BitPhase::OneLow, ticks_per_second, max_ticks)
+        {
+            Ok(t) => t,
+            Err(e) => return Err(e),
+        };
+        let reset = ns_to_ticks(self.reset_us as u64 * 1000, ticks_per_second);
         Ok(PulseTicks {
             zero_high,
             zero_low,
             one_high,
             one_low,
-            reset: u32::try_from(reset).unwrap_or(u32::MAX),
+            reset: saturate_u32(reset),
         })
     }
 }
@@ -204,6 +253,16 @@ mod tests {
         t.reset_us = u32::MAX;
         let p = t.pulse_ticks(u32::MAX, u32::MAX).unwrap();
         assert_eq!(p.reset, u32::MAX);
+    }
+    #[test]
+    fn works_at_compile_time() {
+        const TICKS: Result<PulseTicks, TimingError> =
+            ClocklessTiming::of::<Ws2812b>().pulse_ticks(10_000_000, 32_767);
+        assert_eq!(
+            TICKS,
+            ClocklessTiming::of::<Ws2812b>().pulse_ticks(10_000_000, 32_767)
+        );
+        assert!(TICKS.is_ok());
     }
     #[test]
     fn spi_message_with_both_neighbours() {

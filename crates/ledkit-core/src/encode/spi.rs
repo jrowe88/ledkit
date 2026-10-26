@@ -22,6 +22,27 @@ use crate::{BufferTooSmall, ClocklessTiming, Phase, TimingError};
 /// assert_eq!(used, 117);
 /// assert_eq!(&out[..5], &[0x00, 0xC8, 0xC8, 0x88, 0x88]);
 /// ```
+///
+/// # Sizing a buffer at compile time
+///
+/// [`ClocklessTiming::spi_encoding`] and [`buffer_len`](Self::buffer_len)
+/// are `const fn`s, so the buffer for a fixed strip and SPI clock can be an
+/// ordinary array whose size is worked out when your program is compiled. A
+/// clock that can't work stops the build instead of failing on the device.
+///
+/// ```
+/// use ledkit_core::{ClocklessTiming, Ws2812b};
+///
+/// const LED_COUNT: usize = 30;
+/// const SPI_BUFFER_LEN: usize =
+///     match ClocklessTiming::of::<Ws2812b>().spi_encoding(3_200_000) {
+///         Ok(encoding) => encoding.buffer_len(LED_COUNT * 3), // 3 bytes per RGB LED
+///         Err(_) => panic!("this SPI clock can't drive a WS2812B"),
+///     };
+///
+/// let spi_buffer = [0u8; SPI_BUFFER_LEN];
+/// assert_eq!(spi_buffer.len(), 473);
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SpiEncoding {
     /// How many SPI bits are used to send one LED bit.
@@ -35,15 +56,20 @@ pub struct SpiEncoding {
 }
 
 /// Whether `k` SPI bits last between the phase's minimum and maximum, exactly.
-fn window_ok(phase: Phase, k: u64, spi_hz: u64) -> bool {
+const fn window_ok(phase: Phase, k: u64, spi_hz: u64) -> bool {
     let t = k * 1_000_000_000;
-    u64::from(phase.min_ns) * spi_hz <= t && t <= u64::from(phase.max_ns) * spi_hz
+    phase.min_ns as u64 * spi_hz <= t && t <= phase.max_ns as u64 * spi_hz
 }
 
 /// How far `k` SPI bits are from the phase's typical length, in picoseconds.
-fn miss_ps(phase: Phase, k: u64, spi_hz: u64) -> u64 {
-    (k * 1_000_000_000_000 / spi_hz).abs_diff(u64::from(phase.typical_ns) * 1000)
+const fn miss_ps(phase: Phase, k: u64, spi_hz: u64) -> u64 {
+    (k * 1_000_000_000_000 / spi_hz).abs_diff(phase.typical_ns as u64 * 1000)
 }
+
+/// The SPI clocks suggested when one doesn't work: 1 MHz to 40 MHz in 100 kHz steps.
+const GRID_STEP_HZ: u32 = 100_000;
+const GRID_FIRST: u32 = 10;
+const GRID_LAST: u32 = 400;
 
 impl ClocklessTiming {
     /// Finds the best SPI bit pattern for an SPI clock of `spi_hz` hertz.
@@ -52,6 +78,9 @@ impl ClocklessTiming {
     /// ones and finishing with zeros. All four pulses must fit the chip's
     /// allowed window exactly. Of the patterns that do, the one closest to
     /// the chip's typical timing wins.
+    ///
+    /// This is a `const fn`, so it also works at compile time (see
+    /// [`SpiEncoding`] for sizing a buffer that way).
     ///
     /// # Errors
     ///
@@ -68,61 +97,97 @@ impl ClocklessTiming {
     /// assert_eq!((enc.bits_per_led_bit, enc.zero_high_bits, enc.one_high_bits), (5, 1, 3));
     /// # Ok::<(), ledkit_core::TimingError>(())
     /// ```
-    pub fn spi_encoding(&self, spi_hz: u32) -> Result<SpiEncoding, TimingError> {
+    pub const fn spi_encoding(&self, spi_hz: u32) -> Result<SpiEncoding, TimingError> {
         if let Some(e) = self.search(spi_hz) {
             return Ok(e);
         }
-        let grid = (10..=400).map(|i| i * 100_000_u32);
-        let nearest_lower_hz = grid
-            .clone()
-            .rev()
-            .filter(|&hz| hz < spi_hz)
-            .find(|&hz| self.search(hz).is_some());
-        let nearest_higher_hz = grid
-            .filter(|&hz| hz > spi_hz)
-            .find(|&hz| self.search(hz).is_some());
         Err(TimingError::SpiClockUnusable {
             spi_hz,
-            nearest_lower_hz,
-            nearest_higher_hz,
+            nearest_lower_hz: self.nearest_working_clock(spi_hz, false),
+            nearest_higher_hz: self.nearest_working_clock(spi_hz, true),
         })
     }
 
+    /// The closest clock on the 100 kHz grid, below (or above) `spi_hz`, that works.
+    const fn nearest_working_clock(&self, spi_hz: u32, above: bool) -> Option<u32> {
+        let mut step = 0;
+        while step <= GRID_LAST - GRID_FIRST {
+            let i = if above {
+                GRID_FIRST + step
+            } else {
+                GRID_LAST - step
+            };
+            let hz = i * GRID_STEP_HZ;
+            let on_the_right_side = if above { hz > spi_hz } else { hz < spi_hz };
+            if on_the_right_side && self.search(hz).is_some() {
+                return Some(hz);
+            }
+            step += 1;
+        }
+        None
+    }
+
     /// The best pattern for `spi_hz`, if any fits.
-    fn search(&self, spi_hz: u32) -> Option<SpiEncoding> {
+    const fn search(&self, spi_hz: u32) -> Option<SpiEncoding> {
         if spi_hz == 0 {
             return None;
         }
-        let hz = u64::from(spi_hz);
+        let hz = spi_hz as u64;
+        // (score, n, k0, k1) of the best pattern so far; ties go to the
+        // smaller n, then k0, then k1.
         let mut best: Option<(u64, u8, u8, u8)> = None;
-        for n in 3_u8..=8 {
-            for k0 in 1..n {
-                for k1 in (k0 + 1)..n {
-                    let (n64, k0_64, k1_64) = (u64::from(n), u64::from(k0), u64::from(k1));
+        let mut n: u8 = 3;
+        while n <= 8 {
+            let mut k0: u8 = 1;
+            while k0 < n {
+                let mut k1: u8 = k0 + 1;
+                while k1 < n {
+                    let (n64, k0_64, k1_64) = (n as u64, k0 as u64, k1 as u64);
                     let phases = [
                         (self.zero_high, k0_64),
                         (self.zero_low, n64 - k0_64),
                         (self.one_high, k1_64),
                         (self.one_low, n64 - k1_64),
                     ];
-                    if !phases.iter().all(|&(p, k)| window_ok(p, k, hz)) {
-                        continue;
+                    let mut fits = true;
+                    let mut score: u64 = 0;
+                    let mut i = 0;
+                    while i < phases.len() {
+                        let (phase, k) = phases[i];
+                        if !window_ok(phase, k, hz) {
+                            fits = false;
+                        }
+                        score += miss_ps(phase, k, hz);
+                        i += 1;
                     }
-                    let score: u64 = phases.iter().map(|&(p, k)| miss_ps(p, k, hz)).sum();
-                    let cand = (score, n, k0, k1);
-                    if best.is_none_or(|b| cand < b) {
-                        best = Some(cand);
+                    let better = match best {
+                        None => true,
+                        // Scanning n, k0, k1 in increasing order means a
+                        // tie on score keeps the earlier (smaller) pattern.
+                        Some((best_score, _, _, _)) => score < best_score,
+                    };
+                    if fits && better {
+                        best = Some((score, n, k0, k1));
                     }
+                    k1 += 1;
                 }
+                k0 += 1;
             }
+            n += 1;
         }
-        let (_, n, k0, k1) = best?;
-        let reset_bytes = (u64::from(self.reset_us) * hz).div_ceil(8_000_000);
+        let Some((_, n, k0, k1)) = best else {
+            return None;
+        };
+        let reset_bytes = (self.reset_us as u64 * hz).div_ceil(8_000_000);
         Some(SpiEncoding {
             bits_per_led_bit: n,
             zero_high_bits: k0,
             one_high_bits: k1,
-            reset_bytes: u32::try_from(reset_bytes).unwrap_or(u32::MAX),
+            reset_bytes: if reset_bytes > u32::MAX as u64 {
+                u32::MAX
+            } else {
+                reset_bytes as u32
+            },
         })
     }
 }
@@ -130,7 +195,8 @@ impl ClocklessTiming {
 impl SpiEncoding {
     /// How many bytes [`encode`](Self::encode) needs for `wire_bytes` bytes of LED data.
     ///
-    /// That is one leading zero byte, the packed pattern bits, and the reset bytes.
+    /// That is one leading zero byte, the packed pattern bits, and the reset
+    /// bytes. It is a `const fn`, so it can size an array at compile time.
     ///
     /// # Example
     ///
@@ -141,8 +207,8 @@ impl SpiEncoding {
     /// assert_eq!(enc.buffer_len(3), 1 + 12 + 112);
     /// ```
     #[must_use]
-    pub fn buffer_len(&self, wire_bytes: usize) -> usize {
-        let bits = wire_bytes * 8 * usize::from(self.bits_per_led_bit);
+    pub const fn buffer_len(&self, wire_bytes: usize) -> usize {
+        let bits = wire_bytes * 8 * self.bits_per_led_bit as usize;
         1 + bits.div_ceil(8) + self.reset_bytes as usize
     }
 
@@ -151,6 +217,12 @@ impl SpiEncoding {
     /// The output starts with a zero byte (it keeps the line low if your SPI
     /// pin idles high), then every LED bit as its pattern, then the reset
     /// zeros. `out` is fully overwritten up to the returned length.
+    ///
+    /// The buffer size is worked out from the length `wire` reports
+    /// ([`ExactSizeIterator::len`]), and at most that many bytes are taken
+    /// from it, so even an iterator that reports the wrong length can never
+    /// write past [`buffer_len`](Self::buffer_len). If it yields fewer bytes
+    /// than it reported, the rest of the data is left as zeros.
     ///
     /// # Errors
     ///
@@ -171,14 +243,15 @@ impl SpiEncoding {
         out: &mut [u8],
     ) -> Result<usize, BufferTooSmall> {
         let wire = wire.into_iter();
-        let needed = self.buffer_len(wire.len());
+        let len = wire.len();
+        let needed = self.buffer_len(len);
         if out.len() < needed {
             return Err(BufferTooSmall { needed });
         }
         out[..needed].fill(0);
         // Bit position in `out`; byte 0 is the lead-in, so data starts at bit 8.
         let mut pos: usize = 8;
-        for byte in wire {
+        for byte in wire.take(len) {
             for i in (0..8).rev() {
                 let ones = if (byte >> i) & 1 == 1 {
                     self.one_high_bits
@@ -299,6 +372,54 @@ mod tests {
         let data = [0b1010_0000u8];
         let mut out = [0u8; 117];
         assert_eq!(e.encode(data.iter().copied(), &mut out), Ok(117));
+    }
+
+    #[test]
+    fn buffer_size_at_compile_time() {
+        const BUF: usize = match ClocklessTiming::of::<Ws2812b>().spi_encoding(3_200_000) {
+            Ok(e) => e.buffer_len(30 * 3),
+            Err(_) => panic!("bad clock"),
+        };
+        let buf = [0u8; BUF];
+        assert_eq!(buf.len(), 1 + 360 + 112);
+    }
+
+    #[test]
+    fn const_and_runtime_results_agree() {
+        const AT_4_MHZ: Result<SpiEncoding, TimingError> =
+            ClocklessTiming::of::<Ws2812b>().spi_encoding(4_000_000);
+        const AT_20_MHZ: Result<SpiEncoding, TimingError> =
+            ClocklessTiming::of::<Ws2812b>().spi_encoding(20_000_000);
+        assert_eq!(AT_4_MHZ, enc::<Ws2812b>(4_000_000));
+        assert_eq!(AT_20_MHZ, enc::<Ws2812b>(20_000_000));
+    }
+
+    /// An iterator that claims fewer bytes than it really yields.
+    struct Liar(u8);
+
+    impl Iterator for Liar {
+        type Item = u8;
+        fn next(&mut self) -> Option<u8> {
+            self.0 = self.0.wrapping_add(1);
+            Some(0xFF)
+        }
+    }
+
+    impl ExactSizeIterator for Liar {
+        fn len(&self) -> usize {
+            1
+        }
+    }
+
+    #[test]
+    fn a_dishonest_length_never_writes_past_the_buffer_length() {
+        let e = enc::<Ws2812b>(3_200_000).unwrap();
+        let mut out = [0xAAu8; 200];
+        assert_eq!(e.encode(Liar(0), &mut out), Ok(117));
+        let mut honest = [0u8; 117];
+        assert_eq!(e.encode([0xFFu8], &mut honest), Ok(117));
+        assert_eq!(out[..117], honest);
+        assert!(out[117..].iter().all(|&b| b == 0xAA));
     }
 
     #[test]

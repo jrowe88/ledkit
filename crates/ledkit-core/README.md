@@ -62,8 +62,12 @@ much brighter than "half". ledkit takes care of that for you.
   shades.
 - **Dithering is on by default.** At low brightness there are few
   brightness steps, so ledkit varies the rounding a little from frame to
-  frame, which makes dim colors look smooth. Turn it off with
-  `strip.set_dithering(false)` if you see shimmer in photos or video.
+  frame, which makes dim colors look smooth. It works best when `show()`
+  is called quickly, about 100 times a second or more, as animations do.
+  If you call `show()` slowly or irregularly at low brightness, the
+  rounding changes slowly enough to see as a gentle twinkle. In that case,
+  or if you see shimmer in photos or video, turn it off with
+  `strip.set_dithering(false)`.
 
 ## Which chip type do I use?
 

@@ -54,7 +54,10 @@ impl<C: Chip, const N: usize, O> Strip<C, N, O> {
     /// Creates an all-black strip that sends through `output`.
     ///
     /// It starts at full brightness, with no color gamma, no color
-    /// correction and no power limit. Dithering is on.
+    /// correction and no power limit. Dithering is on, which suits
+    /// animations that call `show` about 100 times a second or more; for a
+    /// mostly still, dim display that calls `show` slowly, see
+    /// [`set_dithering`](Strip::set_dithering).
     #[must_use]
     pub fn new(output: O) -> Self {
         Self {
@@ -193,7 +196,11 @@ impl<C: Chip, const N: usize, O> Strip<C, N, O> {
     /// Turns dithering on or off (it is on by default).
     ///
     /// Dithering varies the rounding a little from frame to frame so dim
-    /// colors look smoother over time.
+    /// colors look smoother over time. It shines when `show` is called
+    /// quickly (about 100 times a second or more, as animations do), because
+    /// your eyes blend the frames together. If you call `show` slowly or
+    /// irregularly at low brightness, the changes are slow enough to see as
+    /// a gentle twinkle; call `set_dithering(false)` in that case.
     pub fn set_dithering(&mut self, on: bool) {
         self.dithering = on;
     }

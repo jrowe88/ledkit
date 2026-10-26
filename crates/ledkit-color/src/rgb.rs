@@ -172,29 +172,65 @@ impl From<Rgb> for Rgbw {
 #[cfg(test)]
 mod tests {
     use crate::{Rgb, Rgbw};
-    #[test] fn scale_255_is_identity() { let c = Rgb::new(10, 128, 255); assert_eq!(c.scale(255), c); }
-    #[test] fn scale_0_is_black() { assert_eq!(Rgb::new(10, 128, 255).scale(0), Rgb::BLACK); }
-    #[test] fn scale_half() { assert_eq!(Rgb::new(255, 100, 0).scale(128), Rgb::new(128, 50, 0)); }
-    #[test] fn lerp_endpoints_exact() {
+    #[test]
+    fn scale_255_is_identity() {
+        let c = Rgb::new(10, 128, 255);
+        assert_eq!(c.scale(255), c);
+    }
+    #[test]
+    fn scale_0_is_black() {
+        assert_eq!(Rgb::new(10, 128, 255).scale(0), Rgb::BLACK);
+    }
+    #[test]
+    fn scale_half() {
+        assert_eq!(Rgb::new(255, 100, 0).scale(128), Rgb::new(128, 50, 0));
+    }
+    #[test]
+    fn lerp_endpoints_exact() {
         let (a, b) = (Rgb::new(10, 20, 30), Rgb::new(200, 100, 0));
         assert_eq!(a.lerp(b, 0), a);
         assert_eq!(a.lerp(b, 255), b);
     }
-    #[test] fn lerp_midpoint() { assert_eq!(Rgb::BLACK.lerp(Rgb::WHITE, 128), Rgb::new(128, 128, 128)); }
-    #[test] fn extract_white_from_pure_white() {
-        assert_eq!(Rgbw::from_rgb_extracting_white(Rgb::WHITE), Rgbw::new(0, 0, 0, 255));
+    #[test]
+    fn lerp_midpoint() {
+        assert_eq!(Rgb::BLACK.lerp(Rgb::WHITE, 128), Rgb::new(128, 128, 128));
     }
-    #[test] fn extract_white_from_saturated_color_is_zero() {
-        assert_eq!(Rgbw::from_rgb_extracting_white(Rgb::new(255, 0, 40)), Rgbw::new(255, 0, 40, 0));
+    #[test]
+    fn extract_white_from_pure_white() {
+        assert_eq!(
+            Rgbw::from_rgb_extracting_white(Rgb::WHITE),
+            Rgbw::new(0, 0, 0, 255)
+        );
     }
-    #[test] fn extract_white_from_pastel() {
-        assert_eq!(Rgbw::from_rgb_extracting_white(Rgb::new(255, 200, 100)), Rgbw::new(155, 100, 0, 100));
+    #[test]
+    fn extract_white_from_saturated_color_is_zero() {
+        assert_eq!(
+            Rgbw::from_rgb_extracting_white(Rgb::new(255, 0, 40)),
+            Rgbw::new(255, 0, 40, 0)
+        );
     }
-    #[test] fn extract_white_from_black() { assert_eq!(Rgbw::from_rgb_extracting_white(Rgb::BLACK), Rgbw::default()); }
-    #[test] fn rgb_into_rgbw_has_no_white() { assert_eq!(Rgbw::from(Rgb::new(1, 2, 3)), Rgbw::new(1, 2, 3, 0)); }
-    #[test] fn rgbw_scale_and_lerp_endpoints() {
+    #[test]
+    fn extract_white_from_pastel() {
+        assert_eq!(
+            Rgbw::from_rgb_extracting_white(Rgb::new(255, 200, 100)),
+            Rgbw::new(155, 100, 0, 100)
+        );
+    }
+    #[test]
+    fn extract_white_from_black() {
+        assert_eq!(Rgbw::from_rgb_extracting_white(Rgb::BLACK), Rgbw::default());
+    }
+    #[test]
+    fn rgb_into_rgbw_has_no_white() {
+        assert_eq!(Rgbw::from(Rgb::new(1, 2, 3)), Rgbw::new(1, 2, 3, 0));
+    }
+    #[test]
+    fn rgbw_scale_and_lerp_endpoints() {
         let w = Rgbw::new(10, 20, 30, 40);
         assert_eq!(w.scale(255), w);
-        assert_eq!(w.lerp(Rgbw::new(0, 0, 0, 255), 255), Rgbw::new(0, 0, 0, 255));
+        assert_eq!(
+            w.lerp(Rgbw::new(0, 0, 0, 255), 255),
+            Rgbw::new(0, 0, 0, 255)
+        );
     }
 }

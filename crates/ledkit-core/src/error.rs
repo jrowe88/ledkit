@@ -76,19 +76,25 @@ pub enum TimingError {
     },
 }
 
-/// Prints a frequency in MHz using integer math: one decimal place for
-/// multiples of 100 kHz ("3.2 MHz"), otherwise two ("3.35 MHz", truncated).
+/// Prints a frequency in MHz using integer math, never rounding it: one
+/// decimal place for multiples of 100 kHz ("3.0 MHz", "3.2 MHz"), otherwise
+/// the exact value with trailing zeros trimmed ("3.35 MHz", "4.0005 MHz").
 struct Mhz(u32);
 
 impl fmt::Display for Mhz {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let whole = self.0 / 1_000_000;
-        let rest = self.0 % 1_000_000;
+        let mut rest = self.0 % 1_000_000;
         if rest % 100_000 == 0 {
-            write!(f, "{whole}.{} MHz", rest / 100_000)
-        } else {
-            write!(f, "{whole}.{:02} MHz", rest / 10_000)
+            return write!(f, "{whole}.{} MHz", rest / 100_000);
         }
+        // Six decimal places is exact for whole hertz; drop trailing zeros.
+        let mut digits = 6;
+        while rest % 10 == 0 {
+            rest /= 10;
+            digits -= 1;
+        }
+        write!(f, "{whole}.{rest:0digits$} MHz")
     }
 }
 
@@ -209,7 +215,7 @@ mod tests {
         );
     }
     #[test]
-    fn mhz_two_decimals_pad_and_truncate() {
+    fn mhz_pads_and_never_truncates() {
         let e = TimingError::SpiClockUnusable {
             spi_hz: 2_050_000,
             nearest_lower_hz: Some(4_512_345),
@@ -217,9 +223,23 @@ mod tests {
         };
         let msg = format!("{e}");
         assert!(
-            msg.contains("2.05 MHz") && msg.contains("4.51 MHz"),
+            msg.contains("2.05 MHz") && msg.contains("4.512345 MHz"),
             "{msg}"
         );
+    }
+    #[test]
+    fn mhz_prints_the_exact_clock() {
+        for (hz, want) in [
+            (4_000_500, "4.0005 MHz"),
+            (1_950_000, "1.95 MHz"),
+            (3_350_000, "3.35 MHz"),
+            (4_000_000, "4.0 MHz"),
+            (3_300_000, "3.3 MHz"),
+            (1, "0.000001 MHz"),
+            (12_345_670, "12.34567 MHz"),
+        ] {
+            assert_eq!(format!("{}", Mhz(hz)), want, "{hz} Hz");
+        }
     }
     #[test]
     fn errors_implement_core_error() {

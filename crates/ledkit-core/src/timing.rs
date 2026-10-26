@@ -26,6 +26,16 @@ pub struct Phase {
 
 impl Phase {
     /// Creates a phase from its typical, minimum and maximum lengths in nanoseconds.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use ledkit_core::Phase;
+    ///
+    /// // Aim for 400 ns; anything from 220 ns to 450 ns works.
+    /// let p = Phase::new(400, 220, 450);
+    /// assert_eq!(p.typical_ns, 400);
+    /// ```
     #[must_use]
     pub const fn new(typical_ns: u32, min_ns: u32, max_ns: u32) -> Self {
         Self {
@@ -36,6 +46,16 @@ impl Phase {
     }
 
     /// Whether `ns` is inside the allowed window (both ends included).
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use ledkit_core::Phase;
+    ///
+    /// let p = Phase::new(400, 220, 450);
+    /// assert!(p.contains(220) && p.contains(450));
+    /// assert!(!p.contains(451));
+    /// ```
     #[must_use]
     pub const fn contains(&self, ns: u32) -> bool {
         ns >= self.min_ns && ns <= self.max_ns
@@ -124,6 +144,16 @@ pub struct PowerModel {
 
 impl PowerModel {
     /// A typical 5 V LED: 20 mA per channel at full brightness, 1 mA idle.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use ledkit_core::power::estimate_microamps;
+    /// use ledkit_core::{PowerModel, Rgb};
+    ///
+    /// // One red LED: 20 mA for the red channel plus 1 mA idle.
+    /// assert_eq!(estimate_microamps(&[Rgb::RED], PowerModel::TYPICAL_5V), 21_000);
+    /// ```
     pub const TYPICAL_5V: PowerModel = PowerModel {
         channel_full_microamps: 20_000,
         idle_microamps: 1_000,

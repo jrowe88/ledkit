@@ -30,6 +30,17 @@ pub struct MemoryOutput<P: Pixel, const N: usize> {
 
 impl<P: Pixel, const N: usize> MemoryOutput<P, N> {
     /// Creates an empty output.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use ledkit_core::testing::MemoryOutput;
+    /// use ledkit_core::Rgb;
+    ///
+    /// let out: MemoryOutput<Rgb, 8> = MemoryOutput::new();
+    /// assert_eq!(out.frames_written, 0);
+    /// assert!(out.last_frame().is_empty());
+    /// ```
     #[must_use]
     pub fn new() -> Self {
         Self {
@@ -40,6 +51,18 @@ impl<P: Pixel, const N: usize> MemoryOutput<P, N> {
     }
 
     /// The pixels of the last frame written (at most `N` of them).
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use ledkit_core::testing::MemoryOutput;
+    /// use ledkit_core::{Rgb, Strip, Ws2812b};
+    ///
+    /// let mut strip: Strip<Ws2812b, 2, MemoryOutput<Rgb, 2>> = Strip::new(MemoryOutput::new());
+    /// strip.set(1, Rgb::GREEN);
+    /// strip.show().unwrap();
+    /// assert_eq!(strip.output().last_frame(), &[Rgb::BLACK, Rgb::GREEN]);
+    /// ```
     #[must_use]
     pub fn last_frame(&self) -> &[P] {
         &self.frame[..self.len]

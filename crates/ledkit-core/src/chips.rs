@@ -152,12 +152,36 @@ clocked_chip!(
 );
 
 /// The SK6812 Mini, found in compact NeoPixel-style boards. Same as [`Sk6812`].
+///
+/// # Example
+///
+/// ```
+/// use ledkit_core::{Chip, Sk6812Mini};
+///
+/// assert_eq!(Sk6812Mini::NAME, "SK6812");
+/// ```
 pub type Sk6812Mini = Sk6812;
 
 /// The SK6805, a very small NeoPixel-style LED. Same as [`Sk6812`].
+///
+/// # Example
+///
+/// ```
+/// use ledkit_core::{Chip, Sk6805};
+///
+/// assert_eq!(Sk6805::NAME, "SK6812");
+/// ```
 pub type Sk6805 = Sk6812;
 
 /// The tiny APA102-2020 LEDs on the SparkFun LuMini. Same as [`Apa102`].
+///
+/// # Example
+///
+/// ```
+/// use ledkit_core::{Apa102_2020, Chip};
+///
+/// assert_eq!(Apa102_2020::NAME, "APA102");
+/// ```
 #[allow(non_camel_case_types)]
 pub type Apa102_2020 = Apa102;
 

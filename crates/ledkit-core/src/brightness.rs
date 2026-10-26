@@ -43,12 +43,28 @@ pub struct Brightness {
 
 impl Brightness {
     /// Full brightness.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use ledkit_core::Brightness;
+    ///
+    /// assert_eq!(Brightness::FULL.output_level(), 255);
+    /// ```
     pub const FULL: Self = Self {
         level: 255,
         exact: false,
     };
 
     /// Completely off.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use ledkit_core::Brightness;
+    ///
+    /// assert_eq!(Brightness::OFF.output_level(), 0);
+    /// ```
     pub const OFF: Self = Self {
         level: 0,
         exact: false,
@@ -57,6 +73,15 @@ impl Brightness {
     /// Perceived brightness from a fraction: `0.0` is off, `1.0` is full.
     ///
     /// Values outside that range are clamped, and NaN means off.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use ledkit_core::Brightness;
+    ///
+    /// let half = Brightness::from_fraction(0.5); // looks half as bright
+    /// assert_eq!(half.output_level(), 56);
+    /// ```
     #[must_use]
     #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)] // clamped to 0..=255 first
     pub fn from_fraction(fraction: f32) -> Self {
@@ -72,6 +97,15 @@ impl Brightness {
     /// Perceived brightness from a percentage: `0` is off, `100` is full.
     ///
     /// Anything above 100 counts as 100.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use ledkit_core::Brightness;
+    ///
+    /// assert_eq!(Brightness::from_percent(50), Brightness::from_fraction(0.5));
+    /// assert_eq!(Brightness::from_percent(200), Brightness::FULL);
+    /// ```
     #[must_use]
     pub const fn from_percent(percent: u8) -> Self {
         let p = if percent > 100 { 100 } else { percent } as u16;
@@ -83,6 +117,15 @@ impl Brightness {
     }
 
     /// An exact output level from 0 to 255, sent to the LEDs with no curve.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use ledkit_core::Brightness;
+    ///
+    /// // Half the power, with no curve: looks much brighter than half.
+    /// assert_eq!(Brightness::exact(128).output_level(), 128);
+    /// ```
     #[must_use]
     pub const fn exact(raw: u8) -> Self {
         Self {
@@ -95,6 +138,15 @@ impl Brightness {
     ///
     /// For perceived brightness this is the level after the 2.2 curve; for
     /// [`Brightness::exact`] it is the number you gave.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use ledkit_core::Brightness;
+    ///
+    /// assert_eq!(Brightness::from_percent(50).output_level(), 56);
+    /// assert_eq!(Brightness::exact(56).output_level(), 56);
+    /// ```
     #[must_use]
     pub const fn output_level(self) -> u8 {
         if self.exact {

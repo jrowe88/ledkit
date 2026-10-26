@@ -58,6 +58,16 @@ impl<C: Chip, const N: usize, O> Strip<C, N, O> {
     /// animations that call `show` about 100 times a second or more; for a
     /// mostly still, dim display that calls `show` slowly, see
     /// [`set_dithering`](Strip::set_dithering).
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use ledkit_core::testing::MemoryOutput;
+    /// use ledkit_core::{Rgb, Strip, Ws2812b};
+    ///
+    /// let strip: Strip<Ws2812b, 4, MemoryOutput<Rgb, 4>> = Strip::new(MemoryOutput::new());
+    /// assert_eq!(strip.get(0), Some(Rgb::BLACK));
+    /// ```
     #[must_use]
     pub fn new(output: O) -> Self {
         Self {
@@ -75,6 +85,17 @@ impl<C: Chip, const N: usize, O> Strip<C, N, O> {
     }
 
     /// Sets one LED. An `index` past the end is ignored.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use ledkit_core::testing::MemoryOutput;
+    /// # use ledkit_core::{Rgb, Strip, Ws2812b};
+    /// let mut strip: Strip<Ws2812b, 4, MemoryOutput<Rgb, 4>> = Strip::new(MemoryOutput::new());
+    /// strip.set(0, Rgb::RED);
+    /// strip.set(99, Rgb::RED); // past the end: ignored
+    /// assert_eq!(strip.get(0), Some(Rgb::RED));
+    /// ```
     pub fn set(&mut self, index: usize, color: impl Into<C::Pixel>) {
         if let Some(slot) = self.pixels.get_mut(index) {
             *slot = color.into();
@@ -82,12 +103,33 @@ impl<C: Chip, const N: usize, O> Strip<C, N, O> {
     }
 
     /// Reads one LED's color, or `None` if `index` is past the end.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use ledkit_core::testing::MemoryOutput;
+    /// # use ledkit_core::{Rgb, Strip, Ws2812b};
+    /// let mut strip: Strip<Ws2812b, 4, MemoryOutput<Rgb, 4>> = Strip::new(MemoryOutput::new());
+    /// strip.set(2, Rgb::BLUE);
+    /// assert_eq!(strip.get(2), Some(Rgb::BLUE));
+    /// assert_eq!(strip.get(4), None);
+    /// ```
     #[must_use]
     pub fn get(&self, index: usize) -> Option<C::Pixel> {
         self.pixels.get(index).copied()
     }
 
     /// Sets every LED to one color.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use ledkit_core::testing::MemoryOutput;
+    /// # use ledkit_core::{Rgb, Strip, Ws2812b};
+    /// let mut strip: Strip<Ws2812b, 4, MemoryOutput<Rgb, 4>> = Strip::new(MemoryOutput::new());
+    /// strip.fill(Rgb::ORANGE);
+    /// assert!(strip.pixels().iter().all(|&p| p == Rgb::ORANGE));
+    /// ```
     pub fn fill(&mut self, color: impl Into<C::Pixel>) {
         self.pixels.fill(color.into());
     }
@@ -96,6 +138,19 @@ impl<C: Chip, const N: usize, O> Strip<C, N, O> {
     ///
     /// Parts of the range outside the strip are ignored; an empty or
     /// backwards range does nothing.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use ledkit_core::testing::MemoryOutput;
+    /// # use ledkit_core::{Rgb, Strip, Ws2812b};
+    /// let mut strip: Strip<Ws2812b, 4, MemoryOutput<Rgb, 4>> = Strip::new(MemoryOutput::new());
+    /// strip.fill_range(1..3, Rgb::GREEN);
+    /// assert_eq!(
+    ///     strip.pixels(),
+    ///     &[Rgb::BLACK, Rgb::GREEN, Rgb::GREEN, Rgb::BLACK]
+    /// );
+    /// ```
     pub fn fill_range(&mut self, range: impl RangeBounds<usize>, color: impl Into<C::Pixel>) {
         let start = match range.start_bound() {
             Bound::Included(&s) => s,
@@ -118,29 +173,80 @@ impl<C: Chip, const N: usize, O> Strip<C, N, O> {
     }
 
     /// Sets every LED to black (off). The strip changes when you next call `show`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use ledkit_core::testing::MemoryOutput;
+    /// # use ledkit_core::{Rgb, Strip, Ws2812b};
+    /// let mut strip: Strip<Ws2812b, 4, MemoryOutput<Rgb, 4>> = Strip::new(MemoryOutput::new());
+    /// strip.fill(Rgb::WHITE);
+    /// strip.clear();
+    /// assert_eq!(strip.get(0), Some(Rgb::BLACK));
+    /// ```
     pub fn clear(&mut self) {
         self.pixels.fill(C::Pixel::default());
     }
 
     /// How many LEDs the strip has.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use ledkit_core::testing::MemoryOutput;
+    /// # use ledkit_core::{Rgb, Strip, Ws2812b};
+    /// let strip: Strip<Ws2812b, 4, MemoryOutput<Rgb, 4>> = Strip::new(MemoryOutput::new());
+    /// assert_eq!(strip.len(), 4);
+    /// ```
     #[must_use]
     pub const fn len(&self) -> usize {
         N
     }
 
     /// True if the strip has no LEDs.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use ledkit_core::testing::MemoryOutput;
+    /// # use ledkit_core::{Rgb, Strip, Ws2812b};
+    /// let strip: Strip<Ws2812b, 4, MemoryOutput<Rgb, 4>> = Strip::new(MemoryOutput::new());
+    /// assert!(!strip.is_empty());
+    /// ```
     #[must_use]
     pub const fn is_empty(&self) -> bool {
         N == 0
     }
 
     /// All the colors, as stored (before brightness and the other settings).
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use ledkit_core::testing::MemoryOutput;
+    /// # use ledkit_core::{Rgb, Strip, Ws2812b};
+    /// let mut strip: Strip<Ws2812b, 4, MemoryOutput<Rgb, 4>> = Strip::new(MemoryOutput::new());
+    /// strip.set(3, Rgb::RED);
+    /// assert_eq!(strip.pixels()[3], Rgb::RED);
+    /// ```
     #[must_use]
     pub fn pixels(&self) -> &[C::Pixel; N] {
         &self.pixels
     }
 
     /// All the colors, for changing in place.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use ledkit_core::testing::MemoryOutput;
+    /// # use ledkit_core::{Rgb, Strip, Ws2812b};
+    /// let mut strip: Strip<Ws2812b, 4, MemoryOutput<Rgb, 4>> = Strip::new(MemoryOutput::new());
+    /// for (i, p) in strip.pixels_mut().iter_mut().enumerate() {
+    ///     *p = if i % 2 == 0 { Rgb::RED } else { Rgb::BLUE };
+    /// }
+    /// assert_eq!(strip.get(1), Some(Rgb::BLUE));
+    /// ```
     pub fn pixels_mut(&mut self) -> &mut [C::Pixel; N] {
         &mut self.pixels
     }
@@ -149,11 +255,35 @@ impl<C: Chip, const N: usize, O> Strip<C, N, O> {
     ///
     /// A fraction or [`Brightness::from_percent`] is "perceived" brightness:
     /// half looks about half as bright. [`Brightness::exact`] skips that curve.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use ledkit_core::testing::MemoryOutput;
+    /// # use ledkit_core::{Rgb, Strip, Ws2812b};
+    /// # use ledkit_core::Brightness;
+    /// let mut strip: Strip<Ws2812b, 4, MemoryOutput<Rgb, 4>> = Strip::new(MemoryOutput::new());
+    /// strip.set_brightness(0.5); // looks half as bright
+    /// strip.set_brightness(Brightness::from_percent(25));
+    /// strip.set_brightness(Brightness::exact(64)); // a quarter of the power
+    /// assert_eq!(strip.brightness(), Brightness::exact(64));
+    /// ```
     pub fn set_brightness(&mut self, b: impl Into<Brightness>) {
         self.brightness = b.into();
     }
 
     /// The brightness you asked for.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use ledkit_core::testing::MemoryOutput;
+    /// # use ledkit_core::{Rgb, Strip, Ws2812b};
+    /// # use ledkit_core::Brightness;
+    /// let mut strip: Strip<Ws2812b, 4, MemoryOutput<Rgb, 4>> = Strip::new(MemoryOutput::new());
+    /// strip.set_brightness(Brightness::from_percent(50));
+    /// assert_eq!(strip.brightness(), Brightness::from_percent(50));
+    /// ```
     #[must_use]
     pub fn brightness(&self) -> Brightness {
         self.brightness
@@ -167,16 +297,57 @@ impl<C: Chip, const N: usize, O> Strip<C, N, O> {
     /// colors you pick by hand or compute (rainbows, fades) already look
     /// right, and a gamma curve would darken them and lose detail in the
     /// dark shades.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use ledkit_core::testing::MemoryOutput;
+    /// # use ledkit_core::{Rgb, Strip, Ws2812b};
+    /// # use ledkit_core::prelude::GAMMA_2_6;
+    /// let mut strip: Strip<Ws2812b, 4, MemoryOutput<Rgb, 4>> = Strip::new(MemoryOutput::new());
+    /// strip.set_color_gamma(&GAMMA_2_6);
+    /// strip.set(0, Rgb::new(128, 255, 0));
+    /// strip.show().unwrap();
+    /// assert_eq!(strip.output().last_frame()[0], Rgb::new(42, 255, 0));
+    /// ```
     pub fn set_color_gamma(&mut self, table: &'static GammaTable) {
         self.gamma = Some(table);
     }
 
     /// Turns the color gamma off again (the default).
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use ledkit_core::testing::MemoryOutput;
+    /// # use ledkit_core::{Rgb, Strip, Ws2812b};
+    /// # use ledkit_core::prelude::GAMMA_2_6;
+    /// let mut strip: Strip<Ws2812b, 4, MemoryOutput<Rgb, 4>> = Strip::new(MemoryOutput::new());
+    /// strip.set_color_gamma(&GAMMA_2_6);
+    /// strip.clear_color_gamma();
+    /// strip.set(0, Rgb::new(128, 255, 0));
+    /// strip.show().unwrap();
+    /// assert_eq!(strip.output().last_frame()[0], Rgb::new(128, 255, 0));
+    /// ```
     pub fn clear_color_gamma(&mut self) {
         self.gamma = None;
     }
 
     /// Sets a white-balance correction, such as `correction::TYPICAL_LED_STRIP`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use ledkit_core::testing::MemoryOutput;
+    /// # use ledkit_core::{Rgb, Strip, Ws2812b};
+    /// # use ledkit_core::prelude::correction;
+    /// let mut strip: Strip<Ws2812b, 4, MemoryOutput<Rgb, 4>> = Strip::new(MemoryOutput::new());
+    /// strip.set_correction(correction::TYPICAL_LED_STRIP);
+    /// strip.fill(Rgb::WHITE);
+    /// strip.show().unwrap();
+    /// // The stored colors are unchanged; only what is sent is corrected.
+    /// assert_eq!(strip.get(0), Some(Rgb::WHITE));
+    /// ```
     pub fn set_correction(&mut self, correction: Rgb) {
         self.correction = correction;
     }
@@ -184,11 +355,38 @@ impl<C: Chip, const N: usize, O> Strip<C, N, O> {
     /// Keeps the estimated current under `limit` by lowering the brightness when needed.
     ///
     /// The current is an estimate for your chip, not a measurement.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use ledkit_core::testing::MemoryOutput;
+    /// # use ledkit_core::{Rgb, Strip, Ws2812b};
+    /// # use ledkit_core::Milliamps;
+    /// let mut strip: Strip<Ws2812b, 4, MemoryOutput<Rgb, 4>> = Strip::new(MemoryOutput::new());
+    /// strip.fill(Rgb::WHITE); // about 244 mA at full brightness
+    /// strip.set_power_limit(Milliamps(100));
+    /// strip.show().unwrap();
+    /// assert!(strip.effective_brightness().output_level() < 255);
+    /// ```
     pub fn set_power_limit(&mut self, limit: Milliamps) {
         self.power_limit = Some(limit);
     }
 
     /// Removes the power limit (the default).
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use ledkit_core::testing::MemoryOutput;
+    /// # use ledkit_core::{Rgb, Strip, Ws2812b};
+    /// # use ledkit_core::Milliamps;
+    /// let mut strip: Strip<Ws2812b, 4, MemoryOutput<Rgb, 4>> = Strip::new(MemoryOutput::new());
+    /// strip.fill(Rgb::WHITE);
+    /// strip.set_power_limit(Milliamps(100));
+    /// strip.clear_power_limit();
+    /// strip.show().unwrap();
+    /// assert_eq!(strip.effective_brightness().output_level(), 255);
+    /// ```
     pub fn clear_power_limit(&mut self) {
         self.power_limit = None;
     }
@@ -201,6 +399,19 @@ impl<C: Chip, const N: usize, O> Strip<C, N, O> {
     /// your eyes blend the frames together. If you call `show` slowly or
     /// irregularly at low brightness, the changes are slow enough to see as
     /// a gentle twinkle; call `set_dithering(false)` in that case.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use ledkit_core::testing::MemoryOutput;
+    /// # use ledkit_core::{Rgb, Strip, Ws2812b};
+    /// let mut strip: Strip<Ws2812b, 4, MemoryOutput<Rgb, 4>> = Strip::new(MemoryOutput::new());
+    /// // A slow clock display: turn dithering off to avoid a visible twinkle.
+    /// strip.set_dithering(false);
+    /// strip.set_brightness(0.1);
+    /// strip.fill(Rgb::WHITE);
+    /// strip.show().unwrap();
+    /// ```
     pub fn set_dithering(&mut self, on: bool) {
         self.dithering = on;
     }
@@ -214,6 +425,20 @@ impl<C: Chip, const N: usize, O> Strip<C, N, O> {
     /// the first successful `show` it is the brightness you set. It is always an exact output
     /// level ([`Brightness::exact`]), so compare it with another exact value
     /// or use [`Brightness::output_level`].
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use ledkit_core::testing::MemoryOutput;
+    /// # use ledkit_core::{Rgb, Strip, Ws2812b};
+    /// # use ledkit_core::Milliamps;
+    /// let mut strip: Strip<Ws2812b, 4, MemoryOutput<Rgb, 4>> = Strip::new(MemoryOutput::new());
+    /// strip.fill(Rgb::WHITE);
+    /// strip.set_power_limit(Milliamps(100));
+    /// strip.show().unwrap();
+    /// let used = strip.effective_brightness().output_level();
+    /// assert!(used < 255); // dimmed to stay under 100 mA
+    /// ```
     #[must_use]
     pub fn effective_brightness(&self) -> Brightness {
         Brightness::exact(
@@ -223,12 +448,32 @@ impl<C: Chip, const N: usize, O> Strip<C, N, O> {
     }
 
     /// The output (driver), for reading.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use ledkit_core::testing::MemoryOutput;
+    /// # use ledkit_core::{Rgb, Strip, Ws2812b};
+    /// let mut strip: Strip<Ws2812b, 4, MemoryOutput<Rgb, 4>> = Strip::new(MemoryOutput::new());
+    /// strip.show().unwrap();
+    /// assert_eq!(strip.output().frames_written, 1);
+    /// ```
     #[must_use]
     pub fn output(&self) -> &O {
         &self.output
     }
 
     /// The output (driver), for changing.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use ledkit_core::testing::MemoryOutput;
+    /// # use ledkit_core::{Rgb, Strip, Ws2812b};
+    /// let mut strip: Strip<Ws2812b, 4, MemoryOutput<Rgb, 4>> = Strip::new(MemoryOutput::new());
+    /// strip.output_mut().frames_written = 0;
+    /// assert_eq!(strip.output().frames_written, 0);
+    /// ```
     pub fn output_mut(&mut self) -> &mut O {
         &mut self.output
     }
@@ -275,6 +520,17 @@ impl<C: Chip, const N: usize, O> Strip<C, N, O> {
     /// Returns the output's error if sending failed. A failed `show`
     /// changes nothing: [`effective_brightness`](Strip::effective_brightness)
     /// and the dither step stay as they were.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use ledkit_core::testing::MemoryOutput;
+    /// # use ledkit_core::{Rgb, Strip, Ws2812b};
+    /// let mut strip: Strip<Ws2812b, 4, MemoryOutput<Rgb, 4>> = Strip::new(MemoryOutput::new());
+    /// strip.fill(Rgb::RED);
+    /// strip.show().unwrap();
+    /// assert_eq!(strip.output().last_frame(), &[Rgb::RED; 4]);
+    /// ```
     pub fn show(&mut self) -> Result<(), O::Error>
     where
         O: Output<C>,
@@ -292,6 +548,17 @@ impl<C: Chip, const N: usize, O> Strip<C, N, O> {
     ///
     /// Returns the output's error if sending failed. As with `show`, a
     /// failed send changes nothing.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use ledkit_core::testing::MemoryOutput;
+    /// # use ledkit_core::{Rgb, Strip, Ws2812b};
+    /// let mut strip: Strip<Ws2812b, 4, MemoryOutput<Rgb, 4>> = Strip::new(MemoryOutput::new());
+    /// strip.fill(Rgb::RED);
+    /// embassy_futures::block_on(strip.show_async()).unwrap();
+    /// assert_eq!(strip.output().last_frame(), &[Rgb::RED; 4]);
+    /// ```
     pub async fn show_async(&mut self) -> Result<(), O::Error>
     where
         O: OutputAsync<C>,

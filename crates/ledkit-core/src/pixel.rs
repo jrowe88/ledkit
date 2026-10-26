@@ -57,12 +57,32 @@ impl ChannelOrder {
     }
 
     /// The channels in wire order (3 or 4 of them).
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use ledkit_core::{Channel, ChannelOrder};
+    ///
+    /// assert_eq!(
+    ///     ChannelOrder::GRB.channels(),
+    ///     &[Channel::Green, Channel::Red, Channel::Blue]
+    /// );
+    /// ```
     pub const fn channels(&self) -> &[Channel] {
         let (used, _) = self.channels.split_at(self.len as usize);
         used
     }
 
     /// How many channels this order has (3 or 4).
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use ledkit_core::ChannelOrder;
+    ///
+    /// assert_eq!(ChannelOrder::RGB.len(), 3);
+    /// assert_eq!(ChannelOrder::GRBW.len(), 4);
+    /// ```
     // Never empty, so an `is_empty` method would be pointless.
     #[allow(clippy::len_without_is_empty)]
     pub const fn len(&self) -> usize {

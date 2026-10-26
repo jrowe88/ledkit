@@ -1,7 +1,7 @@
 //! The basic color types: [`Rgb`] and [`Rgbw`].
 
 /// Scales one channel: `factor` 255 leaves it alone, 0 makes it 0.
-const fn scale_channel(c: u8, factor: u8) -> u8 {
+pub(crate) const fn scale_channel(c: u8, factor: u8) -> u8 {
     ((c as u16 * factor as u16 + 127) / 255) as u8
 }
 

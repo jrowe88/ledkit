@@ -9,10 +9,12 @@ mod gamma;
 mod hue;
 mod named;
 mod rgb;
+mod temperature;
 
 pub use gamma::{GammaTable, GAMMA_2_2, GAMMA_2_6};
 pub use hue::{Hsv, Hue};
 pub use rgb::{Rgb, Rgbw};
+pub use temperature::correction;
 
 /// A friendlier name for [`Rgb`], so you can write `Color::BLUE`.
 pub type Color = Rgb;

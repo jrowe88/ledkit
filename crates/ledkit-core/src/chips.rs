@@ -165,16 +165,9 @@ pub type Apa102_2020 = Apa102;
 mod tests {
     use crate::*;
 
-    fn clockless<C: Chip>() -> ClocklessTiming {
-        match C::PROTOCOL {
-            Protocol::Clockless(t) => t,
-            Protocol::Clocked(_) => panic!("{} is clocked", C::NAME),
-        }
-    }
-
     #[test]
     fn ws2812b_timing() {
-        let t = clockless::<Ws2812b>();
+        let t = ClocklessTiming::of::<Ws2812b>();
         assert_eq!(
             (t.zero_high.typical_ns, t.one_high.typical_ns, t.reset_us),
             (400, 800, 280)
@@ -209,24 +202,46 @@ mod tests {
 
     #[test]
     fn ws2815_matches_ws2813() {
-        assert_eq!(clockless::<Ws2815>(), clockless::<Ws2813>());
+        assert_eq!(
+            ClocklessTiming::of::<Ws2815>(),
+            ClocklessTiming::of::<Ws2813>()
+        );
     }
 
     #[test]
     fn every_typical_value_is_inside_its_window() {
-        for t in [
-            clockless::<Ws2812>(),
-            clockless::<Ws2812b>(),
-            clockless::<Ws2813>(),
-            clockless::<Ws2811>(),
-            clockless::<Ws2811Slow>(),
-            clockless::<Sk6812>(),
-            clockless::<Apa106>(),
-        ] {
+        let chips = [
+            (Ws2812::NAME, ClocklessTiming::of::<Ws2812>()),
+            (Ws2812b::NAME, ClocklessTiming::of::<Ws2812b>()),
+            (Ws2813::NAME, ClocklessTiming::of::<Ws2813>()),
+            (Ws2815::NAME, ClocklessTiming::of::<Ws2815>()),
+            (Ws2811::NAME, ClocklessTiming::of::<Ws2811>()),
+            (Ws2811Slow::NAME, ClocklessTiming::of::<Ws2811Slow>()),
+            (Sk6812::NAME, ClocklessTiming::of::<Sk6812>()),
+            (Sk6812Rgbw::NAME, ClocklessTiming::of::<Sk6812Rgbw>()),
+            (Apa106::NAME, ClocklessTiming::of::<Apa106>()),
+        ];
+        for (name, t) in chips {
             for p in [t.zero_high, t.zero_low, t.one_high, t.one_low] {
-                assert!(p.contains(p.typical_ns), "{p:?}");
+                assert!(p.contains(p.typical_ns), "{name}: {p:?}");
             }
         }
+        // Every `clockless_chip!` in this file must be in the list above.
+        let mut defined = 0;
+        for block in include_str!("chips.rs").split("\nclockless_chip!(").skip(1) {
+            let label = block
+                .lines()
+                .map(str::trim)
+                .find(|line| !line.is_empty() && !line.starts_with("///"))
+                .and_then(|line| line.split('"').nth(1))
+                .expect("a chip label");
+            assert!(
+                chips.iter().any(|(name, _)| *name == label),
+                "{label} is missing from this test"
+            );
+            defined += 1;
+        }
+        assert_eq!(defined, chips.len());
     }
 
     /// One row of the catalogue table: `(typical, min, max)` per phase.
@@ -242,7 +257,7 @@ mod tests {
     fn row<C: Chip>(phases: [(u32, u32, u32); 4], reset_us: u32) -> Row {
         (
             C::NAME,
-            clockless::<C>(),
+            ClocklessTiming::of::<C>(),
             C::ORDER,
             <C::Pixel as Pixel>::CHANNELS,
             phases,

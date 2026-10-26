@@ -1,5 +1,6 @@
 //! SPI bit patterns that imitate a clockless LED signal.
 
+use super::saturate_u32;
 use crate::{BufferTooSmall, ClocklessTiming, Phase, TimingError};
 
 /// How to fake a clockless LED signal with an SPI peripheral.
@@ -183,11 +184,7 @@ impl ClocklessTiming {
             bits_per_led_bit: n,
             zero_high_bits: k0,
             one_high_bits: k1,
-            reset_bytes: if reset_bytes > u32::MAX as u64 {
-                u32::MAX
-            } else {
-                reset_bytes as u32
-            },
+            reset_bytes: saturate_u32(reset_bytes),
         })
     }
 }

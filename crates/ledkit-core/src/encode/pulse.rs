@@ -1,5 +1,6 @@
 //! Pulse lengths in clock ticks, for RMT and PIO style peripherals.
 
+use super::saturate_u32;
 use crate::{BitPhase, Chip, ClocklessTiming, Phase, Protocol, TimingError};
 
 /// Pulse lengths of a clockless LED signal, counted in ticks of a hardware clock.
@@ -41,15 +42,6 @@ const fn ns_to_ticks(ns: u64, ticks_per_second: u32) -> u64 {
         u64::MAX
     } else {
         ticks as u64
-    }
-}
-
-/// Clamps a `u64` into a `u32`, saturating at `u32::MAX`.
-const fn saturate_u32(value: u64) -> u32 {
-    if value > u32::MAX as u64 {
-        u32::MAX
-    } else {
-        value as u32
     }
 }
 

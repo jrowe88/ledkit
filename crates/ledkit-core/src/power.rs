@@ -41,15 +41,45 @@ const CHANNELS: [Channel; 4] = [Channel::Red, Channel::Green, Channel::Blue, Cha
 /// ```
 #[must_use]
 pub fn estimate_microamps<P: Pixel>(pixels: &[P], model: PowerModel) -> u32 {
+    let total = total_microamps(pixels.iter().copied(), model);
+    u32::try_from(total).unwrap_or(u32::MAX)
+}
+
+/// Adds up the estimated current of some pixels, in microamps.
+///
+/// This is the one place the power model is applied; both
+/// [`estimate_microamps`] and [`limited_brightness`] use it.
+fn total_microamps<P: Pixel>(pixels: impl Iterator<Item = P>, model: PowerModel) -> u64 {
+    let mut count: u64 = 0;
     let mut sum: u64 = 0;
     for pixel in pixels {
+        count += 1;
         for channel in CHANNELS {
             sum += u64::from(pixel.channel(channel));
         }
     }
-    let idle = pixels.len() as u64 * u64::from(model.idle_microamps);
-    let total = idle + sum * u64::from(model.channel_full_microamps) / 255;
-    u32::try_from(total).unwrap_or(u32::MAX)
+    count * u64::from(model.idle_microamps) + sum * u64::from(model.channel_full_microamps) / 255
+}
+
+/// The dither offset that gives the brightest frame. Estimating with it
+/// makes the limit hold on every dithered frame.
+const WORST_CASE_DITHER: u8 = 224;
+
+/// The estimated current, in microamps, of `pixels` after the pipeline runs
+/// with `settings` at brightness `brightness` and the brightest dither offset.
+pub(crate) fn processed_microamps<P: Pixel>(
+    pixels: &[P],
+    settings: &PipelineSettings,
+    brightness: u8,
+    model: PowerModel,
+) -> u64 {
+    let trial = PipelineSettings {
+        correction: settings.correction,
+        gamma: settings.gamma,
+        brightness,
+        dither: WORST_CASE_DITHER,
+    };
+    total_microamps(pixels.iter().map(|&pixel| process(pixel, &trial)), model)
 }
 
 /// Finds the largest brightness (up to the requested one) that keeps the
@@ -64,23 +94,7 @@ pub(crate) fn limited_brightness<P: Pixel>(
 ) -> u8 {
     let requested = settings.brightness;
     let limit_ua = u64::from(limit.0) * 1000;
-    let estimate_at = |b: u8| -> u64 {
-        let trial = PipelineSettings {
-            correction: settings.correction,
-            gamma: settings.gamma,
-            brightness: b,
-            dither: 224,
-        };
-        let mut sum: u64 = 0;
-        for &pixel in pixels {
-            let p = process(pixel, &trial);
-            for channel in CHANNELS {
-                sum += u64::from(p.channel(channel));
-            }
-        }
-        let idle = pixels.len() as u64 * u64::from(model.idle_microamps);
-        idle + sum * u64::from(model.channel_full_microamps) / 255
-    };
+    let estimate_at = |b: u8| processed_microamps(pixels, settings, b, model);
 
     if pixels.is_empty() {
         return requested;
@@ -99,8 +113,13 @@ pub(crate) fn limited_brightness<P: Pixel>(
     let guess = u64::from(requested) * available / channel_part;
     #[allow(clippy::cast_possible_truncation)] // clamped to a u8 first
     let mut b = guess.min(u64::from(requested)) as u8;
+    // The guess is close but not exact (rounding, gamma and correction), so
+    // step down until it fits, then up while the next level still fits.
     while b > 0 && estimate_at(b) > limit_ua {
         b -= 1;
+    }
+    while b < requested && estimate_at(b + 1) <= limit_ua {
+        b += 1;
     }
     b
 }
@@ -108,8 +127,9 @@ pub(crate) fn limited_brightness<P: Pixel>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::pipeline::scale_channel;
+    use crate::pipeline::{scale_channel, DITHER_SEQUENCE};
     use crate::{Rgb, Rgbw};
+    use ledkit_color::{GammaTable, GAMMA_2_6};
 
     fn settings(b: u8) -> PipelineSettings {
         PipelineSettings {
@@ -185,23 +205,67 @@ mod tests {
         );
     }
     #[test]
-    fn never_exceeds_limit_property() {
+    fn never_exceeds_limit_and_is_the_largest_that_fits() {
+        let gammas: [Option<&'static GammaTable>; 2] = [None, Some(&GAMMA_2_6)];
+        let rgb_colors = [Rgb::WHITE, Rgb::RED, Rgb::new(10, 200, 90)];
+        let rgbw_colors = [
+            Rgbw::new(255, 255, 255, 255),
+            Rgbw::new(0, 0, 0, 255),
+            Rgbw::new(10, 200, 90, 40),
+        ];
         for limit in [50, 100, 250, 333, 499, 777] {
-            for &color in &[Rgb::WHITE, Rgb::RED, Rgb::new(10, 200, 90)] {
-                let b = limited_brightness(
-                    &[color; 24],
-                    &settings(255),
-                    PowerModel::TYPICAL_5V,
-                    Milliamps(limit),
-                );
-                let processed = [process(color, &settings(b)); 24];
-                let idle_only = 24 * 1000;
-                assert!(
-                    estimate_microamps(&processed, PowerModel::TYPICAL_5V)
-                        <= (limit * 1000).max(idle_only),
-                    "limit {limit} color {color:?}"
-                );
+            for requested in [255, 200, 128, 30] {
+                for gamma in gammas {
+                    for color in rgb_colors {
+                        check_limit(&[color; 24], requested, gamma, limit);
+                    }
+                    for color in rgbw_colors {
+                        check_limit(&[color; 24], requested, gamma, limit);
+                    }
+                }
             }
+        }
+    }
+
+    /// Checks the limit holds on every dither offset, and that one step
+    /// brighter would break it.
+    fn check_limit<P: Pixel>(
+        pixels: &[P],
+        requested: u8,
+        gamma: Option<&'static GammaTable>,
+        limit: u32,
+    ) {
+        let base = PipelineSettings {
+            correction: Rgb::WHITE,
+            gamma,
+            brightness: requested,
+            dither: 128,
+        };
+        let model = PowerModel::TYPICAL_5V;
+        let b = limited_brightness(pixels, &base, model, Milliamps(limit));
+        assert!(b <= requested);
+        let idle_only = pixels.len() as u64 * 1000;
+        let allowed = (u64::from(limit) * 1000).max(idle_only);
+        for dither in DITHER_SEQUENCE {
+            let frame = PipelineSettings {
+                correction: base.correction,
+                gamma,
+                brightness: b,
+                dither,
+            };
+            let used = total_microamps(pixels.iter().map(|&p| process(p, &frame)), model);
+            assert!(
+                used <= allowed,
+                "limit {limit} requested {requested} dither {dither} pixels {:?}",
+                pixels[0]
+            );
+        }
+        if b < requested {
+            assert!(
+                processed_microamps(pixels, &base, b + 1, model) > u64::from(limit) * 1000,
+                "not maximal: limit {limit} requested {requested} b {b} pixels {:?}",
+                pixels[0]
+            );
         }
     }
 }

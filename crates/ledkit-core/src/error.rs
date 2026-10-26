@@ -76,17 +76,19 @@ pub enum TimingError {
     },
 }
 
-/// Prints a frequency in MHz with one decimal place, using integer math.
+/// Prints a frequency in MHz using integer math: one decimal place for
+/// multiples of 100 kHz ("3.2 MHz"), otherwise two ("3.35 MHz", truncated).
 struct Mhz(u32);
 
 impl fmt::Display for Mhz {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}.{} MHz",
-            self.0 / 1_000_000,
-            (self.0 % 1_000_000) / 100_000
-        )
+        let whole = self.0 / 1_000_000;
+        let rest = self.0 % 1_000_000;
+        if rest % 100_000 == 0 {
+            write!(f, "{whole}.{} MHz", rest / 100_000)
+        } else {
+            write!(f, "{whole}.{:02} MHz", rest / 10_000)
+        }
     }
 }
 
@@ -98,11 +100,20 @@ impl fmt::Display for TimingError {
                 actual_ns,
                 min_ns,
                 max_ns,
-            } => write!(
-                f,
-                "the {phase} would be {actual_ns} ns, but this LED needs {min_ns} to {max_ns} ns; \
-                 try a different clock speed"
-            ),
+            } => {
+                write!(
+                    f,
+                    "the {phase} would be {actual_ns} ns, but this LED needs {min_ns} to {max_ns} ns"
+                )?;
+                // The pulse is the typical length rounded to whole ticks, so
+                // it misses the window only when a tick is too long. A finer
+                // (faster) clock fixes both directions; a slower one never does.
+                if actual_ns < min_ns {
+                    f.write_str("; try a faster clock")
+                } else {
+                    f.write_str("; the clock is too coarse to time this pulse, try a faster clock")
+                }
+            }
             Self::TooManyTicks { ticks, max_ticks } => write!(
                 f,
                 "a pulse needs {ticks} clock ticks but the hardware can count only {max_ticks}; \
@@ -144,6 +155,8 @@ pub struct BufferTooSmall {
     pub needed: usize,
 }
 
+impl core::error::Error for TimingError {}
+
 impl fmt::Display for BufferTooSmall {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
@@ -153,3 +166,5 @@ impl fmt::Display for BufferTooSmall {
         )
     }
 }
+
+impl core::error::Error for BufferTooSmall {}

@@ -19,8 +19,7 @@
 //! const LED_COUNT: usize = 8;
 //! type LedType = Ws2812b; // what is printed on your LEDs
 //!
-//! let mut strip: Strip<LedType, LED_COUNT, MemoryOutput<Rgb, LED_COUNT>> =
-//!     Strip::new(MemoryOutput::new());
+//! let mut strip = Strip::<LedType, LED_COUNT, _>::new(MemoryOutput::<_, LED_COUNT>::new());
 //!
 //! // Keep it comfortable to look at, and keep the power supply safe.
 //! strip.set_brightness(0.3);
@@ -164,8 +163,24 @@ pub use strip::Strip;
 pub use timing::*;
 
 /// Everything you usually need, in one import: `use ledkit_core::prelude::*;`.
+///
+/// The [`Output`] and [`OutputAsync`] traits are left out on purpose: both
+/// have a `write` method, and having both in scope would make `.write()`
+/// ambiguous. Backend code imports them from the crate root.
+///
+/// # Example
+///
+/// ```
+/// use ledkit_core::prelude::*;
+/// use ledkit_core::testing::MemoryOutput;
+///
+/// let mut strip = Strip::<Ws2812b, 4, _>::new(MemoryOutput::<Rgb, 4>::new());
+/// strip.set_color_gamma(&GAMMA_2_6);
+/// strip.fill(Color::GREEN);
+/// strip.show().unwrap();
+/// ```
 pub mod prelude {
     pub use crate::chips::*;
-    pub use crate::{Brightness, Chip, Color, Milliamps, Output, OutputAsync, Rgb, Rgbw, Strip};
+    pub use crate::{Brightness, Chip, Color, Milliamps, Rgb, Rgbw, Strip};
     pub use ledkit_color::{correction, Hsv, Hue, GAMMA_2_2, GAMMA_2_6};
 }

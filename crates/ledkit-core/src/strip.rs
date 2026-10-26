@@ -89,7 +89,7 @@ impl<C: Chip, const N: usize, O> Strip<C, N, O> {
 
     /// Sets every LED to one color.
     pub fn fill(&mut self, color: impl Into<C::Pixel>) {
-        self.pixels = [color.into(); N];
+        self.pixels.fill(color.into());
     }
 
     /// Sets a range of LEDs to one color, for example `strip.fill_range(2..5, color)`.
@@ -119,7 +119,7 @@ impl<C: Chip, const N: usize, O> Strip<C, N, O> {
 
     /// Sets every LED to black (off). The strip changes when you next call `show`.
     pub fn clear(&mut self) {
-        self.pixels = [C::Pixel::default(); N];
+        self.pixels.fill(C::Pixel::default());
     }
 
     /// How many LEDs the strip has.

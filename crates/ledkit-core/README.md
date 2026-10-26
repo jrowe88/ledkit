@@ -23,8 +23,7 @@ use ledkit_core::{Color, Milliamps, Rgb, Strip, Ws2812b};
 const LED_COUNT: usize = 8;
 type LedType = Ws2812b; // what is printed on your LEDs
 
-let mut strip: Strip<LedType, LED_COUNT, MemoryOutput<Rgb, LED_COUNT>> =
-    Strip::new(MemoryOutput::new());
+let mut strip = Strip::<LedType, LED_COUNT, _>::new(MemoryOutput::<_, LED_COUNT>::new());
 
 // Keep it comfortable to look at, and keep the power supply safe.
 strip.set_brightness(0.3);

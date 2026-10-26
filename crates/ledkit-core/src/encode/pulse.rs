@@ -285,13 +285,74 @@ mod tests {
         assert!(msg.contains("no SPI clock works for this LED"), "{msg}");
     }
     #[test]
-    fn mhz_is_truncated_to_one_decimal() {
+    fn mhz_prints_two_decimals_when_needed() {
         let e = TimingError::SpiClockUnusable {
             spi_hz: 1_950_000,
-            nearest_lower_hz: None,
+            nearest_lower_hz: Some(3_350_000),
+            nearest_higher_hz: Some(3_200_000),
+        };
+        let msg = format!("{e}");
+        assert!(msg.contains("1.95 MHz"), "{msg}");
+        assert!(msg.contains("3.35 MHz"), "{msg}");
+        assert!(
+            msg.contains("3.2 MHz") && !msg.contains("3.20 MHz"),
+            "{msg}"
+        );
+    }
+    #[test]
+    fn mhz_two_decimals_pad_and_truncate() {
+        let e = TimingError::SpiClockUnusable {
+            spi_hz: 2_050_000,
+            nearest_lower_hz: Some(4_512_345),
             nearest_higher_hz: None,
         };
-        assert!(format!("{e}").contains("1.9 MHz"));
+        let msg = format!("{e}");
+        assert!(
+            msg.contains("2.05 MHz") && msg.contains("4.51 MHz"),
+            "{msg}"
+        );
+    }
+    #[test]
+    fn too_short_pulse_suggests_a_faster_clock() {
+        // At 1 MHz the 400 ns zero-high rounds to 0 ticks.
+        let e = ClocklessTiming::of::<Ws2812b>()
+            .pulse_ticks(1_000_000, 32_767)
+            .unwrap_err();
+        let msg = format!("{e}");
+        assert!(
+            msg.contains("0 ns") && msg.contains("try a faster clock"),
+            "{msg}"
+        );
+    }
+    #[test]
+    fn too_long_pulse_message() {
+        // At 1.8 MHz the 400 ns zero-high rounds to 1 tick = 555 ns (> 450).
+        let e = ClocklessTiming::of::<Ws2812b>()
+            .pulse_ticks(1_800_000, 32_767)
+            .unwrap_err();
+        assert_eq!(
+            e,
+            TimingError::PhaseOutOfRange {
+                phase: BitPhase::ZeroHigh,
+                actual_ns: 555,
+                min_ns: 220,
+                max_ns: 450,
+            }
+        );
+        let msg = format!("{e}");
+        assert!(
+            msg.contains("555 ns") && msg.contains("too coarse"),
+            "{msg}"
+        );
+    }
+    #[test]
+    fn errors_implement_core_error() {
+        fn is_error<E: core::error::Error>(_: &E) {}
+        is_error(&TimingError::TooManyTicks {
+            ticks: 2,
+            max_ticks: 1,
+        });
+        is_error(&crate::BufferTooSmall { needed: 1 });
     }
     #[test]
     fn window_error_beats_tick_limit() {

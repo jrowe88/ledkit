@@ -61,14 +61,25 @@ const fn phase_ticks(
     max_ticks: u32,
 ) -> Result<u32, TimingError> {
     let ticks = ns_to_ticks(p.typical_ns as u64, ticks_per_second);
+    let tps = ticks_per_second as u128;
+    // The pulse lasts `ticks / ticks_per_second` seconds. Compare it with
+    // the window exactly, with both sides multiplied by `ticks_per_second`,
+    // so a pulse of 450.45 ns never passes a 450 ns maximum.
+    let pulse = ticks as u128 * 1_000_000_000;
+    let in_window = p.min_ns as u128 * tps <= pulse && pulse <= p.max_ns as u128 * tps;
     // A zero-tick phase (including a zero clock rate) is never valid;
     // return before dividing by `ticks_per_second`.
-    let actual_ns = if ticks == 0 {
-        0
-    } else {
-        saturate_u32(ticks * 1_000_000_000 / ticks_per_second as u64)
-    };
-    if ticks == 0 || !p.contains(actual_ns) {
+    if ticks == 0 || !in_window {
+        let actual_ns = if ticks == 0 {
+            0
+        } else {
+            let ns = pulse / tps;
+            if ns > u32::MAX as u128 {
+                u32::MAX
+            } else {
+                ns as u32
+            }
+        };
         return Err(TimingError::PhaseOutOfRange {
             phase: which,
             actual_ns,
@@ -353,6 +364,19 @@ mod tests {
             max_ticks: 1,
         });
         is_error(&crate::BufferTooSmall { needed: 1 });
+    }
+    #[test]
+    fn window_is_checked_exactly_not_after_rounding() {
+        // At 2.22 MHz one tick is 450.45 ns: just over the 450 ns maximum.
+        assert_eq!(
+            ClocklessTiming::of::<Ws2812b>().pulse_ticks(2_220_000, 32_767),
+            Err(TimingError::PhaseOutOfRange {
+                phase: BitPhase::ZeroHigh,
+                actual_ns: 450,
+                min_ns: 220,
+                max_ns: 450,
+            })
+        );
     }
     #[test]
     fn window_error_beats_tick_limit() {

@@ -5,9 +5,11 @@
 //! allocator. It is part of the ledkit family of crates.
 #![cfg_attr(not(test), no_std)]
 
+mod hue;
 mod named;
 mod rgb;
 
+pub use hue::{Hsv, Hue};
 pub use rgb::{Rgb, Rgbw};
 
 /// A friendlier name for [`Rgb`], so you can write `Color::BLUE`.

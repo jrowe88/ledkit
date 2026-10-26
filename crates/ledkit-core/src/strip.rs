@@ -205,12 +205,13 @@ impl<C: Chip, const N: usize, O> Strip<C, N, O> {
         self.dithering = on;
     }
 
-    /// The brightness the last `show` really used, after power limiting.
+    /// The brightness the last successful `show` really used, after power limiting.
     ///
-    /// It reflects the last `show`: it is updated each time you call `show`
-    /// (or `show_async`), so changing the colors, brightness or power limit
-    /// afterwards does not change it until the next `show`. Before the first
-    /// `show` it is the brightness you set. It is always an exact output
+    /// It reflects the last successful `show`: it is updated each time
+    /// `show` (or `show_async`) sends a frame, so changing the colors,
+    /// brightness or power limit afterwards does not change it until the
+    /// next one. A `show` that returns an error leaves it as it was. Before
+    /// the first successful `show` it is the brightness you set. It is always an exact output
     /// level ([`Brightness::exact`]), so compare it with another exact value
     /// or use [`Brightness::output_level`].
     #[must_use]
@@ -232,8 +233,9 @@ impl<C: Chip, const N: usize, O> Strip<C, N, O> {
         &mut self.output
     }
 
-    /// Works out the settings for this frame, then advances the frame counter.
-    fn prepare(&mut self) -> PipelineSettings {
+    /// Works out the settings for this frame. Nothing is changed until
+    /// [`commit`](Self::commit) is called after a successful send.
+    fn prepare(&self) -> PipelineSettings {
         let mut settings = PipelineSettings {
             correction: self.correction,
             gamma: self.gamma,
@@ -253,9 +255,14 @@ impl<C: Chip, const N: usize, O> Strip<C, N, O> {
             settings.brightness =
                 limited_brightness(&self.pixels, &settings, C::POWER, limit, assumed);
         }
+        settings
+    }
+
+    /// Records a frame that was sent: remembers its brightness and moves
+    /// the dither on to the next frame.
+    fn commit(&mut self, settings: &PipelineSettings) {
         self.last_raw = Some(settings.brightness);
         self.frame = self.frame.wrapping_add(1);
-        settings
     }
 
     /// Sends the strip to the LEDs.
@@ -265,21 +272,26 @@ impl<C: Chip, const N: usize, O> Strip<C, N, O> {
     ///
     /// # Errors
     ///
-    /// Returns the output's error if sending failed.
+    /// Returns the output's error if sending failed. A failed `show`
+    /// changes nothing: [`effective_brightness`](Strip::effective_brightness)
+    /// and the dither step stay as they were.
     pub fn show(&mut self) -> Result<(), O::Error>
     where
         O: Output<C>,
     {
         let settings = self.prepare();
         self.output
-            .write(self.pixels.iter().map(|p| process(*p, &settings)))
+            .write(self.pixels.iter().map(|p| process(*p, &settings)))?;
+        self.commit(&settings);
+        Ok(())
     }
 
     /// Like [`show`](Strip::show), but `async`.
     ///
     /// # Errors
     ///
-    /// Returns the output's error if sending failed.
+    /// Returns the output's error if sending failed. As with `show`, a
+    /// failed send changes nothing.
     pub async fn show_async(&mut self) -> Result<(), O::Error>
     where
         O: OutputAsync<C>,
@@ -287,7 +299,9 @@ impl<C: Chip, const N: usize, O> Strip<C, N, O> {
         let settings = self.prepare();
         self.output
             .write(self.pixels.iter().map(|p| process(*p, &settings)))
-            .await
+            .await?;
+        self.commit(&settings);
+        Ok(())
     }
 }
 
@@ -461,6 +475,99 @@ mod tests {
         let mut s: Strip<Sk6812Rgbw, 1, MemoryOutput<Rgbw, 1>> = Strip::new(MemoryOutput::new());
         s.set(0, Rgb::RED);
         assert_eq!(s.get(0), Some(Rgbw::new(255, 0, 0, 0)));
+    }
+    /// An output that fails while `fail` is set, and otherwise remembers
+    /// frames like `MemoryOutput`.
+    struct Flaky<const N: usize> {
+        fail: bool,
+        memory: Mem<N>,
+    }
+
+    #[derive(Debug, PartialEq)]
+    struct SendFailed;
+
+    impl<const N: usize> Output<Ws2812b> for Flaky<N> {
+        type Error = SendFailed;
+        fn write<I>(&mut self, pixels: I) -> Result<(), SendFailed>
+        where
+            I: Iterator<Item = Rgb> + ExactSizeIterator,
+        {
+            if self.fail {
+                return Err(SendFailed);
+            }
+            let Ok(()) = Output::<Ws2812b>::write(&mut self.memory, pixels);
+            Ok(())
+        }
+    }
+
+    impl<const N: usize> OutputAsync<Ws2812b> for Flaky<N> {
+        type Error = SendFailed;
+        #[allow(clippy::unused_async_trait_impl)] // the trait requires an async fn
+        async fn write<I>(&mut self, pixels: I) -> Result<(), SendFailed>
+        where
+            I: Iterator<Item = Rgb> + ExactSizeIterator,
+        {
+            Output::<Ws2812b>::write(self, pixels)
+        }
+    }
+
+    fn flaky<const N: usize>() -> Strip<Ws2812b, N, Flaky<N>> {
+        Strip::new(Flaky {
+            fail: true,
+            memory: MemoryOutput::new(),
+        })
+    }
+
+    #[test]
+    fn failed_show_keeps_effective_brightness() {
+        let mut s = flaky::<10>();
+        s.fill(Rgb::WHITE);
+        s.set_power_limit(Milliamps(300));
+        s.set_dithering(false);
+        assert_eq!(s.show(), Err(SendFailed));
+        assert_eq!(s.effective_brightness(), Brightness::exact(255));
+        s.output_mut().fail = false;
+        s.show().unwrap();
+        assert_eq!(s.effective_brightness(), Brightness::exact(122));
+        s.output_mut().fail = true;
+        s.clear_power_limit();
+        assert_eq!(s.show(), Err(SendFailed));
+        assert_eq!(s.effective_brightness(), Brightness::exact(122));
+    }
+    #[test]
+    fn failed_show_keeps_the_dither_phase() {
+        let mut s = flaky::<1>();
+        s.set(0, Rgb::new(200, 0, 0));
+        s.set_brightness(Brightness::exact(128));
+        // Frame 0 rounds red to 100, frames 1 to 3 to 101.
+        assert_eq!(s.show(), Err(SendFailed));
+        assert_eq!(s.show(), Err(SendFailed));
+        s.output_mut().fail = false;
+        let mut reds = [0u8; 8];
+        for r in &mut reds {
+            s.show().unwrap();
+            *r = s.output().memory.last_frame()[0].r;
+        }
+        assert_eq!(reds, [100, 101, 101, 101, 100, 101, 101, 101]);
+        assert_eq!(s.output().memory.frames_written, 8);
+    }
+    #[test]
+    fn failed_async_show_keeps_state() {
+        let mut s = flaky::<1>();
+        s.set(0, Rgb::new(200, 0, 0));
+        s.set_brightness(Brightness::exact(128));
+        s.set_power_limit(Milliamps(5));
+        let failed = embassy_futures::block_on(s.show_async());
+        assert_eq!(failed, Err(SendFailed));
+        assert_eq!(s.effective_brightness(), Brightness::exact(128));
+        s.output_mut().fail = false;
+        s.clear_power_limit();
+        embassy_futures::block_on(s.show_async()).unwrap();
+        // Frame 0, not frame 1: red 100.
+        assert_eq!(s.output().memory.last_frame()[0].r, 100);
+        assert_eq!(s.effective_brightness(), Brightness::exact(128));
+        embassy_futures::block_on(s.show_async()).unwrap();
+        assert_eq!(s.output().memory.last_frame()[0].r, 101);
     }
     #[test]
     fn async_show() {

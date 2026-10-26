@@ -1,0 +1,22 @@
+[package]
+name = "ledkit-color"
+description = "Colors for addressable LEDs: RGB/RGBW, hue, gamma, color temperature, gradients. no_std."
+keywords = ["led", "neopixel", "color", "no-std", "embedded"]
+categories = ["embedded", "no-std", "graphics"]
+readme = "README.md"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+libm = "0.2"
+rgb = { version = "0.8", optional = true, default-features = false }
+
+[features]
+rgb = ["dep:rgb"]
+
+[lints]
+workspace = true

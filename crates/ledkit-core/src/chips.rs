@@ -157,7 +157,7 @@ pub type Sk6812Mini = Sk6812;
 /// The SK6805, a tiny 2020-size NeoPixel-style LED. Same as [`Sk6812`].
 pub type Sk6805 = Sk6812;
 
-/// The tiny APA102-2020 LEDs on the `SparkFun` `LuMini`. Same as [`Apa102`].
+/// The tiny APA102-2020 LEDs on the SparkFun LuMini. Same as [`Apa102`].
 #[allow(non_camel_case_types)]
 pub type Apa102_2020 = Apa102;
 

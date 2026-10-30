@@ -83,6 +83,9 @@ The strip should light up right after the Teensy reboots.
 to ledkit, so ledkit builds its pulses for the speed the bus really runs at.
 Being 1.8% slow is well within what a WS2812B accepts.
 
+`actual_spi_hz` in `src/main.rs` mirrors how imxrt-hal 0.6 rounds that divider,
+so check it again if you change the HAL version.
+
 ## Notes
 
 - **Long strips are fine.** The Teensy's SPI driver sends at most 512 bytes

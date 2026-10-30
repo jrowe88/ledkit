@@ -10,6 +10,3 @@ rustflags = [
   # Needed for useful panic backtraces.
   "-C", "force-frame-pointers",
 ]
-
-[env]
-ESP_LOG = "info"

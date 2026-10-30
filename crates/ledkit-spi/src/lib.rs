@@ -9,6 +9,13 @@
 //! clock speed and its pin with your board's HAL, then hand over the bus and
 //! the clock rate it really runs at.
 //!
+//! ## Which output do I use?
+//!
+//! | Your LEDs | Wires | Use |
+//! |---|---|---|
+//! | NeoPixel type (WS2812B, SK6812 and friends) | one data wire, from MOSI | [`ClocklessSpi`] |
+//! | DotStar type (APA102, SK9822) | data (MOSI) and clock (SCK) | [`ClockedSpi`] |
+//!
 //! ## Quick tour
 //!
 //! On a real board it looks like this (the setup lines depend on your HAL,
@@ -127,10 +134,84 @@
 //!
 //! ## Which SPI clock?
 //!
-//! The clock sets how finely the LED pulses can be shaped, so only some
-//! speeds work. For a WS2812B (NeoPixel), any speed from 2.3 to 6.8 MHz
-//! does; 3.2 MHz is a good pick. If your speed won't work,
-//! [`ClocklessSpi::new`] returns an error naming the nearest ones that do.
+//! A NeoPixel has no clock wire, so its bits are timed pulses. The SPI clock
+//! sets how finely those pulses can be shaped, so only some speeds work.
+//!
+//! | LEDs | SPI clock |
+//! |---|---|
+//! | WS2812/SK6812 family | 3.2 MHz is a good pick (2.3 to 6.8 MHz works for a WS2812B) |
+//! | WS2811 at 400 kHz | make a guess with [`ClocklessSpi::new`]; the error message names the clocks that work |
+//! | DotStars | anything up to 8 MHz for now |
+//!
+//! **Pass the clock your bus really runs at.** Many HALs round the speed you
+//! ask for to what the hardware can divide down to (a Raspberry Pi asking for
+//! 3.2 MHz gets about 3.1 MHz). ledkit builds its pulses from the number you
+//! give it, so use the real speed if your HAL tells you, or work it out. A
+//! few percent of difference is fine; a wrong guess by a lot is not.
+//!
+//! ## `new` or `new_packed`?
+//!
+//! [`ClocklessSpi::new`] sends every LED bit as a whole number of bytes
+//! (4 or 8 SPI bits per LED bit). It works on every SPI peripheral, even
+//! when there are tiny pauses between bytes. Use it unless it refuses your
+//! clock.
+//!
+//! [`ClocklessSpi::new_packed`] squeezes the bits together, which allows more
+//! clock speeds (for example 4 MHz). The cost: a pause between bytes can land
+//! in the middle of a pulse and corrupt a color, so use it only when your
+//! SPI sends bytes back to back (typically with DMA).
+//!
+//! ## Sizing the buffer
+//!
+//! The driver needs a buffer to build the SPI bytes in. Make it exactly big
+//! enough with [`buffer_len`] (or [`buffer_len_packed`] for `new_packed`).
+//! They are `const fn`s, so they size an array, and a clock that can't drive
+//! your LED is a build error instead of a surprise later:
+//!
+//! ```
+//! use ledkit_core::Ws2812b;
+//! use ledkit_spi::buffer_len;
+//!
+//! const BUFFER_LEN: usize = buffer_len::<Ws2812b>(30, 3_200_000);
+//! let buffer = [0u8; BUFFER_LEN];
+//! assert_eq!(buffer.len(), 473);
+//! ```
+//!
+//! ## HALs that cap one transfer
+//!
+//! Some SPI drivers can only send so many bytes at once. The Teensy 4's
+//! LPSPI, for example, sends at most 512 bytes per write, which is only
+//! about 30 LEDs. Add [`with_max_write_len`](ClocklessSpi::with_max_write_len)
+//! and ledkit cuts the frame into pieces of that size:
+//!
+//! ```ignore
+//! let output = ClocklessSpi::<Ws2812b, _, _>::new(spi, SPI_HZ, buffer)
+//!     .unwrap()
+//!     .with_max_write_len(512);
+//! ```
+//!
+//! This is safe with [`ClocklessSpi::new`]: a short pause between pieces only
+//! makes a low phase a little longer, far shorter than the pause an LED
+//! needs to latch. It is **not** safe with [`ClocklessSpi::new_packed`],
+//! where a pause can land inside a high pulse.
+//!
+//! ## Tested on hardware
+//!
+//! | Board | LEDs | Result |
+//! |---|---|---|
+//! | ESP32-C6 `DevKit` (chip rev v0.2), 2026-10-30 | the onboard LED | passed: red, green, blue and white in order, a smooth rainbow, 20% brightness |
+//! | Raspberry Pi (Linux spidev) | | untested on hardware; builds in CI |
+//! | Teensy 4 (LPSPI) | | untested on hardware; builds in CI, hardware test pending |
+//! | DotStars (`ClockedSpi`) | | untested on hardware |
+//!
+//! Everything else is covered by host tests with a pretend SPI bus. Examples
+//! are in the `examples` folder of the repository: `esp32c6-spi`,
+//! `linux-spidev` and `teensy4-spi`. If you try one on your hardware, please
+//! report what you see.
+//!
+//! ## Features
+//!
+//! - `smart-leds`: `smart-leds` write traits for the outputs.
 #![cfg_attr(not(test), no_std)]
 
 mod clocked;

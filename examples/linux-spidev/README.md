@@ -56,6 +56,15 @@ core_freq=250
 generally need no change. A steady clock is the first thing to check if the
 LEDs flicker.
 
+## Longer strips
+
+`LED_COUNT` in `src/main.rs` is 30. Linux spidev limits one write to 4096 bytes
+by default (`bufsiz`), which is about 260 WS2812B LEDs at 3.2 MHz. For more,
+raise the limit with the `spidev.bufsiz=65536` kernel parameter (add it to
+`/boot/firmware/cmdline.txt` on one line and reboot). Do not use
+`with_max_write_len` as a fix here: the pauses between user-space writes can be
+longer than the LED reset time, which would split the frame into several.
+
 ## Build and run
 
 On the Pi, in this folder:

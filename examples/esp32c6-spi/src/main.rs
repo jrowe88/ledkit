@@ -96,7 +96,7 @@ fn main() -> ! {
 
     let delay = Delay::new();
 
-    println!("ledkit first light: {} LED on GPIO8", LED_COUNT);
+    println!("ledkit first light: {} LED", LED_COUNT);
 
     // Part one: each basic color for one second, with its name printed so you
     // can compare what you see against what you should see.

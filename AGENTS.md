@@ -23,7 +23,9 @@ replacing it. The design lives in `docs/superpowers/specs/`.
 | `ledkit-rp` | RP2040/RP2350 PIO backend | `ledkit-core`, an RP HAL |
 | `ledkit-sim` | Desktop simulator (`std`) | `ledkit-anim` |
 
-Only `ledkit-color` and `ledkit-core` exist so far; the rest are planned.
+Only `ledkit-color`, `ledkit-core` and `ledkit-spi` exist so far; the rest are planned.
+
+Writing a new backend? Follow the "Add a backend" guide in `CONTRIBUTING.md`; `ledkit-spi` is the model.
 
 ## ledkit-core modules
 

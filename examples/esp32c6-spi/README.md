@@ -4,6 +4,9 @@ Drives the onboard RGB LED of the ESP32-C6-DevKitC-1 with `ledkit-core` and
 `ledkit-spi`. The LED's data pin (GPIO8) is fed from the chip's SPI hardware,
 so no special LED peripheral is needed.
 
+> **Tested on hardware:** ESP32-C6 DevKit (chip rev v0.2), 2026-10-30. It showed
+> red, green, blue and white in order, then a smooth rainbow, at 20% brightness.
+
 ## What you'll see
 
 1. Red, green, blue, then white, one second each, dimly lit (20% brightness).
@@ -16,7 +19,8 @@ rustup target add riscv32imac-unknown-none-elf
 cargo install espflash --locked
 ```
 
-That is all. The ESP32-C6 is a RISC-V chip, so ordinary stable Rust works and
+That is all. You need stable Rust 1.95 or newer, which esp-hal requires
+(`rustup update stable`). The ESP32-C6 is a RISC-V chip, so ordinary stable Rust works and
 you do **not** need the `espup` toolchain.
 
 ## Run it
@@ -35,7 +39,7 @@ port is found, espflash asks which to use.
 ## Expected serial output
 
 ```text
-ledkit first light: 1 LED on GPIO8
+ledkit first light: 1 LED
 showing red
 showing green
 showing blue

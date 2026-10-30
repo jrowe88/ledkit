@@ -50,7 +50,17 @@ The same table appears in three places, and they must stay identical: the top of
 
 ## Add a backend
 
-Coming in a later milestone.
+A backend turns a `Strip`'s finished frame into signals on a real peripheral. `crates/ledkit-spi` is the model to copy. The steps:
+
+1. **Implement `Output` (blocking) and `OutputAsync` (if the HAL has async)** from `ledkit-core`. `write` receives the pixels after `Strip` has applied brightness, gamma, dithering and the power limit; never do any of that yourself.
+2. **Check the chip kind at compile time**, with `const { ClocklessTiming::of::<C>() }` (or the clocked equivalent), so a DotStar chip on a clockless backend fails to build instead of misbehaving.
+3. **Use the `wire` and `encode` helpers** (`wire::clockless_bytes`, `wire::clocked_frame`, `SpiEncoding`, `PulseTicks`) instead of re-deriving color order, timing or bit patterns.
+4. **Flush before returning**, so `show()` means the data has really left the chip and the LEDs can't be handed a half-sent frame.
+5. **Own the reset gap.** A clockless chip needs a pause with the line low (its `reset_us`) between frames to latch the colors, and `Output`'s docs make that the backend's job. SPI satisfies it by sending trailing reset bytes and then flushing. RMT and PIO backends must time it themselves: remember when the last frame ended and wait out the rest before the next one.
+6. **Test with a fake bus** (see `crates/ledkit-spi/src/testing.rs`): check the exact bytes for a known frame, error propagation, and that flush happens.
+7. **Add a `smart-leds` impl** behind a `smart-leds` feature, so code written for the existing ecosystem needs only a new constructor.
+8. **Write docs and an example** in the style of `crates/ledkit-spi/src/lib.rs`, and keep the crate's README identical in content (`crates/ledkit-core` does the same; the README uses plain backticks instead of links).
+9. Run the commands under "Build and test", including the `no_std` builds for your crate.
 
 ## Add an effect
 

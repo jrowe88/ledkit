@@ -75,6 +75,9 @@ const RAINBOW_STEP: u16 = 512;
 /// isn't a whole number, so the hardware picks the next slower speed:
 /// 132 MHz / 42 = 3,142,857 Hz.
 ///
+/// NOTE: this mirrors imxrt-hal 0.6's divider rounding. Re-check it if the
+/// HAL version changes.
+///
 /// This function repeats the rounding the Teensy HAL does inside
 /// `Disabled::set_clock_hz` (round the divider up, and never go below 6), so
 /// we can tell ledkit the speed the bus REALLY runs at. The 1.8 percent

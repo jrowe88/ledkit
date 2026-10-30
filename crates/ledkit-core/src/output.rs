@@ -17,6 +17,26 @@ use crate::Chip;
 /// [`wire::clockless_bytes`]: crate::wire::clockless_bytes
 /// [`wire::clocked_frame`]: crate::wire::clocked_frame
 ///
+/// # What a backend is responsible for
+///
+/// - **The reset gap.** Clockless chips (NeoPixels) take a pause in the
+///   data, at least [`ClocklessTiming::reset_us`](crate::ClocklessTiming)
+///   long, as "frame done, latch the colors". If the next frame starts
+///   sooner, the chips treat it as more of the same frame. [`Strip`] does
+///   not track time, so the backend must keep consecutive frames at least
+///   that far apart, however often `show()` is called. An SPI backend can
+///   send the reset as trailing zero bytes; an RMT or PIO backend should
+///   remember when the last frame ended and wait out the rest of the gap
+///   before starting the next. Clocked chips (DotStars) need no gap.
+/// - **Returning only when it is safe to send again.** For [`Output`],
+///   `write` returns once the frame is sent (or queued so that the next
+///   `write` cannot corrupt it).
+/// - **Nothing else.** Brightness, gamma, color correction, dithering and
+///   the power limit were already applied by [`Strip`]; a backend must not
+///   apply them again.
+///
+/// [`Strip`]: crate::Strip
+///
 /// # Example
 ///
 /// ```

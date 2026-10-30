@@ -13,10 +13,14 @@ This runs on your computer using `testing::MemoryOutput`, which just
 remembers the last frame. Real projects use a backend crate for their
 board instead (coming in milestone 3); the rest of the code stays the same.
 
+Start every program with `use ledkit_core::prelude::*;`. It brings in
+the strip, the chip types, colors (including `Hue` and `Hsv`),
+brightness, the gamma tables and `Dim`, so you don't have to hunt for
+where each one lives.
+
 ```rust
+use ledkit_core::prelude::*;
 use ledkit_core::testing::MemoryOutput;
-use ledkit_core::color::Hue;
-use ledkit_core::{Color, Milliamps, Rgb, Strip, Ws2812b};
 
 const LED_COUNT: usize = 8;
 type LedType = Ws2812b; // what is printed on your LEDs
@@ -47,7 +51,12 @@ much brighter than "half". ledkit takes care of that for you.
 
 - **Brightness is perceptual.** `strip.set_brightness(0.5)` looks about
   half as bright. If you want the raw hardware level instead (0 to 255,
-  no curve), use `Brightness::exact`.
+  no curve), use `Brightness::exact`. Changing it every frame is
+  fine and intended: that is how you make a breathing or fading strip.
+  Dithering and the power limit are worked out afresh on every `show()`,
+  so they follow along.
+- **Fading single pixels** (twinkles, comet tails) uses the same curve:
+  `color.dimmed(0.5)` looks half as bright (see `Dim`).
 - **Colors are sent as you typed them.** `Rgb::new(255, 128, 0)` goes out
   unchanged, and rainbows and fades made from computed colors look right
   without extra work.

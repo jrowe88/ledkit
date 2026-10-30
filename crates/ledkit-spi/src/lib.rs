@@ -86,6 +86,45 @@
 //! assert_eq!(strip.output().bus().0, buffer_len::<Ws2812b>(LED_COUNT, SPI_HZ));
 //! ```
 //!
+//! ## Coming from `smart-leds`?
+//!
+//! With the `smart-leds` feature, [`ClocklessSpi`] and [`ClockedSpi`]
+//! implement `smart-leds`' `SmartLedsWrite` (and `SmartLedsWriteAsync`), so
+//! code written for `ws2812-spi` needs only a new constructor. Colors are
+//! sent exactly as given: no brightness, gamma or dithering is added, so keep
+//! using `smart-leds`' own `brightness()` and `gamma()` adaptors.
+//!
+//! ```
+//! # #[cfg(feature = "smart-leds")] {
+//! use ledkit_core::Ws2812b;
+//! use ledkit_spi::{buffer_len, ClocklessSpi};
+//! use smart_leds_trait::{SmartLedsWrite, RGB8};
+//! # struct Bus;
+//! # impl embedded_hal::spi::ErrorType for Bus { type Error = core::convert::Infallible; }
+//! # impl embedded_hal::spi::SpiBus for Bus {
+//! #     fn read(&mut self, _: &mut [u8]) -> Result<(), Self::Error> { Ok(()) }
+//! #     fn write(&mut self, _: &[u8]) -> Result<(), Self::Error> { Ok(()) }
+//! #     fn transfer(&mut self, _: &mut [u8], _: &[u8]) -> Result<(), Self::Error> { Ok(()) }
+//! #     fn transfer_in_place(&mut self, _: &mut [u8]) -> Result<(), Self::Error> { Ok(()) }
+//! #     fn flush(&mut self) -> Result<(), Self::Error> { Ok(()) }
+//! # }
+//! # let spi = Bus;
+//!
+//! const SPI_HZ: u32 = 3_200_000;
+//!
+//! // Before: let mut ws = ws2812_spi::Ws2812::new(spi);
+//! let mut ws = ClocklessSpi::<Ws2812b, _, _>::new(
+//!     spi,
+//!     SPI_HZ,
+//!     [0u8; buffer_len::<Ws2812b>(8, SPI_HZ)],
+//! )
+//! .unwrap();
+//!
+//! // The write call is unchanged.
+//! ws.write([RGB8::new(255, 0, 0); 8]).unwrap();
+//! # }
+//! ```
+//!
 //! ## Which SPI clock?
 //!
 //! The clock sets how finely the LED pulses can be shaped, so only some
@@ -97,6 +136,8 @@
 mod clocked;
 mod clockless;
 mod error;
+#[cfg(feature = "smart-leds")]
+mod smart_leds;
 #[cfg(test)]
 mod testing;
 

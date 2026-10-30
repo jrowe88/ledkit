@@ -83,7 +83,7 @@ const CHUNK: usize = 64;
 /// ```
 #[derive(Debug)]
 pub struct ClockedSpi<C: Chip, SPI> {
-    spi: SPI,
+    pub(crate) spi: SPI,
     chip: PhantomData<C>,
 }
 

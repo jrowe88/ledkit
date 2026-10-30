@@ -15,6 +15,10 @@ authors.workspace = true
 ledkit-core = { path = "../ledkit-core", version = "0.1.0" }
 embedded-hal = "1.0"
 embedded-hal-async = "1.0"
+smart-leds-trait = { version = "0.3", default-features = false, optional = true }
+
+[features]
+smart-leds = ["dep:smart-leds-trait", "ledkit-core/smart-leds"]
 
 [dev-dependencies]
 embassy-futures = "0.1"

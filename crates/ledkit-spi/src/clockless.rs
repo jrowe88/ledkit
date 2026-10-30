@@ -222,8 +222,36 @@ impl<C: Chip, SPI, B: AsMut<[u8]>> ClocklessSpi<C, SPI, B> {
     where
         I: Iterator<Item = C::Pixel> + ExactSizeIterator,
     {
-        self.encoding
-            .encode(wire::clockless_bytes::<C, _>(pixels), self.buffer.as_mut())
+        self.encode_wire(wire::clockless_bytes::<C, _>(pixels))
+    }
+
+    /// Like `encode_frame`, but from wire bytes of any length.
+    pub(crate) fn encode_wire(
+        &mut self,
+        wire: impl IntoIterator<Item = u8>,
+    ) -> Result<usize, ledkit_core::BufferTooSmall> {
+        self.encoding.encode_from_iter(wire, self.buffer.as_mut())
+    }
+}
+
+impl<C: Chip, SPI: embedded_hal::spi::SpiBus, B: AsMut<[u8]>> ClocklessSpi<C, SPI, B> {
+    /// Sends the first `used` buffer bytes, then flushes.
+    pub(crate) fn send(&mut self, used: usize) -> Result<(), Error<SPI::Error>> {
+        self.spi
+            .write(&self.buffer.as_mut()[..used])
+            .map_err(Error::Spi)?;
+        self.spi.flush().map_err(Error::Spi)
+    }
+}
+
+impl<C: Chip, SPI: embedded_hal_async::spi::SpiBus, B: AsMut<[u8]>> ClocklessSpi<C, SPI, B> {
+    /// The async twin of `send`.
+    pub(crate) async fn send_async(&mut self, used: usize) -> Result<(), Error<SPI::Error>> {
+        self.spi
+            .write(&self.buffer.as_mut()[..used])
+            .await
+            .map_err(Error::Spi)?;
+        self.spi.flush().await.map_err(Error::Spi)
     }
 }
 
@@ -240,10 +268,7 @@ where
         I: Iterator<Item = C::Pixel> + ExactSizeIterator,
     {
         let used = self.encode_frame(pixels)?;
-        self.spi
-            .write(&self.buffer.as_mut()[..used])
-            .map_err(Error::Spi)?;
-        self.spi.flush().map_err(Error::Spi)
+        self.send(used)
     }
 }
 
@@ -260,11 +285,7 @@ where
         I: Iterator<Item = C::Pixel> + ExactSizeIterator,
     {
         let used = self.encode_frame(pixels)?;
-        self.spi
-            .write(&self.buffer.as_mut()[..used])
-            .await
-            .map_err(Error::Spi)?;
-        self.spi.flush().await.map_err(Error::Spi)
+        self.send_async(used).await
     }
 }
 

@@ -49,6 +49,7 @@ dependencies = [
  "embedded-hal",
  "embedded-hal-async",
  "ledkit-core",
+ "smart-leds-trait",
 ]
 
 [[package]]

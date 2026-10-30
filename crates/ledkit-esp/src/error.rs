@@ -49,7 +49,9 @@ impl fmt::Display for Error {
             Self::ClockNotUsable { rmt_hz } => write!(
                 f,
                 "the RMT clock of {rmt_hz} Hz can't be divided to 10 MHz ticks; \
-                 pass the RMT's real frequency (the value you gave Rmt::new, for example                  80 MHz), which must be 10 MHz times a whole number from 1 to 255"
+                 pass the RMT's real frequency (the value you gave Rmt::new, or \
+                 rmt.frequency().as_hz()), which must be 10 MHz times a whole \
+                 number from 1 to 255, for example 80 MHz"
             ),
             Self::BufferTooSmall(e) => fmt::Display::fmt(e, f),
             Self::Config(e) => write!(f, "RMT channel setup failed: {e}"),

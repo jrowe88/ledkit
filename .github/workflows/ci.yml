@@ -79,6 +79,29 @@ jobs:
       - run: cargo build --release
         working-directory: examples/esp32c6-spi
 
+  example-esp32c6-rmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+          targets: riscv32imac-unknown-none-elf
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            examples/esp32c6-rmt
+            crates/ledkit-esp
+      - run: cargo build --release
+        working-directory: examples/esp32c6-rmt
+      # ledkit-esp is outside the workspace and only builds for an ESP32 target.
+      - run: cargo build --features esp32c6 --target riscv32imac-unknown-none-elf
+        working-directory: crates/ledkit-esp
+      - run: cargo clippy --features esp32c6 --target riscv32imac-unknown-none-elf -- -D warnings
+        working-directory: crates/ledkit-esp
+      - run: cargo clippy --features esp32c6,smart-leds --target riscv32imac-unknown-none-elf -- -D warnings
+        working-directory: crates/ledkit-esp
+
   example-linux:
     runs-on: ubuntu-latest
     steps:

@@ -127,8 +127,10 @@ impl<C: Chip, SPI, B: AsMut<[u8]>> ClocklessSpi<C, SPI, B> {
     ///
     /// This allows more clock speeds than [`new`](Self::new) (for example
     /// 4 MHz with 5 SPI bits per LED bit), but the frame is not made of
-    /// whole bytes per LED bit, so a few SPI peripherals may handle it less
-    /// smoothly. If `new` works for your clock, prefer it.
+    /// whole bytes per LED bit. Use it only when your SPI sends bytes back to
+    /// back, with no pauses (typically DMA). On a bus with pauses between
+    /// bytes, a pause can land inside a high pulse and corrupt a color. If
+    /// `new` works for your clock, use it instead.
     ///
     /// # Errors
     ///
@@ -176,11 +178,14 @@ impl<C: Chip, SPI, B: AsMut<[u8]>> ClocklessSpi<C, SPI, B> {
     /// a little longer, which is far shorter than the pause an LED needs to
     /// latch its colors. Do not use it with [`new_packed`](Self::new_packed):
     /// there a pause can land in the middle of a high pulse and corrupt the
-    /// color.
+    /// color. In debug builds, this method panics if the driver was made with
+    /// `new_packed`, because chunked writes need the byte-aligned encoding
+    /// from `new`.
     ///
     /// # Panics
     ///
-    /// Panics if `bytes` is 0.
+    /// Panics if `bytes` is 0. In debug builds it also panics if the driver
+    /// uses the packed encoding from `new_packed`.
     ///
     /// # Example
     ///
@@ -201,6 +206,10 @@ impl<C: Chip, SPI, B: AsMut<[u8]>> ClocklessSpi<C, SPI, B> {
         assert!(
             bytes > 0,
             "the maximum write length must be at least 1 byte"
+        );
+        debug_assert!(
+            matches!(self.encoding.bits_per_led_bit, 4 | 8),
+            "chunked writes need the byte-aligned encoding from `new`, not `new_packed`"
         );
         self.max_write = bytes;
         self
@@ -486,6 +495,15 @@ mod tests {
         let (bus, _) = out.release();
         assert_eq!(bus.bytes, whole.bytes);
         assert_eq!((bus.writes, bus.flushes), (len.div_ceil(50), 1));
+    }
+
+    #[test]
+    #[cfg(debug_assertions)]
+    #[should_panic(expected = "byte-aligned encoding")]
+    fn packed_encoding_rejects_chunked_writes() {
+        let _ = ClocklessSpi::<Ws2812b, _, _>::new_packed(FakeBus::default(), 4_000_000, [0u8; 8])
+            .unwrap()
+            .with_max_write_len(64);
     }
 
     #[test]

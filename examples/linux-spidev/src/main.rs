@@ -32,9 +32,10 @@ type LedType = Ws2812b;
 /// How fast the SPI bus runs, in bits per second. ledkit turns each LED bit
 /// into a few SPI bits, so this speed fixes the pulse lengths. 3.2 MHz suits
 /// the WS2812B.
+///
+/// The Pi's SPI divider rounds, so the real clock is a little below 3.2 MHz
+/// (about 3.1 MHz), which is within tolerance.
 const SPI_HZ: u32 = 3_200_000;
-// The Pi's SPI divider rounds, so the real clock is a little below 3.2 MHz
-// (about 3.1 MHz), which is within tolerance.
 
 /// The SPI device file. `/dev/spidev0.0` is SPI bus 0, chip-select 0, which
 /// uses the MOSI pin on GPIO10 (physical pin 19) of the Pi's header.

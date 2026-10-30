@@ -181,14 +181,13 @@ impl From<f32> for Brightness {
 /// brighter than half.)
 ///
 /// To fade the whole strip, prefer
-/// [`Strip::set_brightness`](crate::Strip::set_brightness): dimming the
-/// stored colors throws away detail in the dark shades, while the strip's
-/// brightness is applied on the way out and keeps your colors intact.
-///
-/// `dimmed` rounds each color to 8 bits before the strip's pipeline, so a slow
-/// fade at the dim end shows steps that dithering can't smooth out. For a
-/// whole-strip fade, use `set_brightness`, which dithering does smooth.
-/// `dimmed` suits per-pixel effects like twinkles and comet tails.
+/// [`Strip::set_brightness`](crate::Strip::set_brightness), for two reasons.
+/// Dimming the stored colors throws away detail in the dark shades, while the
+/// strip's brightness is applied on the way out and keeps your colors intact.
+/// And `dimmed` rounds each color to 8 bits before the strip's pipeline, so a
+/// slow fade at the dim end shows steps that dithering can't smooth out,
+/// whereas dithering does smooth `set_brightness`. `dimmed` suits per-pixel
+/// effects like twinkles and comet tails.
 ///
 /// It is in the [`prelude`](crate::prelude).
 ///

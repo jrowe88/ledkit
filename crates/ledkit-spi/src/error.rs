@@ -17,6 +17,7 @@ use ledkit_core::BufferTooSmall;
 /// assert!(format!("{e}").contains("96"));
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum Error<E> {
     /// The SPI bus reported an error.
     Spi(E),

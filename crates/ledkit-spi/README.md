@@ -33,7 +33,8 @@ const SPI_HZ: u32 = 3_200_000;
 // Your HAL: an SPI bus at SPI_HZ with the LED data wire on its MOSI pin.
 let spi = Spi::new(peripherals.SPI2, Config::default().with_frequency(Rate::from_hz(SPI_HZ)))
     .unwrap()
-    .with_mosi(peripherals.GPIO7);
+    // The C6 DevKit's onboard LED; use your strip's data pin.
+    .with_mosi(peripherals.GPIO8);
 
 let output = ClocklessSpi::<Ws2812b, _, _>::new(
     spi,
@@ -141,15 +142,16 @@ few percent of difference is fine; a wrong guess by a lot is not.
 
 ## `new` or `new_packed`?
 
-`ClocklessSpi::new` sends every LED bit as a whole number of bytes
+`ClocklessSpi::new` sends every LED bit as half a byte or a whole byte
 (4 or 8 SPI bits per LED bit). It works on every SPI peripheral, even
 when there are tiny pauses between bytes. Use it unless it refuses your
 clock.
 
 `ClocklessSpi::new_packed` squeezes the bits together, which allows more
-clock speeds (for example 4 MHz). The cost: a pause between bytes can land
-in the middle of a pulse and corrupt a color, so use it only when your
-SPI sends bytes back to back (typically with DMA).
+clock speeds (for example 4 MHz). Use it only when your SPI sends bytes
+back to back, with no pauses (typically DMA). On a bus with pauses between
+bytes, a pause can land inside a high pulse and corrupt a color. Use
+`ClocklessSpi::new` otherwise.
 
 ## Sizing the buffer
 
@@ -171,7 +173,7 @@ assert_eq!(buffer.len(), 473);
 
 Some SPI drivers can only send so many bytes at once. The Teensy 4's
 LPSPI, for example, sends at most 512 bytes per write, which is only
-about 30 LEDs. Add `with_max_write_len`
+about 33 LEDs. Add `with_max_write_len`
 and ledkit cuts the frame into pieces of that size:
 
 ```rust
@@ -189,7 +191,7 @@ where a pause can land inside a high pulse.
 
 | Board | LEDs | Result |
 |---|---|---|
-| ESP32-C6 `DevKit` (chip rev v0.2), 2026-10-30 | the onboard LED | passed: red, green, blue and white in order, a smooth rainbow, 20% brightness |
+| ESP32-C6 dev kit (chip rev v0.2), 2026-10-30 | the onboard LED | passed: red, green, blue and white in order, a smooth rainbow, 20% brightness |
 | Raspberry Pi (Linux spidev) | | untested on hardware; builds in CI |
 | Teensy 4 (LPSPI) | | untested on hardware; builds in CI, hardware test pending |
 | DotStars (`ClockedSpi`) | | untested on hardware |

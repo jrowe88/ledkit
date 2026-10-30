@@ -52,20 +52,30 @@ wrong colors. Pin the core clock in the same `config.txt`:
 core_freq=250
 ```
 
-`core_freq=250` is the usual value for the Pi 3 and Zero. The Pi 4 and newer
-generally need no change. A steady clock is the first thing to check if the
-LEDs flicker.
+`core_freq=250` is the usual value for the Pi 3 and Zero. The Pi 4's core
+clock varies too, so on a Pi 4 pin it with both of these lines instead:
+
+```text
+core_freq=500
+core_freq_min=500
+```
+
+The Pi 5 has its SPI on the RP1 chip and needs no change. A steady clock is
+the first thing to check if the LEDs flicker.
 
 ## Longer strips
 
 `LED_COUNT` in `src/main.rs` is 30. Linux spidev limits one write to 4096 bytes
-by default (`bufsiz`), which is about 260 WS2812B LEDs at 3.2 MHz. For more,
+by default (`bufsiz`), which is about 330 WS2812B LEDs at 3.2 MHz. For more,
 raise the limit with the `spidev.bufsiz=65536` kernel parameter (add it to
 `/boot/firmware/cmdline.txt` on one line and reboot). Do not use
 `with_max_write_len` as a fix here: the pauses between user-space writes can be
 longer than the LED reset time, which would split the frame into several.
 
 ## Build and run
+
+Install Rust with rustup (https://rustup.rs); Raspberry Pi OS's packaged
+`rustc` is too old (this example needs Rust 1.95 or newer).
 
 On the Pi, in this folder:
 

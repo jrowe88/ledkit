@@ -12,6 +12,14 @@ interrupts.
 `ledkit-esp` is for bare-metal projects built on `esp-hal`. For projects built on
 ESP-IDF, use `ledkit-esp-idf` instead.
 
+## Which ESP crate do I use?
+
+| Your project | Use |
+|---|---|
+| esp-hal: bare metal, `no_std`, stable Rust, works with Embassy | `ledkit-esp` |
+| ESP-IDF: `std`, Wi-Fi through `esp-idf-svc`, nightly Rust | `ledkit-esp-idf` |
+| Any board with an SPI bus (including ESP32 boards, no RMT needed) | `ledkit-spi` |
+
 ## Quick tour
 
 This can only run on an ESP32, so the snippet is not run by `cargo test`. It is
@@ -145,7 +153,7 @@ ESP32, S2 and S3 use Xtensa cores and need the `esp` toolchain (installed by
 
 | Board | LEDs | Result |
 |---|---|---|
-| ESP32-C6 dev kit | the onboard LED | pending |
+| ESP32-C6 dev kit | the onboard LED (`examples/esp32c6-rmt`) | pending |
 
 Everything else is covered by host tests of the shared pulse encoder in
 `ledkit-core` (`fill_rmt_words`). If you try it on your hardware, please report what

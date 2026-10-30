@@ -10,6 +10,15 @@
 //! `ledkit-esp-idf` is for projects built on ESP-IDF. For bare-metal projects with
 //! `esp-hal`, use `ledkit-esp` instead.
 //!
+//! ## Which ESP crate do I use?
+//!
+//! | Your project | Use |
+//! |---|---|
+//! | esp-hal: bare metal, `no_std`, stable Rust, works with Embassy | `ledkit-esp` |
+//! | ESP-IDF: `std`, Wi-Fi through `esp-idf-svc`, nightly Rust | `ledkit-esp-idf` |
+//! | Any board with an SPI bus (including ESP32 boards, no RMT needed) | `ledkit-spi` |
+//!
+//!
 //! ## Quick tour
 //!
 //! This can only run on an ESP32, so the snippet is not run by `cargo test`:
@@ -48,8 +57,9 @@
 //! if `show()` is called again too soon, waits out the rest of the gap before sending.
 //! Two `show()` calls back to back therefore both take effect, instead of the second
 //! frame being glued onto the first and showing the wrong colors. The wait uses
-//! `std::thread::sleep`, so on FreeRTOS it can last up to one scheduler tick (often 10
-//! ms) rather than exactly the missing microseconds.
+//! `std::thread::sleep`. Waits shorter than one FreeRTOS tick are busy-waited
+//! precisely; only a chip with a reset of a tick or more would yield to the
+//! scheduler, which is still safe.
 //!
 //! ## Coming from `smart-leds`?
 //!
@@ -73,6 +83,8 @@
 //! the setup `esp-idf-sys` needs: a nightly Rust with `rust-src`, `ldproxy`, and a
 //! `.cargo/config.toml` that sets the target, `build-std` and `ESP_IDF_VERSION`.
 //! Copy the setup of `examples/esp32c6-esp-idf`; its README walks through it.
+//! On Windows, keep the build folder short (the example's `.cargo/config.toml` sets
+//! `target-dir = "C:/t/ledkit"`), because `esp-idf-sys` rejects output paths over 88 characters.
 //!
 //! It depends on the published `esp-idf-hal` 0.47 from crates.io and needs no
 //! `[patch.crates-io]` section. ESP-IDF projects that already depend on `esp-idf-svc` can
@@ -82,7 +94,9 @@
 //!
 //! | Board | LEDs | Result |
 //! |---|---|---|
-//! | ESP32-C6 dev kit | the onboard LED | pending |
+//! | ESP32-C6 dev kit (chip rev v0.2), 2026-10-30 | the onboard LED | pass: colors in order, back-to-back frames latch |
+//! | ESP32-C6 dev kit (chip rev v0.2), 2026-10-30 | the onboard LED, slow rainbow | flickered with dithering on (20% brightness, about 45 frames a second), steady with it off; the example now turns it off, see its troubleshooting |
+//! | ESP32-C6, the pulse project (first consumer) | its status LED | pending |
 //!
 //! The example is `examples/esp32c6-esp-idf` in the repository. If you try it on your
 //! hardware, please report what you see.
@@ -214,6 +228,8 @@ impl<'d, C: Chip> RmtOutput<'d, C> {
         let result = self
             .channel
             .send_and_wait(&mut self.encoder, &self.bytes, &self.tx_config);
+        // Deliberately set even if the send failed: a failed send may have partly driven
+        // the line, so the next frame must wait the full gap.
         self.last_frame_end = Some(Instant::now());
         result
     }

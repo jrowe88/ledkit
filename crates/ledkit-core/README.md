@@ -74,6 +74,8 @@ much brighter than "half". ledkit takes care of that for you.
   rounding changes slowly enough to see as a gentle twinkle. In that case,
   or if you see shimmer in photos or video, turn it off with
   `strip.set_dithering(false)`.
+  Flicker at low brightness, especially in slow fades, is the same effect:
+  call `strip.set_dithering(false)` or show frames faster (≥100 per second).
 
 ## Which chip type do I use?
 

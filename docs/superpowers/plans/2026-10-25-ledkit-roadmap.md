@@ -90,11 +90,7 @@ The pulse project switched its status LED to `ledkit-core` with a ~60-line RMT `
 
 ## Notes from milestone 4 hardware checks (2026-10-30)
 
-- **Dithering at low frame rates (open, owner's decision):** the esp32c6-esp-idf rainbow flickered visibly, worst from blue to magenta. Cause: at 20% brightness each channel reaches the LED as only about 0 to 9, the loop ran at about 45 fps (20 ms delay), so the 8-frame dither cycle repeated at about 5 to 6 Hz, which the eye sees. `set_dithering(false)` fixed it. All five examples now turn dithering off in their slow rainbows, and the docs and example READMEs have a troubleshooting line. The library default (dithering on) is unchanged. Options to weigh:
-  - keep the default and document it (done so far)
-  - a 4-frame dither cycle (halves the period of the flicker, shorter ramps)
-  - skip dithering automatically at very low output levels
-  - default dithering off
+- **Dithering at low frame rates (decided 2026-10-30: keep it on and document it):** the esp32c6-esp-idf rainbow flickered visibly, worst from blue to magenta. Cause: at 20% brightness each channel reaches the LED as only about 0 to 9, the loop ran at about 45 fps (20 ms delay), so the 8-frame dither cycle repeated at about 5 to 6 Hz, which the eye sees. `set_dithering(false)` fixed it. All five examples now turn dithering off in their slow rainbows, and the docs and example READMEs have a troubleshooting line. The owner decided to keep dithering on by default and document the trade-off (done in the core docs, `set_dithering`, and every example README). Alternatives considered and set aside: a 4-frame cycle, skipping dithering at very low output levels, and off by default.
 - **Hardware status:** `ledkit-spi` on ESP32-C6: pass (2026-10-30; the slow rainbow example now turns dithering off). `ledkit-esp-idf` on the ESP32-C6 DevKit (chip rev v0.2): colors pass, back-to-back frames latch pass, rainbow steady with dithering off. Pulse on `ledkit-esp-idf`: pass. `ledkit-esp` (`esp32c6-rmt`): pass on the onboard LED (colors, back-to-back frames, rainbow with dithering on).
 
 ## Hardware follow-ups after milestone 4

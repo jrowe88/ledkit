@@ -78,3 +78,14 @@ jobs:
           workspaces: examples/esp32c6-spi
       - run: cargo build --release
         working-directory: examples/esp32c6-spi
+
+  example-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: examples/linux-spidev
+      - run: cargo build
+        working-directory: examples/linux-spidev

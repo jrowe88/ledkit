@@ -18,7 +18,6 @@
 //! | ESP-IDF: `std`, Wi-Fi through `esp-idf-svc`, nightly Rust | `ledkit-esp-idf` |
 //! | Any board with an SPI bus (including ESP32 boards, no RMT needed) | `ledkit-spi` |
 //!
-//!
 //! ## Quick tour
 //!
 //! This can only run on an ESP32, so the snippet is not run by `cargo test`:
@@ -96,7 +95,7 @@
 //! |---|---|---|
 //! | ESP32-C6 dev kit (chip rev v0.2), 2026-10-30 | the onboard LED | pass: colors in order, back-to-back frames latch |
 //! | ESP32-C6 dev kit (chip rev v0.2), 2026-10-30 | the onboard LED, slow rainbow | flickered with dithering on (20% brightness, about 45 frames a second), steady with it off; the example now turns it off, see its troubleshooting |
-//! | ESP32-C6, the pulse project (first consumer) | its status LED | pending |
+//! | ESP32-C6, the pulse project (first consumer) | its status LED | switched in code (not yet committed in pulse); on-hardware check pending |
 //!
 //! The example is `examples/esp32c6-esp-idf` in the repository. If you try it on your
 //! hardware, please report what you see.
@@ -158,6 +157,18 @@ pub struct RmtOutput<'d, C: Chip> {
     /// When the last frame finished, if there was one.
     last_frame_end: Option<Instant>,
     chip: PhantomData<C>,
+}
+
+// The driver handles (channel, encoder, transmit config) have nothing useful to
+// print, so only the state a beginner can reason about is shown.
+impl<C: Chip> std::fmt::Debug for RmtOutput<'_, C> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RmtOutput")
+            .field("gap", &self.gap)
+            .field("last_frame_end", &self.last_frame_end)
+            .field("frame_bytes", &self.bytes.len())
+            .finish_non_exhaustive()
+    }
 }
 
 impl<'d, C: Chip> RmtOutput<'d, C> {

@@ -53,6 +53,11 @@
 //! For async, create the driver with `Rmt::new(..).unwrap().into_async()` and use
 //! `strip.show_async().await` (the `OutputAsync` side of ledkit).
 //!
+//! Don't cancel `show_async()`, for example by dropping it inside `select`. A frame that
+//! is dropped half way leaves a partial frame on the LEDs, and the next frame may then
+//! join onto it without a reset gap, so the colors come out wrong. Let each
+//! `show_async().await` finish.
+//!
 //! ## Pass the frequency you gave `Rmt::new`
 //!
 //! **ledkit never sets up the RMT.** You create it with `Rmt::new` and a clock rate, and
@@ -103,7 +108,14 @@
 //! let buffer = [PulseCode::default(); BUFFER_LEN];
 //! ```
 //!
-//! The pulse codes are 4 bytes each, so 30 WS2812B LEDs take about 2.9 kB of RAM.
+//! A pulse code is 4 bytes and there is one per color bit, so a frame costs 4 bytes per
+//! bit: 30 WS2812B LEDs take about 2.9 kB of RAM, 300 RGB LEDs about 29 KB, and 300 RGBW
+//! LEDs about 38 KB.
+//!
+//! `B` doesn't have to be an array built in place. It can be a
+//! `&'static mut [PulseCode; N]` (for example from the `static_cell` crate), which avoids
+//! moving a large array through the stack when you create the driver. On chips with
+//! PSRAM, keep the buffer in internal RAM, not in PSRAM.
 //!
 //! ## The reset gap
 //!
@@ -111,6 +123,22 @@
 //! time (280 us for the WS2812B). ledkit appends that gap to every frame as a long low
 //! pulse, and sending only finishes when the RMT has sent it. Two `show()` calls back
 //! to back therefore both take effect. Between frames the output is held low.
+//!
+//! ## Long strips: refill latency
+//!
+//! The RMT channel on the ESP32-C3 and C6 holds 48 pulse codes, about 2 LEDs' worth. A
+//! longer frame is sent while the driver refills the channel half a block at a time (24
+//! codes, about 30 us of LED data):
+//!
+//! - In async mode the refill happens when the executor next polls the task.
+//! - In blocking mode it happens in the `wait()` loop.
+//!
+//! If a refill is late, the RMT can resend stale codes, and you see glitches on long
+//! strips. Keep other tasks' busy stretches short. If you see glitches on a long strip,
+//! try the blocking output, or keep interrupts and other work light while sending.
+//!
+//! The onboard 1-LED test never reaches the refill path, so long strips are untested on
+//! hardware (see "Tested on hardware").
 //!
 //! ## Coming from `smart-leds`?
 //!
@@ -141,7 +169,7 @@
 //! crate turns on `esp-hal`'s `unstable` feature for you. You pick the chip with one
 //! Cargo feature (see below) and your own project provides the rest of the `esp-hal`
 //! setup: target, linker script and the `rt` feature. Copy it from the
-//! `examples/esp32c6-spi` project of the repository, which uses the same `esp-hal`.
+//! `examples/esp32c6-rmt` project of the repository, which uses this crate.
 //!
 //! The ESP32-C3 and C6 are RISC-V chips and build with plain stable Rust. The
 //! ESP32, S2 and S3 use Xtensa cores and need the `esp` toolchain (installed by
@@ -152,6 +180,9 @@
 //! | Board | LEDs | Result |
 //! |---|---|---|
 //! | ESP32-C6 dev kit | the onboard LED (`examples/esp32c6-rmt`) | pending |
+//!
+//! The onboard LED is a strip of 1, which fits in the RMT channel's memory and never
+//! reaches the refill path, so long strips (3 or more LEDs) are untested on hardware.
 //!
 //! Everything else is covered by host tests of the shared pulse encoder in
 //! `ledkit-core` (`fill_rmt_words`). If you try it on your hardware, please report what
@@ -220,8 +251,9 @@ pub const fn buffer_len<C: Chip>(led_count: usize) -> usize {
 ///   from the channel you pass to [`new`](Self::new). A blocking output implements
 ///   [`Output`] (and `SmartLedsWrite`); an async one implements [`OutputAsync`] (and
 ///   `SmartLedsWriteAsync`).
-/// - `B` is the buffer the frame is built in, for example `[PulseCode; N]`. Use
-///   [`buffer_len`] to find the size you need.
+/// - `B` is the buffer the frame is built in, for example `[PulseCode; N]` or
+///   `&'static mut [PulseCode; N]`. Use [`buffer_len`] to find the size you need; the
+///   crate docs cover its RAM cost.
 ///
 /// **ledkit never sets up the RMT.** You create it with `Rmt::new` and pass a channel and
 /// a pin, together with the clock rate you gave `Rmt::new`.
@@ -349,6 +381,10 @@ impl<C: Chip, Dm: DriverMode, B: AsMut<[PulseCode]>> RmtOutput<'_, C, Dm, B> {
 impl<C: Chip, B: AsMut<[PulseCode]>> RmtOutput<'_, C, Blocking, B> {
     /// Sends the first `used` buffer entries and waits until the RMT has sent them,
     /// including the reset gap.
+    ///
+    /// A frame longer than the channel's memory is refilled in the `wait()` loop, so
+    /// keep interrupts and other work light while it runs (see the crate docs, "Long
+    /// strips: refill latency").
     pub(crate) fn send_blocking(&mut self, used: usize) -> Result<(), Error> {
         let channel = self.channel.take().ok_or(Error::ChannelLost)?;
         let frame = &self.buffer.as_mut()[..used];
@@ -367,6 +403,11 @@ impl<C: Chip, B: AsMut<[PulseCode]>> RmtOutput<'_, C, Blocking, B> {
 
 impl<C: Chip, B: AsMut<[PulseCode]>> RmtOutput<'_, C, Async, B> {
     /// The async twin of `send_blocking`.
+    ///
+    /// A frame longer than the channel's memory is refilled when the executor next
+    /// polls this task, so keep other tasks' busy stretches short. Dropping the future
+    /// mid-frame leaves a partial frame on the LEDs, and the next frame may join onto
+    /// it without a reset gap, so don't cancel it (for example inside `select`).
     pub(crate) async fn send_async(&mut self, used: usize) -> Result<(), Error> {
         let channel = self.channel.as_mut().ok_or(Error::ChannelLost)?;
         let frame = &self.buffer.as_mut()[..used];
@@ -395,6 +436,10 @@ impl<C: Chip, B: AsMut<[PulseCode]>> OutputAsync<C> for RmtOutput<'_, C, Async, 
 
     /// Sends one frame and waits (without blocking the executor) until it, and its
     /// reset gap, are out.
+    ///
+    /// Don't cancel this future (for example inside `select`): a frame dropped half way
+    /// leaves a partial frame on the LEDs, and the next frame may join onto it without
+    /// a reset gap.
     async fn write<I>(&mut self, pixels: I) -> Result<(), Self::Error>
     where
         I: Iterator<Item = C::Pixel> + ExactSizeIterator,

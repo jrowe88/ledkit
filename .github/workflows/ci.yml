@@ -76,7 +76,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: examples/esp32c6-spi
-      - run: cargo build --release
+      - run: cargo build --release --locked
         working-directory: examples/esp32c6-spi
 
   example-esp32c6-rmt:
@@ -92,7 +92,7 @@ jobs:
           workspaces: |
             examples/esp32c6-rmt
             crates/ledkit-esp
-      - run: cargo build --release
+      - run: cargo build --release --locked
         working-directory: examples/esp32c6-rmt
       # ledkit-esp is outside the workspace and only builds for an ESP32 target.
       - run: cargo build --features esp32c6 --target riscv32imac-unknown-none-elf
@@ -101,6 +101,10 @@ jobs:
         working-directory: crates/ledkit-esp
       - run: cargo clippy --features esp32c6,smart-leds --target riscv32imac-unknown-none-elf -- -D warnings
         working-directory: crates/ledkit-esp
+      - run: cargo doc --target riscv32imac-unknown-none-elf --features esp32c6 --no-deps
+        working-directory: crates/ledkit-esp
+        env:
+          RUSTDOCFLAGS: -D warnings
 
   example-linux:
     runs-on: ubuntu-latest
@@ -110,7 +114,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: examples/linux-spidev
-      - run: cargo build
+      - run: cargo build --locked
         working-directory: examples/linux-spidev
 
   example-teensy4:
@@ -123,7 +127,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: examples/teensy4-spi
-      - run: cargo build --release
+      - run: cargo build --release --locked
         working-directory: examples/teensy4-spi
 
   # ESP-IDF (std) example. The first run downloads ESP-IDF and its tools (several
@@ -155,6 +159,9 @@ jobs:
         with:
           path: ~/.espressif
           key: espressif-${{ runner.os }}-${{ hashFiles('examples/esp32c6-esp-idf/.cargo/config.toml') }}
+          restore-keys: espressif-${{ runner.os }}-
       - run: cargo install ldproxy --locked
-      - run: cargo build --release
+      - run: cargo build --release --locked
+        working-directory: examples/esp32c6-esp-idf
+      - run: cargo clippy --locked -- -D warnings
         working-directory: examples/esp32c6-esp-idf

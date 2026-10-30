@@ -66,7 +66,8 @@ The LED should show each color as its name is printed.
   `src/main.rs`.
 - **`ClockNotUsable` panic at start-up**: the clock passed to `RmtOutput::new`
   must be the one the RMT really runs at, and a multiple of 10 MHz (80 MHz is
-  the usual choice). Keep `RMT_HZ` the same in both places.
+  the usual choice). The example reads it back with `rmt.frequency().as_hz()`,
+  so changing `RMT_HZ` alone is enough.
 - **Can't flash** ("port busy" or access denied): another program is holding
   the serial port. On Windows this is often a serial monitor left open on the
   same port (for example COM5). Close it and try again.

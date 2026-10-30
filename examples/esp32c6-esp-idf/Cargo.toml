@@ -23,7 +23,7 @@ opt-level = "z"
 
 [dependencies]
 ledkit-core = { path = "../../crates/ledkit-core" }
-ledkit-esp-idf = { path = "../../crates/ledkit-esp-idf" }
+ledkit-esp-idf = { path = "../../crates/ledkit-esp-idf", features = ["smart-leds"] }
 esp-idf-hal = "0.47"
 
 [build-dependencies]

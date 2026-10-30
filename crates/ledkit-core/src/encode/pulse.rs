@@ -307,6 +307,7 @@ mod tests {
         assert_eq!(t.bit_pulses([0u8; 3]).count(), 24);
         assert_eq!(t.bit_pulses(core::iter::empty()).count(), 0);
     }
+
     #[test]
     fn oversized_ticks_saturate() {
         let t = PulseTicks {
@@ -326,6 +327,7 @@ mod tests {
             }
         );
     }
+
     #[test]
     fn ws2812b_at_10mhz() {
         let t = ClocklessTiming::of::<Ws2812b>();

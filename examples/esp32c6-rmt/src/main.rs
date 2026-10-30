@@ -68,15 +68,17 @@ fn main() -> ! {
     // never does this for you, because every board is different. We tell it
     // to run at `RMT_HZ`.
     let rmt = Rmt::new(peripherals.RMT, Rate::from_hz(RMT_HZ)).unwrap();
+    // The clock esp-hal really set up. Read it before `rmt.channel0` is moved below.
+    let rmt_hz = rmt.frequency().as_hz();
 
     // Wrap one RMT channel in a ledkit output. It is told which pin the LED's
-    // data wire is on, the RMT's clock speed (so it can work out the right
-    // pulse lengths), and a scratch buffer to build the pulses in.
+    // data wire is on, the RMT's clock speed (read back from `rmt`, so it is the
+    // speed esp-hal really set up), and a scratch buffer to build the pulses in.
     // `buffer_len` works out how big that buffer must be.
     let output = RmtOutput::<LedType, _, _>::new(
         rmt.channel0,
         peripherals.GPIO8,
-        RMT_HZ,
+        rmt_hz,
         [PulseCode::default(); buffer_len::<LedType>(LED_COUNT)],
     )
     .unwrap();

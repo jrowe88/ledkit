@@ -157,8 +157,9 @@
 //! when there are tiny pauses between bytes. Use it unless it refuses your
 //! clock.
 //!
-//! [`ClocklessSpi::new_packed`] squeezes the bits together, which allows more
-//! clock speeds (for example 4 MHz). Use it only when your SPI sends bytes
+//! [`ClocklessSpi::new_packed`] squeezes the bits together, which makes the
+//! buffer smaller (at 4 MHz a WS2812B needs 5 SPI bits per LED bit instead of
+//! 8). It does not add clock speeds for the WS2812B. Use it only when your SPI sends bytes
 //! back to back, with no pauses (typically DMA). On a bus with pauses between
 //! bytes, a pause can land inside a high pulse and corrupt a color. Use
 //! [`ClocklessSpi::new`] otherwise.
@@ -192,10 +193,14 @@
 //!     .with_max_write_len(512);
 //! ```
 //!
-//! This is safe with [`ClocklessSpi::new`]: a short pause between pieces only
-//! makes a low phase a little longer, far shorter than the pause an LED
-//! needs to latch. It is **not** safe with [`ClocklessSpi::new_packed`],
-//! where a pause can land inside a high pulse.
+//! This is safe with [`ClocklessSpi::new`] as long as each pause between pieces stays
+//! well below the LED's reset time (280 µs for the WS2812B): then a pause only
+//! makes a low phase a little longer. A blocking HAL on a microcontroller, like
+//! the Teensy's, starts the next piece right away. Under an operating system,
+//! or with an async executor that may run other tasks between pieces, a pause
+//! can last longer than that, and the LEDs latch half a frame; don't chunk
+//! there. It is **not** safe with [`ClocklessSpi::new_packed`], where a pause can land
+//! inside a high pulse.
 //!
 //! ## Tested on hardware
 //!

@@ -125,9 +125,11 @@ impl<C: Chip, SPI, B: AsMut<[u8]>> ClocklessSpi<C, SPI, B> {
 
     /// Creates a driver using the packed bit pattern.
     ///
-    /// This allows more clock speeds than [`new`](Self::new) (for example
-    /// 4 MHz with 5 SPI bits per LED bit), but the frame is not made of
-    /// whole bytes per LED bit. Use it only when your SPI sends bytes back to
+    /// It packs the bits tighter, so the buffer is smaller: at 4 MHz a
+    /// WS2812B needs 5 SPI bits per LED bit instead of the 8 that
+    /// [`new`](Self::new) uses there. It does not unlock extra clock speeds
+    /// for the WS2812B; `new` accepts the same range. The cost is that the
+    /// frame is no longer whole bytes per LED bit. Use it only when your SPI sends bytes back to
     /// back, with no pauses (typically DMA). On a bus with pauses between
     /// bytes, a pause can land inside a high pulse and corrupt a color. If
     /// `new` works for your clock, use it instead.
@@ -174,9 +176,13 @@ impl<C: Chip, SPI, B: AsMut<[u8]>> ClocklessSpi<C, SPI, B> {
     /// single write.
     ///
     /// This is safe with the byte-aligned pattern that [`new`](Self::new)
-    /// uses. There, a short pause between two writes only makes a low phase
-    /// a little longer, which is far shorter than the pause an LED needs to
-    /// latch its colors. Do not use it with [`new_packed`](Self::new_packed):
+    /// uses, as long as each pause between two writes stays well below the
+    /// LED's reset time (280 µs for the WS2812B). Then a pause only makes a
+    /// low phase a little longer. A blocking HAL on a microcontroller starts
+    /// the next write right away, so this holds there. Under an operating
+    /// system, or with an async executor that may run other tasks between
+    /// writes, a pause can last longer than the reset time, and the LEDs
+    /// latch half a frame; avoid chunking in that case. Do not use it with [`new_packed`](Self::new_packed):
     /// there a pause can land in the middle of a high pulse and corrupt the
     /// color. In debug builds, this method panics if the driver was made with
     /// `new_packed`, because chunked writes need the byte-aligned encoding

@@ -95,7 +95,7 @@
 //! |---|---|---|
 //! | ESP32-C6 dev kit (chip rev v0.2), 2026-10-30 | the onboard LED | pass: colors in order, back-to-back frames latch |
 //! | ESP32-C6 dev kit (chip rev v0.2), 2026-10-30 | the onboard LED, slow rainbow | flickered with dithering on (20% brightness, about 45 frames a second), steady with it off; the example now turns it off, see its troubleshooting |
-//! | ESP32-C6, the pulse project (first consumer) | its status LED | switched in code (not yet committed in pulse); on-hardware check pending |
+//! | ESP32-C6, the pulse project (first consumer) | its status LED | pass (2026-10-30): breathes as before after pulse raised its own minimum brightness |
 //!
 //! The example is `examples/esp32c6-esp-idf` in the repository. If you try it on your
 //! hardware, please report what you see.

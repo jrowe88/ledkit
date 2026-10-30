@@ -181,7 +181,7 @@ ESP32, S2 and S3 use Xtensa cores and need the `esp` toolchain (installed by
 
 | Board | LEDs | Result |
 |---|---|---|
-| ESP32-C6 dev kit | the onboard LED (`examples/esp32c6-rmt`) | pending |
+| ESP32-C6 dev kit | the onboard LED (`examples/esp32c6-rmt`) | pass (2026-10-30): colors, back-to-back frames, rainbow; 1 LED, so long strips (RMT refill) are untested |
 
 The onboard LED is a strip of 1, which fits in the RMT channel's memory and never
 reaches the refill path, so long strips (3 or more LEDs) are untested on hardware.

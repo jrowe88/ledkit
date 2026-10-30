@@ -54,7 +54,9 @@ much brighter than "half". ledkit takes care of that for you.
   no curve), use `Brightness::exact`. Changing it every frame is
   fine and intended: that is how you make a breathing or fading strip.
   Dithering and the power limit are worked out afresh on every `show()`,
-  so they follow along.
+  so they follow along. The bottom of the curve is very dim: below
+  about 6% the LEDs get level 0 and go dark, so a "minimum brightness"
+  ported from raw-power code (where 4% was faintly lit) needs raising.
 - **Fading single pixels** (twinkles, comet tails) uses the same curve:
   `color.dimmed(0.5)` looks half as bright (see `Dim`).
 - **Colors are sent as you typed them.** `Rgb::new(255, 128, 0)` goes out

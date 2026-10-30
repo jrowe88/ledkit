@@ -18,7 +18,7 @@ than replacing it.
 | `ledkit-layout` | Segments, matrices and coordinate mapping | planned |
 | `ledkit-anim` | Animation trait, built-in effects and combinators | planned |
 | `ledkit-spi` | Universal backend over `embedded-hal` SPI | first light on ESP32-C6; examples for [Raspberry Pi](examples/linux-spidev) and [Teensy 4](examples/teensy4-spi) (see also the [ESP32-C6 example](examples/esp32c6-spi)) |
-| `ledkit-esp` | ESP32 RMT backend for esp-hal (`no_std`, blocking and async) | available (0.1, unreleased); builds in CI with an [ESP32-C6 example](examples/esp32c6-rmt); hardware test pending |
+| `ledkit-esp` | ESP32 RMT backend for esp-hal (`no_std`, blocking and async) | available (0.1, unreleased); builds in CI with an [ESP32-C6 example](examples/esp32c6-rmt); passed on the ESP32-C6 onboard LED (long strips untested) |
 | `ledkit-esp-idf` | ESP32 RMT backend for esp-idf-hal (`std`) | first light on ESP32-C6 (2026-10-30); see the [ESP32-C6 example](examples/esp32c6-esp-idf) |
 | `ledkit-rp` | RP2040/RP2350 PIO backend | planned |
 | `ledkit-sim` | Desktop simulator | planned |

@@ -13,8 +13,8 @@ peripheral, which generates the exact pulse train a NeoPixel wants. This is the
 ## What you'll see
 
 1. Red, green, blue, then white, one second each, dimly lit (20% brightness).
-2. Two frames sent back to back (red, then blue). The LED should end on blue;
-   that shows the reset gap is honoured between frames.
+2. Two frames sent back to back (red, then blue). The red is far too short to
+   see; the LED should end on blue (not red) after the white. That shows the reset gap is honoured between frames.
 3. A smooth, slow rainbow (about 5 seconds per cycle) that runs forever.
 
 ## One-time setup

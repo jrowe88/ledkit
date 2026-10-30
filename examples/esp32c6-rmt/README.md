@@ -4,7 +4,7 @@ Drives the onboard RGB LED of the ESP32-C6-DevKitC-1 with `ledkit-core` and
 `ledkit-esp`. The LED's data pin (GPIO8) is fed by the chip's RMT peripheral,
 which makes the precisely timed pulses a NeoPixel needs, in hardware.
 
-> **Tested on hardware:** pending. Not flashed yet.
+> **Tested on hardware (ESP32-C6 DevKit, 2026-10-30):** colors, back-to-back frames and the rainbow all pass.
 
 ## SPI or RMT?
 
@@ -15,7 +15,8 @@ works on any board, so choose it if you want code that moves between chips.
 ## What you'll see
 
 1. Red, green, blue, then white, one second each, dimly lit (20% brightness).
-2. Two frames back to back: red, then blue. The LED should end up blue.
+2. Two frames back to back: red, then blue. The red is far too short to see; the test
+   passes if the LED ends up blue (not red) after the white.
 3. A smooth, slow rainbow (about 5 seconds per cycle) that runs forever.
 
 ## One-time setup

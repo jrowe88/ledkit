@@ -9,6 +9,18 @@ use ledkit_color::{Rgb, Rgbw, GAMMA_2_2};
 /// (eyes are much more sensitive to dim light than to bright light). Use
 /// [`Brightness::from_fraction`] or [`Brightness::from_percent`] for this.
 ///
+/// The bottom of the curve is very dim: anything below about 6% reaches the
+/// LEDs as level 0, which is off. If you port a "minimum brightness" from
+/// code that used raw power levels (where 4% was faintly lit), raise it, or
+/// use [`Brightness::exact`] for the floor.
+///
+/// ```
+/// use ledkit_core::Brightness;
+///
+/// assert_eq!(Brightness::from_percent(5).output_level(), 0); // off
+/// assert!(Brightness::from_percent(6).output_level() > 0);   // faintly lit
+/// ```
+///
 /// If you would rather talk to the LEDs directly (for example to limit power
 /// or match a measured level), use [`Brightness::exact`]. It sends the number
 /// you give it straight to the LEDs with no curve applied, so `exact(128)` is

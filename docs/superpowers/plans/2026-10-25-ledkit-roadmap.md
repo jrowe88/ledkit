@@ -12,7 +12,7 @@ ends with something that works and is tested on its own.
 | **1** | **Foundation + `ledkit-color`** | Cargo workspace, CI, licenses, README/AGENTS/CONTRIBUTING stubs; the complete color crate | The crate conventions, `no_std` builds on a no-FPU Arm target and on RISC-V, and the readable-API style | No |
 | **2** | **`ledkit-core`** | LED chip catalogue (all phase 1 chips), color orders, encoders for every technique (pulse pairs, SPI with clock validation, clocked frames), `Strip<Led, N>`, the output pipeline (brightness, gamma, power limit, dithering), blocking + async output traits, `smart-leds-trait` interop | The central "define a chip once, encode for any technique" idea, entirely in host-side unit tests | No |
 | **3** | **First light: `ledkit-spi`** | `ledkit-spi` (blocking + async, `smart-leds` impls) plus first light on the ESP32-C6 onboard LED; Raspberry Pi (spidev) and Teensy 4 (LPSPI) examples built in CI | NeoPixel via SPI encoding on real hardware (ESP32-C6 passed 2026-10-30); the Pi and Teensy 4 examples still need hardware tests | ESP32-C6 (done); Pi Zero / 3 A+, Teensy 4, WS2812B + APA102 strips (follow-ups) |
-| **4** | **ESP32 backends** | Delivered: `ledkit-esp-idf` (ESP-IDF, `std`; the pulse project's RMT `Output` grown into a crate, with the reset gap enforced) and `ledkit-esp` (esp-hal RMT, `no_std`, blocking + async); core additions `BitPulse`, `ResetGap` and the RMT word helpers in `ledkit_core::encode`; examples `esp32c6-esp-idf` and `esp32c6-rmt` built in CI; pulse switch prepared (uncommitted), hardware check pending | Both ESP32 worlds on the C6 DevKit. `ledkit-esp-idf` passed on hardware 2026-10-30 (colors, back-to-back frames; the rainbow needed dithering off); `ledkit-esp` hardware test pending; S3 (Xtensa) still to do | ESP32-C6 (done for esp-idf, `ledkit-esp` pending), ESP32-S3, strips |
+| **4** | **ESP32 backends** | Delivered: `ledkit-esp-idf` (ESP-IDF, `std`; the pulse project's RMT `Output` grown into a crate, with the reset gap enforced) and `ledkit-esp` (esp-hal RMT, `no_std`, blocking + async); core additions `BitPulse`, `ResetGap` and the RMT word helpers in `ledkit_core::encode`; examples `esp32c6-esp-idf` and `esp32c6-rmt` built in CI; pulse switched to `ledkit-esp-idf` and passed on hardware (pulse commit awaiting the owner) | Both ESP32 worlds on the C6 DevKit. `ledkit-esp-idf` passed on hardware 2026-10-30 (colors, back-to-back frames; the rainbow needed dithering off); `ledkit-esp` passed on the onboard LED 2026-10-30 (long strips untested); S3 (Xtensa) still to do | ESP32-C6 (done for both), ESP32-S3, strips |
 | **5** | **`ledkit-rp`** | RP2040/RP2350 PIO backend | Pico 2 | Pico 2, strips |
 | **6** | **`ledkit-layout`** | Segments, matrices (serpentine, rotation, tiling), `Canvas`, `embedded-graphics` support | Text and shapes on an 8×8 / 16×16 matrix | A matrix |
 | **7** | **`ledkit-anim`** | The `Animation` trait, the phase 1 effects, and the combinators (sequence, crossfade, layer, per-segment) | Combined effects running on strips and matrices | Strips, matrix |
@@ -86,7 +86,7 @@ The pulse project switched its status LED to `ledkit-core` with a ~60-line RMT `
 - **Effects (milestone 7, still open):** pulse's breathe (raised cosine, elapsed-time phase) and rainbow
   are exactly the planned `ledkit-anim` effects; once they exist, `status_led.rs` should
   shrink to almost nothing, which makes pulse a good acceptance test.
-- **Pulse moves to `ledkit-esp-idf` (done in code, milestone 4; hardware check pending):** pulse now uses `ledkit-esp-idf` instead of its own `rmt_output.rs`. It builds; its on-hardware result is pending.
+- **Pulse moves to `ledkit-esp-idf` (done, milestone 4):** pulse now uses `ledkit-esp-idf` instead of its own `rmt_output.rs`, and passed on hardware 2026-10-30. Porting its minimum brightness surfaced that perceptual brightness below about 6% is off; now documented on `Brightness`.
 
 ## Notes from milestone 4 hardware checks (2026-10-30)
 
@@ -95,7 +95,7 @@ The pulse project switched its status LED to `ledkit-core` with a ~60-line RMT `
   - a 4-frame dither cycle (halves the period of the flicker, shorter ramps)
   - skip dithering automatically at very low output levels
   - default dithering off
-- **Hardware status:** `ledkit-spi` on ESP32-C6: pass (2026-10-30; the slow rainbow example now turns dithering off). `ledkit-esp-idf` on the ESP32-C6 DevKit (chip rev v0.2): colors pass, back-to-back frames latch pass, rainbow steady with dithering off. Pulse on `ledkit-esp-idf`: pending. `ledkit-esp` (`esp32c6-rmt`): pending.
+- **Hardware status:** `ledkit-spi` on ESP32-C6: pass (2026-10-30; the slow rainbow example now turns dithering off). `ledkit-esp-idf` on the ESP32-C6 DevKit (chip rev v0.2): colors pass, back-to-back frames latch pass, rainbow steady with dithering off. Pulse on `ledkit-esp-idf`: pass. `ledkit-esp` (`esp32c6-rmt`): pass on the onboard LED (colors, back-to-back frames, rainbow with dithering on).
 
 ## Hardware follow-ups after milestone 4
 
@@ -104,7 +104,5 @@ The pulse project switched its status LED to `ledkit-core` with a ~60-line RMT `
 - async `ledkit-esp` on hardware with Embassy
 - async for `ledkit-esp-idf`
 - ESP32-H2 support needs a per-chip RMT tick (its RMT runs from a 32 MHz clock, which can't make the 10 MHz tick)
-- check long strips on the esp-hal RMT for underruns, in both blocking and async: the blocking refill happens in the `wait()` loop and the async refill when the executor next polls the task. Verify with an external strip of 3 or more LEDs, blocking and async, before marking `ledkit-esp` as passing; later consider `TxChannelConfig::with_memsize`
-- use `--locked` in the CI example builds, so a new dependency release can't break them
-- pulse hardware check on `ledkit-esp-idf` (pending)
-- `ledkit-esp` hardware test on the ESP32-C6 (pending)
+- check long strips on the esp-hal RMT for underruns, in both blocking and async: the blocking refill happens in the `wait()` loop and the async refill when the executor next polls the task. Verify with an external strip of 3 or more LEDs, blocking and async, before calling long strips supported (the onboard-LED pass is 1 LED and never refills); later consider `TxChannelConfig::with_memsize`
+- ~~use `--locked` in the CI example builds~~ (done in the milestone 4 review fixes)

@@ -1,0 +1,26 @@
+[package]
+name = "ledkit-spi"
+description = "ledkit backend that drives NeoPixels and DotStars over any embedded-hal 1.0 SPI bus. no_std."
+keywords = ["led", "neopixel", "ws2812", "spi", "embedded-hal"]
+categories = ["embedded", "no-std", "hardware-support"]
+readme = "README.md"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+ledkit-core = { path = "../ledkit-core", version = "0.1.0" }
+embedded-hal = "1.0"
+embedded-hal-async = "1.0"
+
+[dev-dependencies]
+embassy-futures = "0.1"
+
+[package.metadata.docs.rs]
+all-features = true
+
+[lints]
+workspace = true

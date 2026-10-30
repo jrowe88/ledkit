@@ -9,6 +9,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc2d050bdc5c21e0862a89256ed8029ae6c290a93aecefc73084b3002cdebb01"
 
 [[package]]
+name = "embedded-hal"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "361a90feb7004eca4019fb28352a9465666b24f840f5c3cddf0ff13920590b89"
+
+[[package]]
+name = "embedded-hal-async"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0c4c685bbef7fe13c3c6dd4da26841ed3980ef33e841cddfa15ce8a8fb3f1884"
+dependencies = [
+ "embedded-hal",
+]
+
+[[package]]
 name = "ledkit-color"
 version = "0.1.0"
 dependencies = [
@@ -24,6 +39,16 @@ dependencies = [
  "embassy-futures",
  "ledkit-color",
  "smart-leds-trait",
+]
+
+[[package]]
+name = "ledkit-spi"
+version = "0.1.0"
+dependencies = [
+ "embassy-futures",
+ "embedded-hal",
+ "embedded-hal-async",
+ "ledkit-core",
 ]
 
 [[package]]

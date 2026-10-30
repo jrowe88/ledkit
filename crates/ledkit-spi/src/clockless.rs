@@ -88,6 +88,8 @@ pub struct ClocklessSpi<C: Chip, SPI, B> {
     spi: SPI,
     buffer: B,
     encoding: SpiEncoding,
+    /// The most bytes handed to the bus in one `write` call.
+    max_write: usize,
     chip: PhantomData<C>,
 }
 
@@ -155,8 +157,53 @@ impl<C: Chip, SPI, B: AsMut<[u8]>> ClocklessSpi<C, SPI, B> {
             spi,
             buffer,
             encoding,
+            max_write: usize::MAX,
             chip: PhantomData,
         }
+    }
+
+    /// Limits how many bytes are given to the SPI bus in one `write` call.
+    ///
+    /// Some SPI drivers can only send so much at once. For example, the SPI
+    /// driver (`imxrt-hal`'s LPSPI) on the Teensy 4 sends at most 512 bytes
+    /// per write. With this limit, ledkit cuts the frame into pieces of at
+    /// most `bytes` bytes, writes them one after another, and flushes once
+    /// at the end. By default there is no limit and the frame goes out in a
+    /// single write.
+    ///
+    /// This is safe with the byte-aligned pattern that [`new`](Self::new)
+    /// uses. There, a short pause between two writes only makes a low phase
+    /// a little longer, which is far shorter than the pause an LED needs to
+    /// latch its colors. Do not use it with [`new_packed`](Self::new_packed):
+    /// there a pause can land in the middle of a high pulse and corrupt the
+    /// color.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `bytes` is 0.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use ledkit_core::Ws2812b;
+    /// use ledkit_spi::ClocklessSpi;
+    /// # struct Bus;
+    /// # impl embedded_hal::spi::ErrorType for Bus { type Error = core::convert::Infallible; }
+    /// # let spi = Bus;
+    ///
+    /// // A bus that can send at most 512 bytes per write.
+    /// let output = ClocklessSpi::<Ws2812b, _, _>::new(spi, 3_200_000, [0u8; 1024])
+    ///     .unwrap()
+    ///     .with_max_write_len(512);
+    /// ```
+    #[must_use]
+    pub fn with_max_write_len(mut self, bytes: usize) -> Self {
+        assert!(
+            bytes > 0,
+            "the maximum write length must be at least 1 byte"
+        );
+        self.max_write = bytes;
+        self
     }
 
     /// The SPI bit pattern in use.
@@ -235,11 +282,13 @@ impl<C: Chip, SPI, B: AsMut<[u8]>> ClocklessSpi<C, SPI, B> {
 }
 
 impl<C: Chip, SPI: embedded_hal::spi::SpiBus, B: AsMut<[u8]>> ClocklessSpi<C, SPI, B> {
-    /// Sends the first `used` buffer bytes, then flushes.
+    /// Sends the first `used` buffer bytes (in writes of at most
+    /// `max_write` bytes), then flushes once.
     pub(crate) fn send(&mut self, used: usize) -> Result<(), Error<SPI::Error>> {
-        self.spi
-            .write(&self.buffer.as_mut()[..used])
-            .map_err(Error::Spi)?;
+        let frame = &self.buffer.as_mut()[..used];
+        for piece in frame.chunks(self.max_write) {
+            self.spi.write(piece).map_err(Error::Spi)?;
+        }
         self.spi.flush().map_err(Error::Spi)
     }
 }
@@ -247,10 +296,10 @@ impl<C: Chip, SPI: embedded_hal::spi::SpiBus, B: AsMut<[u8]>> ClocklessSpi<C, SP
 impl<C: Chip, SPI: embedded_hal_async::spi::SpiBus, B: AsMut<[u8]>> ClocklessSpi<C, SPI, B> {
     /// The async twin of `send`.
     pub(crate) async fn send_async(&mut self, used: usize) -> Result<(), Error<SPI::Error>> {
-        self.spi
-            .write(&self.buffer.as_mut()[..used])
-            .await
-            .map_err(Error::Spi)?;
+        let frame = &self.buffer.as_mut()[..used];
+        for piece in frame.chunks(self.max_write) {
+            self.spi.write(piece).await.map_err(Error::Spi)?;
+        }
         self.spi.flush().await.map_err(Error::Spi)
     }
 }
@@ -378,6 +427,73 @@ mod tests {
         let (bus, _) = out.release();
         assert_eq!(bus.bytes, expected::<Ws2812b>(&[Rgb::RED]));
         assert_eq!((bus.writes, bus.flushes), (1, 1));
+    }
+
+    fn frame_of(max: Option<usize>) -> (FakeBus, usize) {
+        let mut out =
+            ClocklessSpi::<Ws2812b, _, _>::new(FakeBus::default(), HZ, [0u8; 512]).unwrap();
+        if let Some(m) = max {
+            out = out.with_max_write_len(m);
+        }
+        Output::<Ws2812b>::write(&mut out, [Rgb::RED, Rgb::BLUE].into_iter()).unwrap();
+        let (bus, _) = out.release();
+        let len = bus.bytes.len();
+        (bus, len)
+    }
+
+    #[test]
+    fn chunked_bytes_match_unchunked() {
+        let (whole, _) = frame_of(None);
+        for max in [1, 7, 50, 1000] {
+            let (chunked, _) = frame_of(Some(max));
+            assert_eq!(chunked.bytes, whole.bytes, "max {max}");
+        }
+    }
+
+    #[test]
+    fn chunked_write_and_flush_counts() {
+        let (_, len) = frame_of(None);
+        for max in [1, 7, 50, 1000] {
+            let (bus, _) = frame_of(Some(max));
+            assert_eq!(bus.writes, len.div_ceil(max), "max {max}");
+            assert_eq!(bus.flushes, 1);
+        }
+    }
+
+    #[test]
+    fn exact_multiple_sends_no_empty_write() {
+        let (_, len) = frame_of(None);
+        // Divide the frame exactly: every write is full, none is empty.
+        let (bus, _) = frame_of(Some(len));
+        assert_eq!((bus.writes, bus.flushes), (1, 1));
+        let half = (1..len).rev().find(|d| len % d == 0).unwrap();
+        let (bus, _) = frame_of(Some(half));
+        assert_eq!(bus.writes, len / half);
+        assert_eq!(bus.bytes.len(), len);
+    }
+
+    #[test]
+    fn async_chunking_matches() {
+        let (whole, len) = frame_of(None);
+        let mut out = ClocklessSpi::<Ws2812b, _, _>::new(FakeAsyncBus::default(), HZ, [0u8; 512])
+            .unwrap()
+            .with_max_write_len(50);
+        embassy_futures::block_on(OutputAsync::<Ws2812b>::write(
+            &mut out,
+            [Rgb::RED, Rgb::BLUE].into_iter(),
+        ))
+        .unwrap();
+        let (bus, _) = out.release();
+        assert_eq!(bus.bytes, whole.bytes);
+        assert_eq!((bus.writes, bus.flushes), (len.div_ceil(50), 1));
+    }
+
+    #[test]
+    #[should_panic(expected = "at least 1 byte")]
+    fn zero_max_write_len_panics() {
+        let _ = ClocklessSpi::<Ws2812b, _, _>::new(FakeBus::default(), HZ, [0u8; 8])
+            .unwrap()
+            .with_max_write_len(0);
     }
 
     #[test]

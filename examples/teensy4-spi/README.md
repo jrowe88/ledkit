@@ -83,11 +83,11 @@ The strip should light up right after the Teensy reboots.
 to ledkit, so ledkit builds its pulses for the speed the bus really runs at.
 Being 1.8% slow is well within what a WS2812B accepts.
 
-## Limits
+## Notes
 
-- **At most 33 LEDs** of this type. The Teensy's SPI hardware sends at most
-  512 bytes in one burst, and ledkit sends the whole strip in one burst. The
-  build stops with a message if `LED_COUNT` is too big.
+- **Long strips are fine.** The Teensy's SPI driver sends at most 512 bytes
+  per write, so the example tells ledkit to send longer strips in several
+  writes (`with_max_write_len(512)`). Change `LED_COUNT` to any length.
 - The example sets up LPSPI4 for a Teensy 4.0. On a Teensy 4.1 or MicroMod,
   change `board::t40` to `board::t41` or `board::tmm` in `src/main.rs`.
 

@@ -226,6 +226,32 @@ mod tests {
     }
 
     #[test]
+    fn chunked_writes_match_unchunked() {
+        let colors: Vec<RGB8> = (0..10u8).map(|i| RGB8::new(i, 2, 3)).collect();
+        let mut whole = clockless::<Ws2812b, _>(FakeBus::default(), 512);
+        SmartLedsWrite::write(&mut whole, colors.clone()).unwrap();
+        let whole = whole.release().0;
+
+        let mut chunked = clockless::<Ws2812b, _>(FakeBus::default(), 512).with_max_write_len(50);
+        SmartLedsWrite::write(&mut chunked, colors.clone()).unwrap();
+        let bus = chunked.release().0;
+        assert_eq!(bus.bytes, whole.bytes);
+        assert_eq!(
+            (bus.writes, bus.flushes),
+            (whole.bytes.len().div_ceil(50), 1)
+        );
+
+        let mut a = clockless::<Ws2812b, _>(FakeAsyncBus::default(), 512).with_max_write_len(50);
+        embassy_futures::block_on(SmartLedsWriteAsync::write(&mut a, colors)).unwrap();
+        let bus = a.release().0;
+        assert_eq!(bus.bytes, whole.bytes);
+        assert_eq!(
+            (bus.writes, bus.flushes),
+            (whole.bytes.len().div_ceil(50), 1)
+        );
+    }
+
+    #[test]
     fn empty_input_sends_the_empty_frame() {
         let mut a = clockless::<Ws2812b, _>(FakeBus::default(), 256);
         let mut b = clockless::<Ws2812b, _>(FakeBus::default(), 256);

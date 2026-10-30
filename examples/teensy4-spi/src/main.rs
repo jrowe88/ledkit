@@ -39,9 +39,7 @@ use bsp::board;
 // Settings you may want to change
 // ---------------------------------------------------------------------------
 
-/// How many LEDs are connected. Change this to your strip's length. The most
-/// the Teensy's SPI hardware can send in one go is 33 LEDs of this type (see
-/// `MAX_FRAME_BYTES` below), and the program will not build with more.
+/// How many LEDs are connected. Change this to your strip's length.
 const LED_COUNT: usize = 30;
 
 /// Which kind of LED it is. This decides the timing and the color order
@@ -101,14 +99,9 @@ const ACTUAL_SPI_HZ: u32 = actual_spi_hz(board::LPSPI_FREQUENCY, SPI_HZ);
 /// How many bytes ledkit needs to describe the whole strip.
 const BUFFER_LEN: usize = buffer_len::<LedType>(LED_COUNT, ACTUAL_SPI_HZ);
 
-/// The Teensy's SPI hardware can send at most 4096 bits (512 bytes) in a
-/// single burst, and ledkit sends the whole strip as one burst. This check
-/// stops the build, with a clear message, if the strip is too long for that.
-const MAX_FRAME_BYTES: usize = 512;
-const _: () = assert!(
-    BUFFER_LEN <= MAX_FRAME_BYTES,
-    "too many LEDs: the Teensy's SPI can send at most 512 bytes at once (about 33 WS2812B LEDs)"
-);
+/// The Teensy's SPI driver can send at most 4096 bits (512 bytes) in a single
+/// write. ledkit cuts longer frames into pieces of this size.
+const MAX_WRITE_BYTES: usize = 512;
 
 /// Wait for a number of milliseconds by counting processor cycles.
 fn delay_ms(milliseconds: u32) {
@@ -142,7 +135,13 @@ fn main() -> ! {
     // Wrap the bus in a ledkit output. It is told the real bus speed so it can
     // work out the right bytes, and it is given a scratch buffer to build them
     // in. `BUFFER_LEN` is how big that buffer must be.
-    let output = ClocklessSpi::<LedType, _, _>::new(spi, ACTUAL_SPI_HZ, [0u8; BUFFER_LEN]).unwrap();
+    //
+    // `with_max_write_len` is needed because the Teensy's SPI driver refuses to
+    // send more than 512 bytes at once. Longer strips are sent in several
+    // writes. The tiny pauses between them are harmless for a NeoPixel.
+    let output = ClocklessSpi::<LedType, _, _>::new(spi, ACTUAL_SPI_HZ, [0u8; BUFFER_LEN])
+        .unwrap()
+        .with_max_write_len(MAX_WRITE_BYTES);
 
     // The strip holds the color of every LED. Changes only reach the LEDs when
     // we call `show`.

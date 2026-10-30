@@ -104,7 +104,8 @@
 //! - [`encode`] turns a chip's timing into what a peripheral needs: SPI bit
 //!   patterns that imitate the pulses ([`encode::SpiEncoding`]), or pulse
 //!   lengths in clock ticks for the ESP32 RMT or RP2040 PIO
-//!   ([`encode::PulseTicks`]).
+//!   ([`encode::PulseTicks`]); ready-made RMT words are made by
+//!   [`encode::fill_rmt_words`].
 //! - DotStars are sent as plain SPI frames with [`wire::clocked_frame`].
 //!
 //! You only meet these when writing a backend; see [`Output`].

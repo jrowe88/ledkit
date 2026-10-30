@@ -89,3 +89,16 @@ jobs:
           workspaces: examples/linux-spidev
       - run: cargo build
         working-directory: examples/linux-spidev
+
+  example-teensy4:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: thumbv7em-none-eabihf
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: examples/teensy4-spi
+      - run: cargo build --release
+        working-directory: examples/teensy4-spi

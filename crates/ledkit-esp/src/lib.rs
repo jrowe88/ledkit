@@ -55,9 +55,8 @@
 //! 80 MHz (divider 8). Any other value is refused with [`Error::ClockNotUsable`]
 //! instead of sending slightly wrong pulses.
 //!
-//! The `esp-hal` documentation examples use 80 MHz on every chip except the ESP32-H2,
-//! which runs the RMT from its 32 MHz crystal. 32 MHz is not a multiple of 10 MHz, so
-//! **the ESP32-H2 is not usable yet** and `new` returns [`Error::ClockNotUsable`].
+//! ESP32-H2 isn't supported yet. Its RMT runs from a 32 MHz clock, which can't make
+//! ledkit's 10 MHz tick.
 //!
 //! ## Which channel?
 //!
@@ -70,7 +69,7 @@
 //! | ESP32 | 0 to 7 |
 //! | ESP32-S2 | 0 to 3 |
 //! | ESP32-S3 | 0 to 3 |
-//! | ESP32-C3, C6, H2 | 0 to 1 |
+//! | ESP32-C3, C6 | 0 to 1 |
 //!
 //! The rest are for receiving. See `esp-hal`'s `rmt` documentation for your chip.
 //!
@@ -136,7 +135,7 @@
 //! setup: target, linker script and the `rt` feature. Copy it from the
 //! `examples/esp32c6-spi` project of the repository, which uses the same `esp-hal`.
 //!
-//! The ESP32-C3, C6 and H2 are RISC-V chips and build with plain stable Rust. The
+//! The ESP32-C3 and C6 are RISC-V chips and build with plain stable Rust. The
 //! ESP32, S2 and S3 use Xtensa cores and need the `esp` toolchain (installed by
 //! `espup`).
 //!
@@ -152,7 +151,7 @@
 //!
 //! ## Features
 //!
-//! - `esp32`, `esp32c3`, `esp32c6`, `esp32h2`, `esp32s2`, `esp32s3`: the chip. Pick
+//! - `esp32`, `esp32c3`, `esp32c6`, `esp32s2`, `esp32s3`: the chip. Pick
 //!   exactly one; `esp-hal` refuses to build with none or two.
 //! - `smart-leds`: the `smart-leds` write traits for [`RmtOutput`].
 #![no_std]
@@ -270,12 +269,16 @@ pub struct RmtOutput<'ch, C: Chip, Dm: DriverMode, B> {
 impl<'ch, C: Chip, Dm: DriverMode, B> RmtOutput<'ch, C, Dm, B> {
     /// Configures an RMT transmit channel for `C`'s timing and connects it to `pin`.
     ///
-    /// `rmt_hz` is the clock rate you gave `Rmt::new`, in hertz. It must be 10 MHz
+    /// `rmt_hz` is the RMT's real clock rate, in hertz: the value you gave `Rmt::new`
+    /// (or read it back with `Rmt::frequency()`). It must be 10 MHz
     /// times a whole number from 1 to 255 (80 MHz is the usual choice); ledkit divides
     /// it to 10 MHz ticks. `buffer` holds the frame; see [`buffer_len`].
     ///
     /// The channel is set up to hold the pin low whenever it isn't sending, with no
     /// carrier. Using a clocked chip (a DotStar) is a compile error.
+    ///
+    /// A chip whose reset is longer than 65 534 ticks (6.5 ms) has its reset capped
+    /// at that. No chip in the catalogue comes close, but a custom `Chip` could.
     ///
     /// # Errors
     ///

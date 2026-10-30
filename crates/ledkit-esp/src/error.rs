@@ -24,7 +24,8 @@ pub enum Error {
     Timing(TimingError),
     /// The RMT clock you passed can't be divided down to the 10 MHz tick ledkit
     /// uses: it must be 10 MHz times a whole number from 1 to 255 (for example
-    /// 80 MHz).
+    /// 80 MHz). Pass the RMT's real frequency: the value you gave `Rmt::new`, or
+    /// `rmt.frequency().as_hz()`.
     ClockNotUsable {
         /// The RMT clock that was given, in hertz.
         rmt_hz: u32,
@@ -35,8 +36,9 @@ pub enum Error {
     Config(ConfigError),
     /// The RMT reported an error while sending.
     Rmt(RmtError),
-    /// The RMT channel was lost by an earlier failed send. This should not
-    /// happen; create the output again.
+    /// The RMT channel is missing. A failed send always hands the channel back, so
+    /// this defensive state only appears if a panic unwound in the middle of a send.
+    /// Create the output again.
     ChannelLost,
 }
 
@@ -47,7 +49,7 @@ impl fmt::Display for Error {
             Self::ClockNotUsable { rmt_hz } => write!(
                 f,
                 "the RMT clock of {rmt_hz} Hz can't be divided to 10 MHz ticks; \
-                 it must be 10 MHz times a whole number from 1 to 255 (for example 80 MHz)"
+                 pass the RMT's real frequency (the value you gave Rmt::new, for example                  80 MHz), which must be 10 MHz times a whole number from 1 to 255"
             ),
             Self::BufferTooSmall(e) => fmt::Display::fmt(e, f),
             Self::Config(e) => write!(f, "RMT channel setup failed: {e}"),

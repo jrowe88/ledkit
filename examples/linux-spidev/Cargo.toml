@@ -1,0 +1,18 @@
+[package]
+name = "linux-spidev"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.95"
+publish = false
+
+# This example is its own little project. The empty [workspace] table keeps
+# Cargo from treating it as part of the ledkit workspace one folder up.
+[workspace]
+
+[dependencies]
+ledkit-core = { path = "../../crates/ledkit-core" }
+ledkit-spi = { path = "../../crates/ledkit-spi" }
+
+# Gives us `SpidevBus`, which implements the embedded-hal SPI traits on top of
+# the Linux /dev/spidevX.Y device files.
+linux-embedded-hal = "0.5"

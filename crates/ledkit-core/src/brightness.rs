@@ -1,6 +1,6 @@
 //! Overall strip brightness.
 
-use ledkit_color::GAMMA_2_2;
+use ledkit_color::{Rgb, Rgbw, GAMMA_2_2};
 
 /// How bright the whole strip is.
 ///
@@ -171,9 +171,78 @@ impl From<f32> for Brightness {
     }
 }
 
+/// Dims one color on the same perceived-brightness curve as
+/// [`Strip::set_brightness`](crate::Strip::set_brightness).
+///
+/// Use it to fade single pixels, for twinkles or comet tails:
+/// `color.dimmed(0.5)` looks about half as bright, just as
+/// `strip.set_brightness(0.5)` does for the whole strip. (The color types'
+/// own `scale` is linear: `scale(128)` is half the power, which looks much
+/// brighter than half.)
+///
+/// To fade the whole strip, prefer
+/// [`Strip::set_brightness`](crate::Strip::set_brightness), for two reasons.
+/// Dimming the stored colors throws away detail in the dark shades, while the
+/// strip's brightness is applied on the way out and keeps your colors intact.
+/// And `dimmed` rounds each color to 8 bits before the strip's pipeline, so a
+/// slow fade at the dim end shows steps that dithering can't smooth out,
+/// whereas dithering does smooth `set_brightness`. `dimmed` suits per-pixel
+/// effects like twinkles and comet tails.
+///
+/// It is in the [`prelude`](crate::prelude).
+///
+/// # Example
+///
+/// ```
+/// use ledkit_core::prelude::*;
+///
+/// // Looks half as bright; the LED gets 56 out of 255.
+/// assert_eq!(Rgb::WHITE.dimmed(0.5), Rgb::new(56, 56, 56));
+/// assert_eq!(Rgb::RED.dimmed(Brightness::OFF), Rgb::BLACK);
+/// assert_eq!(Rgbw::new(0, 0, 0, 255).dimmed(1.0), Rgbw::new(0, 0, 0, 255));
+/// ```
+pub trait Dim {
+    /// This color at a perceived `brightness` (a fraction such as `0.5`, or
+    /// any [`Brightness`]).
+    #[must_use]
+    fn dimmed(self, brightness: impl Into<Brightness>) -> Self;
+}
+
+impl Dim for Rgb {
+    fn dimmed(self, brightness: impl Into<Brightness>) -> Self {
+        self.scale(brightness.into().output_level())
+    }
+}
+
+impl Dim for Rgbw {
+    fn dimmed(self, brightness: impl Into<Brightness>) -> Self {
+        self.scale(brightness.into().output_level())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn dimmed_uses_the_perceived_curve() {
+        for fraction in [0.0, 0.1, 0.25, 0.5, 0.75, 1.0] {
+            let level = Brightness::from_fraction(fraction).output_level();
+            assert_eq!(Rgb::WHITE.dimmed(fraction), Rgb::new(level, level, level));
+        }
+        assert_eq!(
+            Rgb::WHITE.dimmed(Brightness::exact(128)),
+            Rgb::new(128, 128, 128)
+        );
+        assert_eq!(
+            Rgbw::new(255, 255, 255, 255).dimmed(0.5),
+            Rgbw::new(56, 56, 56, 56)
+        );
+        assert_eq!(
+            Rgb::new(10, 200, 30).dimmed(Brightness::FULL),
+            Rgb::new(10, 200, 30)
+        );
+    }
 
     #[test]
     fn perceived_brightness_maps_through_gamma_2_2() {

@@ -1,0 +1,4 @@
+# The Teensy 4's Cortex-M7 core works with plain stable Rust.
+[toolchain]
+channel = "stable"
+targets = ["thumbv7em-none-eabihf"]

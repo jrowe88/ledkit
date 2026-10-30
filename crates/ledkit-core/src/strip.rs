@@ -256,6 +256,12 @@ impl<C: Chip, const N: usize, O> Strip<C, N, O> {
     /// A fraction or [`Brightness::from_percent`] is "perceived" brightness:
     /// half looks about half as bright. [`Brightness::exact`] skips that curve.
     ///
+    /// Calling this before every `show()` is an intended use, for example to
+    /// make the strip breathe. It is cheap, your stored colors are never
+    /// touched, and dithering and the power limit are worked out again on
+    /// every `show()`, so they follow the new brightness. To fade single
+    /// pixels instead, use [`Dim::dimmed`](crate::Dim::dimmed).
+    ///
     /// # Example
     ///
     /// ```

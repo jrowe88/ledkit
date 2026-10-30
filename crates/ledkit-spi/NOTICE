@@ -1,0 +1,8 @@
+ledkit-spi
+Copyright (c) 2026 Jim Rowe
+
+Attributions
+============
+
+ledkit-spi contains no third-party code. The SPI bit patterns come from
+ledkit-core; see its NOTICE.

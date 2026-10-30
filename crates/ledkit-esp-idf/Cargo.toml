@@ -1,0 +1,38 @@
+[package]
+name = "ledkit-esp-idf"
+description = "ledkit backend that drives NeoPixels with the ESP32 RMT peripheral through esp-idf-hal (std)."
+keywords = ["led", "neopixel", "ws2812", "esp32", "rmt"]
+categories = ["embedded", "hardware-support"]
+readme = "README.md"
+version = "0.1.0"
+edition = "2021"
+# No rust-version: this crate only builds for the `*-esp-espidf` targets with the
+# pinned nightly of the example (see examples/esp32c6-esp-idf/rust-toolchain.toml).
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/jrowe88/ledkit"
+authors = ["Jim Rowe"]
+
+[dependencies]
+ledkit-core = { path = "../ledkit-core", version = "0.1.0" }
+esp-idf-hal = "0.47"
+smart-leds-trait = { version = "0.3", default-features = false, optional = true }
+
+[features]
+smart-leds = ["dep:smart-leds-trait", "ledkit-core/smart-leds"]
+
+[package.metadata.docs.rs]
+all-features = true
+targets = ["riscv32imac-esp-espidf"]
+
+# This crate is outside the ledkit workspace (see the root Cargo.toml), so the
+# workspace lint table is copied here.
+[lints.rust]
+missing_docs = "warn"
+unsafe_code = "forbid"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+module_name_repetitions = "allow"
+cast_possible_truncation = "allow"
+cast_lossless = "allow"
+must_use_candidate = "allow"

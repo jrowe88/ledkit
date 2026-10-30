@@ -76,6 +76,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Keep it dim: a full-bright strip is very bright, and draws a lot of
     // current from your power supply.
     strip.set_brightness(Brightness::from_percent(20));
+    // Dithering smooths dim colors when you call show() about 100 times a
+    // second or more. This demo updates more slowly at low brightness, where
+    // dithering's tiny steps show up as flicker, so it's off here.
+    strip.set_dithering(false);
 
     println!("ledkit on {SPI_DEVICE}: {LED_COUNT} LEDs. Press Ctrl-C to stop.");
 

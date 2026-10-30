@@ -105,6 +105,8 @@ Building on the Pi itself is simpler.
   check the ground connection. A level shifter helps.
 - **Nothing lights up**: check that data goes to DIN (not DOUT), the grounds
   are joined, and the strip has power.
+- **Flicker at low brightness, especially in slow fades**: call
+  `strip.set_dithering(false)` or show frames faster (≥100 per second).
 
 ## How it fits together
 

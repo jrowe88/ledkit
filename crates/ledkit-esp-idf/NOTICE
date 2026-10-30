@@ -1,0 +1,9 @@
+ledkit-esp-idf
+Copyright (c) 2026 Jim Rowe
+
+Attributions
+============
+
+ledkit-esp-idf contains no third-party code. It is a port of the author's own
+RMT driver from the esp32-c6-pulse-rust project (MIT OR Apache-2.0). The pulse
+timings come from ledkit-core; see its NOTICE.

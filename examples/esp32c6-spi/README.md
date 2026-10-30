@@ -6,6 +6,7 @@ so no special LED peripheral is needed.
 
 > **Tested on hardware:** ESP32-C6 DevKit (chip rev v0.2), 2026-10-30. It showed
 > red, green, blue and white in order, then a smooth rainbow, at 20% brightness.
+> The slow rainbow now turns dithering off, see Troubleshooting.
 
 ## What you'll see
 
@@ -60,6 +61,8 @@ The LED should show each color as its name is printed.
 - **Can't flash** ("port busy" or access denied): another program is holding
   the serial port. On Windows this is often a serial monitor left open on the
   same port (for example COM5). Close it and try again.
+- **Flicker at low brightness, especially in slow fades**: call
+  `strip.set_dithering(false)` or show frames faster (≥100 per second).
 
 ## How it fits together
 

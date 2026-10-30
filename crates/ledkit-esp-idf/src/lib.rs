@@ -228,6 +228,13 @@ impl<'d, C: Chip> RmtOutput<'d, C> {
         self.bytes.clear();
         self.bytes.extend(bytes);
 
+        // Zero LEDs: nothing to send, and the RMT driver rejects an empty signal.
+        // The line stays low, and `last_frame_end` is left alone, so the next real
+        // frame still waits out the gap after the previous one.
+        if self.bytes.is_empty() {
+            return Ok(());
+        }
+
         if let Some(end) = self.last_frame_end {
             let elapsed_us = u64::try_from(end.elapsed().as_micros()).unwrap_or(u64::MAX);
             let remaining_us = self.gap.remaining_us(elapsed_us);

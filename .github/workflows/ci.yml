@@ -65,3 +65,16 @@ jobs:
       - uses: dtolnay/rust-toolchain@1.82
       - uses: Swatinem/rust-cache@v2
       - run: cargo check --workspace --all-features
+
+  example-esp32c6:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: riscv32imac-unknown-none-elf
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: examples/esp32c6-spi
+      - run: cargo build --release
+        working-directory: examples/esp32c6-spi

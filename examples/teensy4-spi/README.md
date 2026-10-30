@@ -106,6 +106,8 @@ so check it again if you change the HAL version.
   has 5 V power.
 - **The program doesn't start after loading**: press the board's button again
   and make sure the loader says the upload finished.
+- **Flicker at low brightness, especially in slow fades**: call
+  `strip.set_dithering(false)` or show frames faster (≥100 per second).
 
 ## How it fits together
 

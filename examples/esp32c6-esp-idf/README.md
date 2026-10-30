@@ -6,7 +6,9 @@ peripheral, which generates the exact pulse train a NeoPixel wants. This is the
 `std` flavour of Rust on ESP32, running on ESP-IDF, so Wi-Fi, threads and
 `println!` all work. (For bare-metal `esp-hal` see `examples/esp32c6-spi`.)
 
-> **Tested on hardware:** pending.
+> **Tested on hardware (ESP32-C6 DevKit, chip rev v0.2, 2026-10-30):** colors, back-to-back
+> frames and the rainbow work. The rainbow flickered with dithering on, so the example turns it
+> off (see Troubleshooting).
 
 ## What you'll see
 
@@ -29,13 +31,16 @@ On the first build, ESP-IDF and its tools are downloaded into `~/.espressif`
 builds are quick. Installing Python 3, git, cmake and ninja beforehand helps.
 `ESP_IDF_VERSION` and the target are set in `.cargo/config.toml`.
 
+On macOS and Linux, build in the project folder instead of `C:/t/ledkit` by setting
+`CARGO_TARGET_DIR=target` first (for example `CARGO_TARGET_DIR=target cargo run --release`).
+
 ### Windows
 
 - **Short build folder.** `esp-idf-sys` refuses to build when its output folder path is
-  longer than 87 characters. Point cargo at a short folder outside the project:
-  `set CARGO_TARGET_DIR=C:/t/ledkit` (cmd) or `$env:CARGO_TARGET_DIR = "C:/t/ledkit"`
-  (PowerShell), or uncomment `target-dir` in `.cargo/config.toml`. A folder name like
-  `C:/t/ledkit-idf` is already one character too long.
+  longer than 88 characters ("Too long output directory"). `.cargo/config.toml` already
+  sends the build to `C:/t/ledkit`, so you don't need to set anything. Builds land in
+  `C:/t/ledkit/riscv32imac-esp-espidf/release/`. To use another short folder, change
+  `target-dir` there or set `CARGO_TARGET_DIR`.
 - Don't use `subst` drives; they don't help.
 - Set `LIBCLANG_PATH` to the `bin` folder of an LLVM install if the build can't find
   libclang.
@@ -78,9 +83,11 @@ rainbow
 - **Can't flash** ("port busy" or access denied): another program is holding
   the serial port; close any serial monitor.
 - **`Too long output directory`**: see "Windows" above.
+- **Flicker at low brightness, especially in slow fades**: call
+  `strip.set_dithering(false)` or show frames faster (≥100 per second).
 
 ## Dependency note
 
-`ledkit-esp-idf` depends on the published `esp-idf-hal` 0.47 (a normal crates.io dependency; no `[patch.crates-io]` git redirect is needed, unlike
-projects that track the esp-rs git repository). Cargo.lock pins `esp-idf-hal` 0.47.0 and
-`esp-idf-sys` 0.38.1.
+`ledkit-esp-idf` depends on the published `esp-idf-hal` 0.47 (a normal crates.io
+dependency; no `[patch.crates-io]` git redirect is needed, unlike projects that track
+the esp-rs git repository). Cargo.lock pins `esp-idf-hal` 0.47.0 and `esp-idf-sys` 0.38.1.

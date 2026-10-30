@@ -150,6 +150,10 @@ fn main() -> ! {
     // we call `show`.
     let mut strip = Strip::<LedType, LED_COUNT, _>::new(output);
     strip.set_brightness(BRIGHTNESS);
+    // Dithering smooths dim colors when you call show() about 100 times a
+    // second or more. This demo updates more slowly at low brightness, where
+    // dithering's tiny steps show up as flicker, so it's off here.
+    strip.set_dithering(false);
     strip.set_power_limit(POWER_LIMIT);
 
     // Part one: each basic color for one second.

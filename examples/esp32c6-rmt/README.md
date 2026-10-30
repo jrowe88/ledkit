@@ -70,6 +70,8 @@ The LED should show each color as its name is printed.
 - **Can't flash** ("port busy" or access denied): another program is holding
   the serial port. On Windows this is often a serial monitor left open on the
   same port (for example COM5). Close it and try again.
+- **Flicker at low brightness, especially in slow fades**: call
+  `strip.set_dithering(false)` or show frames faster (≥100 per second).
 
 ## How it fits together
 

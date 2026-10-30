@@ -131,6 +131,11 @@ jobs:
   # GitHub: the cache key and whether ldproxy needs extra system packages.
   example-esp32c6-esp-idf:
     runs-on: ubuntu-latest
+    env:
+      # The example's .cargo/config.toml sets a short Windows target-dir (C:/t/ledkit).
+      # This overrides it, so the build lands in examples/esp32c6-esp-idf/target, which is
+      # where rust-cache below looks.
+      CARGO_TARGET_DIR: target
     steps:
       - uses: actions/checkout@v4
       # ESP-IDF's build needs Python, cmake, ninja, git and libusb (it downloads the

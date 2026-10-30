@@ -1,12 +1,11 @@
 [build]
 target = "riscv32imac-esp-espidf"
 
-# Windows: esp-idf-sys refuses to build when its output directory path is longer than
-# 88 characters, so build with a short target directory outside the project, for example
-#   set CARGO_TARGET_DIR=C:/t/ledkit          (cmd)
-#   $env:CARGO_TARGET_DIR = "C:/t/ledkit"     (PowerShell)
-# or uncomment the line below. macOS/Linux need nothing.
-# target-dir = "C:/t/ledkit"
+# Short build folder. On Windows, esp-idf-sys rejects output paths longer than 88
+# characters ("Too long output directory"), so this keeps the build outside the
+# project, on a short path. macOS/Linux users can override it with
+# `CARGO_TARGET_DIR=target` (set in the environment), which beats this setting.
+target-dir = "C:/t/ledkit"
 
 [target.'cfg(target_os = "espidf")']
 linker = "ldproxy"

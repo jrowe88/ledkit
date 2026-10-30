@@ -94,10 +94,12 @@
 //! [`ClocklessSpi::new`] returns an error naming the nearest ones that do.
 #![cfg_attr(not(test), no_std)]
 
+mod clocked;
 mod clockless;
 mod error;
 #[cfg(test)]
 mod testing;
 
+pub use clocked::ClockedSpi;
 pub use clockless::{buffer_len, buffer_len_packed, ClocklessSpi};
 pub use error::Error;

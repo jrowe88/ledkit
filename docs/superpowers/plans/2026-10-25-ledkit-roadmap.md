@@ -47,3 +47,28 @@ milestone 1 is done.
   - backfill datasheet citations in `chips.rs`
 - **Constructors:** give backends one-line constructors so a hobbyist's first program stays short.
 - **Power limiter cost:** with a limit set, `show()` runs the pipeline over all pixels about three or more extra times. Measure it on a Cortex-M0 with 300 LEDs. If it matters, process once at full brightness to get per-channel sums, use them to pick a close candidate, then verify only once or twice. (From the milestone 2 code review, item 4.)
+
+## Notes from the first consumer (esp32-c6-pulse-rust, 2026-10-30)
+
+The pulse project switched its status LED to `ledkit-core` with a ~60-line RMT `Output`
+(`src/rmt_output.rs` there; the seed for `ledkit-esp-idf`). It built first try on
+`riscv32imac-esp-espidf`. What came up:
+
+- **Per-pixel perceptual dimming (milestone 7, or core sooner):** the breathe effect had to
+  animate the strip's global `set_brightness` every frame. That's fine for one LED, but
+  per-pixel fades on a strip (twinkle, comet tails) need something like
+  `Rgb::dimmed(Brightness)` on the same perceptual curve; today only the linear
+  `Rgb::scale(u8)` exists. Also document whether changing brightness every frame is an
+  intended use (it interacts with dithering and the power limit).
+- **Imports (milestone 8, and core docs now):** `Rgb` is at the crate root but `Hue` is under
+  `ledkit_core::color`; the consumer found both by reading source. The prelude has
+  everything needed, so lead the crate docs and README with `use ledkit_core::prelude::*;`.
+- **Reset gap (milestone 4):** nothing enforces the gap between frames; pulse only meets the
+  WS2812B's 280 µs because it sends every 10 ms. `ledkit-esp-idf` should remember when it
+  last sent and wait out the rest, and the `Output` docs should say backends own this.
+- **RMT tick type (milestone 4):** `pulse_ticks` takes and returns `u32`, but the RMT wants
+  `u16` (max 32 767), so the consumer passes 32 767 and casts. Smooth it with a helper or a
+  doc note in the backend.
+- **Effects (milestone 7):** pulse's breathe (raised cosine, elapsed-time phase) and rainbow
+  are exactly the planned `ledkit-anim` effects; once they exist, `status_led.rs` should
+  shrink to almost nothing, which makes pulse a good acceptance test.

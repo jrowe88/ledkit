@@ -27,7 +27,8 @@ use crate::Chip;
 ///   that far apart, however often `show()` is called. An SPI backend can
 ///   send the reset as trailing zero bytes; an RMT or PIO backend should
 ///   remember when the last frame ended and wait out the rest of the gap
-///   before starting the next. Clocked chips (DotStars) need no gap.
+///   before starting the next; [`ResetGap`](crate::ResetGap) is the helper
+///   for that math. Clocked chips (DotStars) need no gap.
 /// - **Returning only when it is safe to send again.** For [`Output`],
 ///   `write` returns once the frame is sent (or queued so that the next
 ///   `write` cannot corrupt it).

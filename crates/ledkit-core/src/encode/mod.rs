@@ -3,7 +3,7 @@
 mod pulse;
 mod spi;
 
-pub use pulse::PulseTicks;
+pub use pulse::{BitPulse, PulseTicks};
 pub use spi::SpiEncoding;
 
 /// Clamps a `u64` into a `u32`, saturating at `u32::MAX`.

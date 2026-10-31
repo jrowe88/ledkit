@@ -36,7 +36,7 @@ use esp_hal::{
 use esp_println::println;
 use ledkit_core::prelude::*;
 use ledkit_esp::{buffer_len, RmtOutput};
-use ledkit_layout::{rgb888_from_rgb, Canvas, MatrixLayout};
+use ledkit_layout::{rgb888_from_rgb, Canvas, MatrixLayout, Order};
 
 // The bootloader on the chip wants a small "this is an app" label. This macro
 // writes it for us.
@@ -67,6 +67,13 @@ type LedType = Ws2812b;
 /// `.serpentine().starting_at(Corner::BottomRight)` (and import `Corner`).
 const LAYOUT: MatrixLayout = MatrixLayout::new(WIDTH, HEIGHT);
 
+/// How many LEDs make one line of the chain: a row, or a column on a
+/// columns-first panel. The wiring finder is built from it.
+const LINE: usize = match LAYOUT.order() {
+    Order::RowsFirst => WIDTH as usize,
+    Order::ColumnsFirst => HEIGHT as usize,
+};
+
 /// The speed of the RMT's clock, in hertz. 80 MHz is the usual choice, and
 /// ledkit needs a multiple of 10 MHz (it counts time in steps of 100 ns).
 const RMT_HZ: u32 = 80_000_000;
@@ -74,8 +81,11 @@ const RMT_HZ: u32 = 80_000_000;
 /// How bright the matrix is allowed to get.
 const BRIGHTNESS: Brightness = Brightness::from_percent(10);
 
-/// The most current the matrix may draw. Safe on USB; a 16x16 at full white
-/// can draw over 10 A, so use a 5 V supply for more.
+/// The most current the LEDs may draw, as ledkit estimates it. This limits the
+/// LEDs only, not the board, and every LED draws about 1 mA even when off, so
+/// a big matrix can exceed USB's budget while showing nothing. Up to 8x8 is
+/// usually fine on USB; for anything bigger, use a 5 V supply rated for the
+/// panel, with its ground joined to the board's.
 const POWER_LIMIT: Milliamps = Milliamps(500);
 
 // The matrix's data wire goes to GPIO4 (through a 74AHCT125 level shifter). To
@@ -144,20 +154,20 @@ fn main() -> ! {
         // Mode 1: the wiring finder. It writes straight into the strip by
         // position, not through the layout, because it is about how the panel
         // is really wired. LED 0 is red, the rest of the first line is green,
-        // and the start of the second line is blue.
+        // and the start of the second line is blue. A line is a row, or a
+        // column if the layout is columns first.
         println!("wiring finder");
         println!(
             "red = LED 0 (data in); green = the rest of the first line; blue = where the second line starts"
         );
         strip.fill(Rgb::BLACK);
-        let width = WIDTH as usize;
         // `set` takes anything that converts into the chip's pixel type, so this
         // works for RGB and RGBW chips alike, and ignores indices past the end.
         strip.set(0, Rgb::RED);
-        for index in 1..width {
+        for index in 1..LINE {
             strip.set(index, Rgb::GREEN);
         }
-        for index in width..width + 3 {
+        for index in LINE..LINE + 3 {
             strip.set(index, Rgb::BLUE);
         }
         strip.show().unwrap();

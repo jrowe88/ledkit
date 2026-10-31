@@ -35,7 +35,7 @@ let output = ClocklessSpi::new(spi, SPI_HZ,
 let mut strip = Strip::<Ws2812b, LEDS, _>::new(output);
 
 strip.set_brightness(0.3);            // looks 30% as bright
-strip.set_power_limit(Milliamps(1500)); // safe for USB power
+strip.set_power_limit(Milliamps(1500)); // caps the LEDs' estimated current, not the board's
 strip.fill(Color::BLUE);
 strip.show()?;
 ```

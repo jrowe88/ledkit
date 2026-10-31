@@ -275,13 +275,39 @@ impl MatrixLayout {
         self.height
     }
 
-    /// The wiring set so far.
+    /// The wiring set so far: [`Wiring::Progressive`] (the default) or
+    /// [`Wiring::Serpentine`]. Usable in a `const`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use ledkit_layout::{MatrixLayout, Wiring};
+    ///
+    /// const WIRING: Wiring = MatrixLayout::new(8, 8).serpentine().wiring();
+    /// assert_eq!(WIRING, Wiring::Serpentine);
+    /// ```
     #[must_use]
     pub const fn wiring(&self) -> Wiring {
         self.wiring
     }
 
-    /// Whether the chain runs along rows or down columns.
+    /// Whether the chain runs along rows or down columns: [`Order::RowsFirst`]
+    /// (the default) or [`Order::ColumnsFirst`]. Usable in a `const`, so you can
+    /// size things from it.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use ledkit_layout::{MatrixLayout, Order};
+    ///
+    /// const LAYOUT: MatrixLayout = MatrixLayout::new(8, 32).columns_first();
+    /// // How many LEDs make one line of the chain.
+    /// const LINE: u16 = match LAYOUT.order() {
+    ///     Order::RowsFirst => LAYOUT.width(),
+    ///     Order::ColumnsFirst => LAYOUT.height(),
+    /// };
+    /// assert_eq!(LINE, 32);
+    /// ```
     #[must_use]
     pub const fn order(&self) -> Order {
         self.order
@@ -351,6 +377,17 @@ impl Layout for MatrixLayout {
 mod tests {
     use super::*;
     use crate::test_support::assert_bijection;
+
+    #[test]
+    fn getters_report_the_builder_settings() {
+        let default = MatrixLayout::new(4, 3);
+        assert_eq!(default.wiring(), Wiring::Progressive);
+        assert_eq!(default.order(), Order::RowsFirst);
+        let m = default.serpentine().columns_first();
+        assert_eq!(m.wiring(), Wiring::Serpentine);
+        assert_eq!(m.order(), Order::ColumnsFirst);
+        assert_eq!(m.rows_first().order(), Order::RowsFirst);
+    }
 
     #[test]
     fn progressive_rows_from_top_left() {

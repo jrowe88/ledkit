@@ -47,32 +47,37 @@ the wiring to match your panel. An 8-row panel fits the 5×8 font exactly; below
 
 ## Power
 
-`POWER_LIMIT` is `Milliamps(500)` by default, with `BRIGHTNESS` at 10%. That is safe on
-a USB port. A matrix draws a lot: each LED can pull about 60 mA at full white, so a
-16x16 (256 LEDs) can draw over 10 A, far more than USB can give. `ledkit` scales the
-picture down whenever it would pass the limit, so a dim matrix is the limit working.
+`POWER_LIMIT` is `Milliamps(500)` by default, with `BRIGHTNESS` at 10%. A matrix draws a
+lot: each LED can pull about 60 mA at full white, so a 16x16 (256 LEDs) can draw over
+10 A, far more than USB can give. `ledkit` scales the picture down whenever it would
+pass the limit, so a dim matrix is the limit working.
 
-To raise it, use a proper 5 V supply rated for the current you set, with thick enough
-wires, then raise `POWER_LIMIT` and `BRIGHTNESS` in `src/main.rs` together.
+The limit caps the LEDs' estimated current, not the board's: it leaves out the
+microcontroller. Each LED also draws a little even when it is off (ledkit models about
+1 mA per LED), so a big panel's idle draw alone can exceed USB's budget, and no
+software setting goes below it. A 32x32 panel is modelled at 1024 mA while showing
+nothing. Small panels (say up to 8x8) are usually fine on USB with this limit. For
+anything bigger, use a 5 V supply rated for the panel, and join its ground to the
+board's.
+
+To raise the limit, use a proper 5 V supply rated for the current you set, with thick
+enough wires, then raise `POWER_LIMIT` and `BRIGHTNESS` in `src/main.rs` together.
 
 ## Finding your wiring
 
-Panels differ in where the data wire goes in and which way the chain snakes, and
-unbranded ones rarely say. Run the program and watch the wiring finder. It lights LED 0
-red, LEDs 1 to `WIDTH - 1` green, and the first 3 LEDs of the next line (LEDs `WIDTH` to
-`WIDTH + 2`) blue. Red plus green together cover `WIDTH` LEDs; the green alone is
-`WIDTH - 1`. Look at the panel:
+Panels differ in where the data wire goes in and which way the chain
+snakes, and unbranded ones rarely say. Run the program and watch the wiring finder. It lights LED 0 red, LEDs 1 to
+`LINE - 1` green, and the first 3 LEDs of the next line (LEDs `LINE` to
+`LINE + 2`) blue. A line is a row, or a column once the layout is columns
+first, so `LINE` is `WIDTH` or `HEIGHT`. Red plus green together cover `LINE`
+LEDs; the green alone is `LINE - 1`. Find your wiring in three steps:
 
-- Red to the end of the green is where the first line runs.
-- Where the blue starts is where the second line starts. Blue next to the end of the
-  green means serpentine; blue back at the red's side means progressive.
-
-The finder assumes the panel is wired rows first. If the green runs down a column
-instead, or wraps onto a second line, the panel is wired columns first (or `WIDTH` is
-wrong). Settle rows versus columns before you judge serpentine from the blue LEDs.
-On a columns-first panel, follow the green instead: if it runs down one column and
-back up the next, the panel is serpentine; if it jumps back to the top for the next
-column, it's progressive.
+1. Run the finder with the default rows-first layout.
+2. If the green runs down a column instead of along a row, the panel is
+   columns first. Add `.columns_first()` and run it again; the finder then
+   follows the columns.
+3. Now judge serpentine from the blue: blue next to the end of the green means
+   serpentine, and blue back by the red means progressive.
 
 Then use the table:
 

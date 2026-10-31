@@ -13,8 +13,9 @@ use ledkit_color::Rgb;
 
 /// Turns an `embedded-graphics` [`Rgb888`] into a ledkit [`Rgb`].
 ///
-/// This is a function, not a `From` impl, because Rust does not allow
-/// implementing a trait between two types that both come from other crates.
+/// This is a function, not a `From` impl, because a `From` impl isn't
+/// possible in this crate: both [`Rgb888`] and [`Rgb`] come from other crates,
+/// and Rust only lets a crate implement a trait when it owns one of the types.
 ///
 /// # Example
 ///
@@ -34,6 +35,9 @@ pub fn rgb_from_rgb888(color: Rgb888) -> Rgb {
 }
 
 /// Turns a ledkit [`Rgb`] into an `embedded-graphics` [`Rgb888`].
+///
+/// This is a function, not a `From` impl, because a `From` impl isn't
+/// possible in this crate (see [`rgb_from_rgb888`]).
 ///
 /// # Example
 ///
@@ -84,6 +88,7 @@ mod tests {
     use embedded_graphics::prelude::*;
     use embedded_graphics::primitives::{PrimitiveStyle, Rectangle};
     use embedded_graphics::text::Text;
+    use embedded_graphics::Pixel;
     use ledkit_color::Rgb;
 
     #[test]
@@ -111,5 +116,18 @@ mod tests {
             }
         }
         assert!(px.iter().any(|p| *p != Rgb::BLACK));
+    }
+
+    #[test]
+    fn coordinates_do_not_wrap_onto_other_leds() {
+        // 65538 is 2 plus 65536, so a truncating cast would land on LED 2.
+        let mut px = [Rgb::BLACK; 4];
+        let mut c = Canvas::new(&mut px, MatrixLayout::new(4, 1)).unwrap();
+        c.draw_iter([
+            Pixel(Point::new(65538, 0), Rgb888::WHITE),
+            Pixel(Point::new(-1, 0), Rgb888::WHITE),
+        ])
+        .unwrap();
+        assert_eq!(px, [Rgb::BLACK; 4]);
     }
 }

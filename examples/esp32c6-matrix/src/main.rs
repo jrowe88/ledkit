@@ -9,14 +9,17 @@
 //! 1. A wiring finder, for 3 seconds: it lights LEDs by their raw position on
 //!    the strip, so you can see how your panel is wired.
 //! 2. Shapes, for 5 seconds: a border, a diagonal line and a filled circle.
-//! 3. Scrolling text, for one pass: "ledkit" in rainbow colors.
+//! 3. Scrolling text, for about 5 seconds: "ledkit", a different color per letter.
 
 // No operating system here, and no ordinary `main`: esp-hal provides the start-up.
 #![no_std]
 #![no_main]
 
 use embedded_graphics::{
-    mono_font::{ascii::FONT_6X10, MonoTextStyle},
+    mono_font::{
+        ascii::{FONT_5X8, FONT_6X10},
+        MonoFont, MonoTextStyle,
+    },
     pixelcolor::Rgb888,
     prelude::*,
     primitives::{Circle, Line, PrimitiveStyle, Rectangle},
@@ -84,8 +87,18 @@ const LED_COUNT: usize = WIDTH as usize * HEIGHT as usize;
 /// The text that scrolls.
 const MESSAGE: &str = "ledkit";
 
-/// The width of one letter of `FONT_6X10`, in pixels.
-const LETTER_WIDTH: i32 = 6;
+/// The font. Short panels get the 5x8 font, which fits an 8-row panel exactly;
+/// taller ones get the bigger 6x10.
+const FONT: &MonoFont = if HEIGHT < 10 { &FONT_5X8 } else { &FONT_6X10 };
+
+/// How far the text moves right for each letter, in pixels (the letter plus its spacing).
+const LETTER_WIDTH: i32 = (FONT.character_size.width + FONT.character_spacing) as i32;
+
+/// How tall a letter is, in pixels.
+const LETTER_HEIGHT: i32 = FONT.character_size.height as i32;
+
+/// How long the scrolling text runs before the modes start over, in milliseconds.
+const SCROLL_MS: u32 = 5000;
 
 /// How long one frame of the scrolling text lasts. The text moves one pixel per frame.
 const FRAME_MS: u32 = 30;
@@ -140,11 +153,11 @@ fn main() -> ! {
         let width = WIDTH as usize;
         for (index, pixel) in strip.pixels_mut().iter_mut().enumerate() {
             if index == 0 {
-                *pixel = Rgb::RED;
+                *pixel = Rgb::RED.into();
             } else if index < width {
-                *pixel = Rgb::GREEN;
+                *pixel = Rgb::GREEN.into();
             } else if index < width + 3 {
-                *pixel = Rgb::BLUE;
+                *pixel = Rgb::BLUE.into();
             }
         }
         strip.show().unwrap();
@@ -159,17 +172,22 @@ fn main() -> ! {
         delay.delay_millis(5000);
 
         // Mode 3: scrolling text, one pixel per frame, from just off the right
-        // edge until the last letter has left on the left. This works for any
-        // `WIDTH`, because it starts at `WIDTH` and ends at minus the text's width.
+        // edge until the last letter has left on the left, then again until
+        // `SCROLL_MS` has passed. This works for any `WIDTH`, because it starts
+        // at `WIDTH` and ends at minus the text's width.
         println!("scrolling text");
         let text_width = MESSAGE.len() as i32 * LETTER_WIDTH;
-        let mut x = WIDTH as i32;
-        while x > -text_width {
-            strip.fill(Rgb::BLACK);
-            draw_text(&mut Canvas::new(strip.pixels_mut(), LAYOUT).unwrap(), x);
-            strip.show().unwrap();
-            delay.delay_millis(FRAME_MS);
-            x -= 1;
+        let mut frames_left = SCROLL_MS / FRAME_MS;
+        while frames_left > 0 {
+            let mut x = WIDTH as i32;
+            while x > -text_width && frames_left > 0 {
+                strip.fill(Rgb::BLACK);
+                draw_text(&mut Canvas::new(strip.pixels_mut(), LAYOUT).unwrap(), x);
+                strip.show().unwrap();
+                delay.delay_millis(FRAME_MS);
+                x -= 1;
+                frames_left -= 1;
+            }
         }
     }
 }
@@ -207,13 +225,13 @@ fn draw_shapes<D: DrawTarget<Color = Rgb888>>(target: &mut D) {
 /// Draws `MESSAGE` with its left edge at column `x` (which may be off the
 /// matrix), one letter at a time so the hue can shift along the text.
 fn draw_text<D: DrawTarget<Color = Rgb888>>(target: &mut D, x: i32) {
-    // Center the 10-pixel-tall letters vertically. On a matrix shorter than 10
-    // rows this is negative, and the top and bottom of the letters are cut off.
-    let y = (HEIGHT as i32 - 10) / 2;
+    // Center the letters vertically. On a matrix shorter than the font is tall
+    // this is negative, and the top and bottom of the letters are cut off.
+    let y = (HEIGHT as i32 - LETTER_HEIGHT) / 2;
     for (index, letter) in MESSAGE.chars().enumerate() {
         // Each letter is a little further around the color circle.
         let hue = Hue::RED.shifted((index as u16).wrapping_mul(10_000));
-        let style = MonoTextStyle::new(&FONT_6X10, rgb888_from_rgb(Rgb::from_hue(hue)));
+        let style = MonoTextStyle::new(FONT, rgb888_from_rgb(Rgb::from_hue(hue)));
         let mut buffer = [0u8; 4];
         let _ = Text::with_baseline(
             letter.encode_utf8(&mut buffer),

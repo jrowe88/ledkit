@@ -2,19 +2,52 @@
 
 Layouts for ledkit: say where your LEDs are, then draw by `(x, y)`.
 
-An LED matrix is one long chain of LEDs folded into a grid. A `Layout` knows how
-the chain is folded, so you can ask "which LED is at column 3, row 2?" instead of
-counting. `MatrixLayout` is the one to start with:
+An LED matrix is one long chain of LEDs folded into a grid. A `Layout`
+knows how the chain is folded, so you can ask "which LED is at column 3,
+row 2?" instead of counting.
+
+## Quick tour
+
+Describe your panel once, as a `const`:
 
 ```rust
 use ledkit_layout::{Layout, MatrixLayout};
 
 const LAYOUT: MatrixLayout = MatrixLayout::new(16, 16).serpentine();
 
+assert_eq!(LAYOUT.len(), 256);
+// (0, 0) is the top-left of the picture. Row 1 runs right to left.
+assert_eq!(LAYOUT.index(0, 0), Some(0));
 assert_eq!(LAYOUT.index(15, 1), Some(16));
+// Outside the panel there is no LED.
+assert_eq!(LAYOUT.index(16, 0), None);
 ```
 
-`(0, 0)` is the top-left of the picture, `x` grows right and `y` grows down.
+`x` grows to the right and `y` grows down, as you look at the panel.
+
+## Drawing
+
+A `Canvas` lets you draw on a strip's pixels by `(x, y)`. Make it in its
+own block: it borrows the pixels, so the strip can't send them until you
+are done drawing.
+
+```rust
+use ledkit_core::prelude::*;
+use ledkit_core::testing::MemoryOutput;
+use ledkit_layout::{Canvas, MatrixLayout};
+
+let mut strip = Strip::<Ws2812b, 12, _>::new(MemoryOutput::<_, 12>::new());
+
+{
+    let layout = MatrixLayout::new(4, 3).serpentine();
+    let mut canvas = Canvas::new(strip.pixels_mut(), layout).unwrap();
+    canvas.set(0, 1, Rgb::RED);
+    canvas.set(99, 99, Rgb::RED); // off the canvas: ignored
+}
+strip.show().unwrap();
+
+assert_eq!(strip.output().last_frame()[7], Rgb::RED);
+```
 
 ## Segments
 
@@ -22,7 +55,7 @@ To use part of a strip as a strip of its own, use a `Segment`: a start, a
 length, and optionally `.reversed()` to count from the far end. This suits a
 light bar with one side wired back-to-back with the other.
 
-```
+```rust
 use ledkit_color::Rgb;
 use ledkit_layout::Segment;
 
@@ -39,7 +72,7 @@ Mounted a panel sideways or upside down? Turn the layout, not the wiring.
 `(0, 0)` stays at the top-left of what you see. A quarter or three-quarter turn
 swaps the width and height.
 
-```
+```rust
 use ledkit_layout::{Layout, MatrixLayout, Rotation};
 
 // A tall 8x32 panel lying on its side is a wide 32x8 picture.
@@ -52,7 +85,7 @@ panel, then how many panels go across and down. Chain `.serpentine()`,
 `.columns_first()` or `.starting_at(...)` to say how the *panels* are chained;
 each panel keeps its own wiring.
 
-```
+```rust
 use ledkit_layout::{Layout, MatrixLayout, Tiled};
 
 // Four 8x8 panels across and two down make a 32x16 picture.
@@ -64,18 +97,39 @@ assert_eq!(wall.len(), 512);
 ## Text and shapes
 
 With the `embedded-graphics` feature, a `Canvas` is an
-[`embedded-graphics`](https://docs.rs/embedded-graphics) draw target, so you can
-draw text, lines, shapes and images. Anything that falls off the canvas is
-clipped. `embedded-graphics` colors are `Rgb888`; `rgb_from_rgb888` and
-`rgb888_from_rgb` convert to and from ledkit's `Rgb`. The matrix example
-(`examples/esp32c6-matrix`) draws shapes and scrolling text this way.
+[`embedded-graphics`](https://docs.rs/embedded-graphics) draw target, so
+you can draw text, lines, shapes and images. Anything that falls off the
+canvas is clipped.
+
+```rust
+use embedded_graphics::mono_font::ascii::FONT_4X6;
+use embedded_graphics::mono_font::MonoTextStyle;
+use embedded_graphics::pixelcolor::Rgb888;
+use embedded_graphics::prelude::*;
+use embedded_graphics::text::Text;
+use ledkit_color::Rgb;
+use ledkit_layout::{Canvas, MatrixLayout};
+
+let mut pixels = [Rgb::BLACK; 64];
+let mut canvas = Canvas::new(&mut pixels, MatrixLayout::new(8, 8)).unwrap();
+
+let style = MonoTextStyle::new(&FONT_4X6, Rgb888::WHITE);
+Text::new("Hi", Point::new(0, 6), style).draw(&mut canvas).unwrap();
+```
+
+`embedded-graphics` colors are `Rgb888`. `rgb_from_rgb888` and
+`rgb888_from_rgb` (with the feature on) convert to and from ledkit's `Rgb`.
+The matrix example (`examples/esp32c6-matrix`) draws shapes and scrolling
+text this way.
 
 ## Finding your wiring
 
-Light the panel with the wiring finder from the matrix example. It lights
-LED 0 red, LEDs 1 to `WIDTH - 1` green, and the first 3 LEDs of the next line
-(LEDs `WIDTH` to `WIDTH + 2`) blue. Red plus green together cover `WIDTH`
-LEDs; the green alone is `WIDTH - 1`. Look at the panel:
+Panels differ in where the data wire goes in and which way the chain
+snakes, and unbranded ones rarely say. Light the panel with the wiring
+finder from the matrix example. It lights LED 0 red, LEDs 1 to `WIDTH - 1`
+green, and the first 3 LEDs of the next line (LEDs `WIDTH` to `WIDTH + 2`)
+blue. Red plus green together cover `WIDTH` LEDs; the green alone is
+`WIDTH - 1`. Look at the panel:
 
 - Red to the end of the green is where the first line runs.
 - Where the blue starts is where the second line starts. Blue next to the end
@@ -100,6 +154,9 @@ Then use the table:
 | Blue starts next to the end of the green | `.serpentine()` |
 | Blue starts back at the red's side | nothing (progressive) |
 
+Use them together, for example
+`MatrixLayout::new(8, 32).columns_first().serpentine().starting_at(Corner::BottomLeft)`.
+
 ## Power on big matrices
 
 A matrix draws a lot of current. Each LED can pull about 60 mA at full white,
@@ -109,7 +166,7 @@ brightness, which is safe on USB. Use `set_power_limit` and ledkit dims the
 whole picture just enough to stay under it, so a dim matrix is the limit
 working:
 
-```
+```rust
 use ledkit_core::prelude::*;
 use ledkit_core::testing::MemoryOutput;
 
@@ -119,7 +176,9 @@ strip.set_power_limit(Milliamps(500)); // the example's default
 
 To raise it, use a proper 5 V supply rated for the current you set, with
 thick enough wires, and raise the limit and the brightness together. Don't
-power a big matrix from the board's USB port.
+power a big matrix from the board's USB port. Connect the LED supply's
+ground to the board's ground, or the data signal has no reference and the
+LEDs misbehave.
 
 ## Tested on hardware
 

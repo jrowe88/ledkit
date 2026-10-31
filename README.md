@@ -165,7 +165,7 @@ Next up: effects, then the Raspberry Pi Pico. See the [roadmap](docs/superpowers
 for the details.
 
 Want to help? [CONTRIBUTING.md](CONTRIBUTING.md) has short guides to adding an
-LED type or a new board.
+LED type, a new board or a panel preset.
 
 ## License
 

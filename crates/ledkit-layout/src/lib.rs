@@ -120,6 +120,8 @@
 //!
 //! `embedded-graphics` colors are `Rgb888`. `rgb_from_rgb888` and
 //! `rgb888_from_rgb` (with the feature on) convert to and from ledkit's `Rgb`.
+//! The matrix example (`examples/esp32c6-matrix`) draws shapes and scrolling
+//! text this way.
 //!
 //! ## Finding your wiring
 //!
@@ -175,13 +177,13 @@
 //!
 //! To raise it, use a proper 5 V supply rated for the current you set, with
 //! thick enough wires, and raise the limit and the brightness together. Don't
-//! power a big matrix from the board's USB port.
-//!
+//! power a big matrix from the board's USB port. Connect the LED supply's
+//! ground to the board's ground, or the data signal has no reference and the
+//! LEDs misbehave.
 //!
 //! ## Tested on hardware
 //!
 //! **Status: pending hardware test.** The `esp32c6-matrix` example builds in CI but has not been run on a matrix yet.
-//!
 
 #![cfg_attr(not(test), no_std)]
 

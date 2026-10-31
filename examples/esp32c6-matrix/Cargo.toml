@@ -1,0 +1,32 @@
+[package]
+name = "esp32c6-matrix"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.95"
+publish = false
+
+# This example is its own little project. The empty [workspace] table keeps
+# Cargo from treating it as part of the ledkit workspace one folder up.
+[workspace]
+
+[dependencies]
+ledkit-core = { path = "../../crates/ledkit-core" }
+ledkit-layout = { path = "../../crates/ledkit-layout", features = ["embedded-graphics"] }
+ledkit-esp = { path = "../../crates/ledkit-esp", features = ["esp32c6"] }
+
+embedded-graphics = { version = "0.8", default-features = false }
+
+esp-hal = { version = "1.2", features = ["esp32c6", "unstable"] }
+esp-bootloader-esp-idf = { version = "0.6", features = ["esp32c6"] }
+esp-backtrace = { version = "0.20", features = ["esp32c6", "panic-handler", "println"] }
+esp-println = { version = "0.18", features = ["esp32c6"] }
+
+[profile.dev]
+# Rust code is very slow without optimization on a microcontroller.
+opt-level = "s"
+
+[profile.release]
+opt-level = "s"
+lto = "fat"
+codegen-units = 1
+debug = 2

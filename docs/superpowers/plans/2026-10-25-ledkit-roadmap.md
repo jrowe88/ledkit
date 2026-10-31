@@ -53,7 +53,7 @@ milestone 1 is done.
 Milestone 3 shipped with first light on the ESP32-C6 only. These items need hardware and
 were deferred:
 
-- Teensy 4 hardware test (the example builds in CI; status "pending hardware test")
+- ~~Teensy 4 hardware test~~: NeoPixel pass 2026-10-31 on an Adafruit 8×8. It needed two LPSPI settings in the example (tristate the data pin between transfers, no PCS-to-SCK delay); without them the first LED of each transfer reads a stray "1". DotStar on Teensy still to test.
 - Pi hardware test (the example builds in CI)
 - WS2812B strip at 2.3, 2.4, 3.2, 4.0 and 6.4 MHz
 - APA102/SK9822 end frame and `MAX_CLOCK_HZ`

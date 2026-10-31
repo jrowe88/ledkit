@@ -112,7 +112,7 @@ and wiring, setup and troubleshooting in its README.
 | ESP32-C6 with ESP-IDF (`std`, Wi-Fi) | `ledkit-esp-idf` | [esp32c6-esp-idf](examples/esp32c6-esp-idf) | ✅ on hardware |
 | Any board with an SPI bus | `ledkit-spi` | [esp32c6-spi](examples/esp32c6-spi) | ✅ on hardware |
 | Raspberry Pi (Linux) | `ledkit-spi` | [linux-spidev](examples/linux-spidev) | 🟡 builds in CI |
-| Teensy 4 | `ledkit-spi` | [teensy4-spi](examples/teensy4-spi) | 🟡 builds in CI |
+| Teensy 4 | `ledkit-spi` | [teensy4-spi](examples/teensy4-spi) | ✅ on hardware |
 | Raspberry Pi Pico | `ledkit-rp` | | 🔜 coming soon |
 
 ## Get started

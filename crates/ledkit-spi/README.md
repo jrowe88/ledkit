@@ -198,7 +198,7 @@ inside a high pulse.
 |---|---|---|
 | ESP32-C6 dev kit (chip rev v0.2), 2026-10-30 | the onboard LED | passed: red, green, blue and white in order, a smooth rainbow, 20% brightness |
 | Raspberry Pi (Linux spidev) | | untested on hardware; builds in CI |
-| Teensy 4 (LPSPI) | | untested on hardware; builds in CI, hardware test pending |
+| Teensy 4 (LPSPI) | NeoPixel 8×8 matrix (64 LEDs) | ✅ pass (2026-10-31), with the two SPI settings in `examples/teensy4-spi` |
 | DotStars (`ClockedSpi`) | | untested on hardware |
 
 Everything else is covered by host tests with a pretend SPI bus. Examples

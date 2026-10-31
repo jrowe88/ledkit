@@ -243,6 +243,38 @@ impl MatrixLayout {
         self
     }
 
+    /// How many LEDs wide the matrix is. The same as [`Layout::width`], but
+    /// usable in a `const`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use ledkit_layout::MatrixLayout;
+    ///
+    /// const WIDTH: u16 = MatrixLayout::new(8, 32).width();
+    /// assert_eq!(WIDTH, 8);
+    /// ```
+    #[must_use]
+    pub const fn width(&self) -> u16 {
+        self.width
+    }
+
+    /// How many LEDs tall the matrix is. The same as [`Layout::height`], but
+    /// usable in a `const`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use ledkit_layout::MatrixLayout;
+    ///
+    /// const HEIGHT: u16 = MatrixLayout::new(8, 32).height();
+    /// assert_eq!(HEIGHT, 32);
+    /// ```
+    #[must_use]
+    pub const fn height(&self) -> u16 {
+        self.height
+    }
+
     /// The wiring set so far.
     #[must_use]
     pub const fn wiring(&self) -> Wiring {
@@ -346,6 +378,20 @@ mod tests {
         assert_eq!(m.index(3, 2), Some(0));
         assert_eq!(m.index(3, 0), Some(2));
         assert_eq!(m.index(2, 2), Some(3));
+    }
+
+    #[test]
+    fn columns_first_serpentine_from_bottom_right_explicit_values() {
+        let m = MatrixLayout::new(4, 3)
+            .columns_first()
+            .serpentine()
+            .starting_at(Corner::BottomRight);
+        assert_eq!(m.index(3, 2), Some(0));
+        assert_eq!(m.index(3, 1), Some(1));
+        assert_eq!(m.index(3, 0), Some(2));
+        assert_eq!(m.index(2, 0), Some(3));
+        assert_eq!(m.index(2, 1), Some(4));
+        assert_eq!(m.index(2, 2), Some(5));
     }
 
     #[test]

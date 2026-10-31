@@ -64,6 +64,10 @@ A backend turns a `Strip`'s finished frame into signals on a real peripheral. `c
 8. **Write docs and an example** in the style of `crates/ledkit-spi/src/lib.rs`, and keep the crate's README identical in content (`crates/ledkit-core` does the same; the README uses plain backticks instead of links).
 9. Run the commands under "Build and test", including the `no_std` builds for your crate.
 
+## Add a panel preset
+
+`ledkit-layout` has no panel presets yet. Add one only after the panel's wiring is confirmed on hardware with the wiring finder (a product page that doesn't state the wiring isn't enough), and say how it was checked.
+
 ## Add an effect
 
 Coming in a later milestone.

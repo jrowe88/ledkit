@@ -1,0 +1,12 @@
+[build]
+target = "riscv32imac-unknown-none-elf"
+
+[target.riscv32imac-unknown-none-elf]
+# `cargo run` flashes the board and then shows its serial output.
+runner = "espflash flash --monitor"
+rustflags = [
+  # esp-hal's linker script.
+  "-C", "link-arg=-Tlinkall.x",
+  # Needed for useful panic backtraces.
+  "-C", "force-frame-pointers",
+]

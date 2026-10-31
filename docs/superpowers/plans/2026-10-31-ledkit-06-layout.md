@@ -197,7 +197,7 @@ fn tiled_panels_follow_each_other() {
 **Files:** `src/canvas.rs`, `src/segment.rs` and `lib.rs` (quick tour).
 
 **Interfaces (produces):**
-- `pub struct LayoutTooBig { pub needed: usize, pub available: usize }`, with `Debug`, `Clone`, `Copy`, `PartialEq`, `Eq`, `Display` ("this layout needs {needed} LEDs but the strip has {available}") and `core::error::Error`.
+- `pub struct LayoutTooBig { pub needed: usize, pub available: usize }`, with `Debug`, `Clone`, `Copy`, `PartialEq`, `Eq`, `Display` ("this needs {needed} LEDs but the strip has {available}") and `core::error::Error`.
 - `pub struct Canvas<'a, P, L: Layout>`:
   - `pub fn new(pixels: &'a mut [P], layout: L) -> Result<Self, LayoutTooBig>`
   - `width()` and `height()`

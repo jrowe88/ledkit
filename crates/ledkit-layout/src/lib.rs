@@ -49,6 +49,35 @@
 //!
 //! To use part of a strip as a strip of its own, see [`Segment`].
 //!
+//! ## Text and shapes
+//!
+//! With the `embedded-graphics` feature, a [`Canvas`] is an
+//! [`embedded-graphics`](https://docs.rs/embedded-graphics) draw target, so
+//! you can draw text, lines, shapes and images. Anything that falls off the
+//! canvas is clipped.
+//!
+//! ```
+//! # #[cfg(feature = "embedded-graphics")] {
+//! use embedded_graphics::mono_font::ascii::FONT_4X6;
+//! use embedded_graphics::mono_font::MonoTextStyle;
+//! use embedded_graphics::pixelcolor::Rgb888;
+//! use embedded_graphics::prelude::*;
+//! use embedded_graphics::text::Text;
+//! use ledkit_color::Rgb;
+//! use ledkit_layout::{Canvas, MatrixLayout};
+//!
+//! let mut pixels = [Rgb::BLACK; 64];
+//! let mut canvas = Canvas::new(&mut pixels, MatrixLayout::new(8, 8)).unwrap();
+//!
+//! let style = MonoTextStyle::new(&FONT_4X6, Rgb888::WHITE);
+//! Text::new("Hi", Point::new(0, 6), style).draw(&mut canvas).unwrap();
+//! # assert!(pixels.iter().any(|p| *p != Rgb::BLACK));
+//! # }
+//! ```
+//!
+//! `embedded-graphics` colors are `Rgb888`. `rgb_from_rgb888` and
+//! `rgb888_from_rgb` (with the feature on) convert to and from ledkit's `Rgb`.
+//!
 //! ## Finding your wiring
 //!
 //! Panels differ in where the data wire goes in and which way the chain
@@ -87,6 +116,8 @@
 #![cfg_attr(not(test), no_std)]
 
 mod canvas;
+#[cfg(feature = "embedded-graphics")]
+mod graphics;
 mod layout;
 mod segment;
 #[cfg(test)]
@@ -94,6 +125,8 @@ pub(crate) mod test_support;
 mod transform;
 
 pub use canvas::{Canvas, LayoutTooBig};
+#[cfg(feature = "embedded-graphics")]
+pub use graphics::{rgb888_from_rgb, rgb_from_rgb888};
 pub use layout::{Corner, Layout, MatrixLayout, Order, Wiring};
 pub use segment::{Segment, SegmentMut};
 pub use transform::{Rotated, Rotation, Tiled};

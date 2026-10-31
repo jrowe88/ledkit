@@ -30,7 +30,7 @@ impl fmt::Display for LayoutTooBig {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "this layout needs {} LEDs but the strip has {}",
+            "this needs {} LEDs but the strip has {}",
             self.needed, self.available
         )
     }
@@ -314,9 +314,6 @@ mod tests {
             needed: 12,
             available: 10,
         };
-        assert_eq!(
-            format!("{e}"),
-            "this layout needs 12 LEDs but the strip has 10"
-        );
+        assert_eq!(format!("{e}"), "this needs 12 LEDs but the strip has 10");
     }
 }

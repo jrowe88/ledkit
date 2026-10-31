@@ -1,0 +1,24 @@
+[build]
+target = "riscv32imac-esp-espidf"
+
+# Short build folder. On Windows, esp-idf-sys rejects output paths longer than 88
+# characters ("Too long output directory"), so this keeps the build outside the
+# project, on a short path. macOS/Linux users can override it with
+# `CARGO_TARGET_DIR=target` (set in the environment), which beats this setting.
+target-dir = "C:/t/ledkit"
+
+[target.'cfg(target_os = "espidf")']
+linker = "ldproxy"
+runner = "espflash flash --monitor"
+rustflags = ["--cfg", "espidf_time64"]
+
+[unstable]
+build-std = ["std", "panic_abort"]
+
+[env]
+MCU = "esp32c6"
+ESP_IDF_VERSION = "v5.5.3"
+# Install ESP-IDF and its tools once, under ~/.espressif, shared by all projects.
+ESP_IDF_TOOLS_INSTALL_DIR = "global"
+# Required by embuild because the target directory may be outside the project.
+CARGO_WORKSPACE_DIR = { value = "", relative = true }

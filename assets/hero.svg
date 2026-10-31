@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 230" width="900" height="230" role="img" aria-label="ledkit: a row of LEDs cycling through a rainbow">
+  <title>ledkit</title>
+  <defs>
+    <linearGradient id="word" x1="0" y1="0" x2="1" y2="0" spreadMethod="repeat">
+      <stop offset="0" stop-color="#ff5f6d"/><stop offset="0.25" stop-color="#ffc371"/><stop offset="0.5" stop-color="#47e891"/><stop offset="0.75" stop-color="#4facfe"/><stop offset="1" stop-color="#ff5f6d"/>
+      <animateTransform attributeName="gradientTransform" type="translate" from="0 0" to="1 0" dur="6s" repeatCount="indefinite"/>
+    </linearGradient>
+    <filter id="glow" x="-100%" y="-100%" width="300%" height="300%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="5" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <text x="450" y="105" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="96" font-weight="800" letter-spacing="10" fill="url(#word)">ledkit</text>
+  <rect x="75.0" y="160" width="750" height="20" rx="10" fill="#808080" opacity="0.18"/>
+  <g transform="translate(105.0 170)">
+    <circle r="15" filter="url(#glow)"><animate attributeName="fill" values="#ff3b3b;#ffb13b;#e8ff3b;#3bff7a;#3bd8ff;#5b6bff;#c43bff;#ff3b3b" dur="4s" begin="-0.00s" repeatCount="indefinite"/></circle>
+    <circle r="9" fill="#ffffff" opacity="0.35"/>
+  </g>
+  <g transform="translate(151.0 170)">
+    <circle r="15" filter="url(#glow)"><animate attributeName="fill" values="#ff3b3b;#ffb13b;#e8ff3b;#3bff7a;#3bd8ff;#5b6bff;#c43bff;#ff3b3b" dur="4s" begin="-0.25s" repeatCount="indefinite"/></circle>
+    <circle r="9" fill="#ffffff" opacity="0.35"/>
+  </g>
+  <g transform="translate(197.0 170)">
+    <circle r="15" filter="url(#glow)"><animate attributeName="fill" values="#ff3b3b;#ffb13b;#e8ff3b;#3bff7a;#3bd8ff;#5b6bff;#c43bff;#ff3b3b" dur="4s" begin="-0.50s" repeatCount="indefinite"/></circle>
+    <circle r="9" fill="#ffffff" opacity="0.35"/>
+  </g>
+  <g transform="translate(243.0 170)">
+    <circle r="15" filter="url(#glow)"><animate attributeName="fill" values="#ff3b3b;#ffb13b;#e8ff3b;#3bff7a;#3bd8ff;#5b6bff;#c43bff;#ff3b3b" dur="4s" begin="-0.75s" repeatCount="indefinite"/></circle>
+    <circle r="9" fill="#ffffff" opacity="0.35"/>
+  </g>
+  <g transform="translate(289.0 170)">
+    <circle r="15" filter="url(#glow)"><animate attributeName="fill" values="#ff3b3b;#ffb13b;#e8ff3b;#3bff7a;#3bd8ff;#5b6bff;#c43bff;#ff3b3b" dur="4s" begin="-1.00s" repeatCount="indefinite"/></circle>
+    <circle r="9" fill="#ffffff" opacity="0.35"/>
+  </g>
+  <g transform="translate(335.0 170)">
+    <circle r="15" filter="url(#glow)"><animate attributeName="fill" values="#ff3b3b;#ffb13b;#e8ff3b;#3bff7a;#3bd8ff;#5b6bff;#c43bff;#ff3b3b" dur="4s" begin="-1.25s" repeatCount="indefinite"/></circle>
+    <circle r="9" fill="#ffffff" opacity="0.35"/>
+  </g>
+  <g transform="translate(381.0 170)">
+    <circle r="15" filter="url(#glow)"><animate attributeName="fill" values="#ff3b3b;#ffb13b;#e8ff3b;#3bff7a;#3bd8ff;#5b6bff;#c43bff;#ff3b3b" dur="4s" begin="-1.50s" repeatCount="indefinite"/></circle>
+    <circle r="9" fill="#ffffff" opacity="0.35"/>
+  </g>
+  <g transform="translate(427.0 170)">
+    <circle r="15" filter="url(#glow)"><animate attributeName="fill" values="#ff3b3b;#ffb13b;#e8ff3b;#3bff7a;#3bd8ff;#5b6bff;#c43bff;#ff3b3b" dur="4s" begin="-1.75s" repeatCount="indefinite"/></circle>
+    <circle r="9" fill="#ffffff" opacity="0.35"/>
+  </g>
+  <g transform="translate(473.0 170)">
+    <circle r="15" filter="url(#glow)"><animate attributeName="fill" values="#ff3b3b;#ffb13b;#e8ff3b;#3bff7a;#3bd8ff;#5b6bff;#c43bff;#ff3b3b" dur="4s" begin="-2.00s" repeatCount="indefinite"/></circle>
+    <circle r="9" fill="#ffffff" opacity="0.35"/>
+  </g>
+  <g transform="translate(519.0 170)">
+    <circle r="15" filter="url(#glow)"><animate attributeName="fill" values="#ff3b3b;#ffb13b;#e8ff3b;#3bff7a;#3bd8ff;#5b6bff;#c43bff;#ff3b3b" dur="4s" begin="-2.25s" repeatCount="indefinite"/></circle>
+    <circle r="9" fill="#ffffff" opacity="0.35"/>
+  </g>
+  <g transform="translate(565.0 170)">
+    <circle r="15" filter="url(#glow)"><animate attributeName="fill" values="#ff3b3b;#ffb13b;#e8ff3b;#3bff7a;#3bd8ff;#5b6bff;#c43bff;#ff3b3b" dur="4s" begin="-2.50s" repeatCount="indefinite"/></circle>
+    <circle r="9" fill="#ffffff" opacity="0.35"/>
+  </g>
+  <g transform="translate(611.0 170)">
+    <circle r="15" filter="url(#glow)"><animate attributeName="fill" values="#ff3b3b;#ffb13b;#e8ff3b;#3bff7a;#3bd8ff;#5b6bff;#c43bff;#ff3b3b" dur="4s" begin="-2.75s" repeatCount="indefinite"/></circle>
+    <circle r="9" fill="#ffffff" opacity="0.35"/>
+  </g>
+  <g transform="translate(657.0 170)">
+    <circle r="15" filter="url(#glow)"><animate attributeName="fill" values="#ff3b3b;#ffb13b;#e8ff3b;#3bff7a;#3bd8ff;#5b6bff;#c43bff;#ff3b3b" dur="4s" begin="-3.00s" repeatCount="indefinite"/></circle>
+    <circle r="9" fill="#ffffff" opacity="0.35"/>
+  </g>
+  <g transform="translate(703.0 170)">
+    <circle r="15" filter="url(#glow)"><animate attributeName="fill" values="#ff3b3b;#ffb13b;#e8ff3b;#3bff7a;#3bd8ff;#5b6bff;#c43bff;#ff3b3b" dur="4s" begin="-3.25s" repeatCount="indefinite"/></circle>
+    <circle r="9" fill="#ffffff" opacity="0.35"/>
+  </g>
+  <g transform="translate(749.0 170)">
+    <circle r="15" filter="url(#glow)"><animate attributeName="fill" values="#ff3b3b;#ffb13b;#e8ff3b;#3bff7a;#3bd8ff;#5b6bff;#c43bff;#ff3b3b" dur="4s" begin="-3.50s" repeatCount="indefinite"/></circle>
+    <circle r="9" fill="#ffffff" opacity="0.35"/>
+  </g>
+  <g transform="translate(795.0 170)">
+    <circle r="15" filter="url(#glow)"><animate attributeName="fill" values="#ff3b3b;#ffb13b;#e8ff3b;#3bff7a;#3bd8ff;#5b6bff;#c43bff;#ff3b3b" dur="4s" begin="-3.75s" repeatCount="indefinite"/></circle>
+    <circle r="9" fill="#ffffff" opacity="0.35"/>
+  </g>
+</svg>

@@ -35,6 +35,112 @@ pub struct PulseTicks {
     pub reset: u32,
 }
 
+/// One bit of a clockless signal as a pair of pulses: the line is high for
+/// `high` ticks, then low for `low` ticks.
+///
+/// RMT and PIO peripherals take their data as a list of these pairs. Get them
+/// from [`PulseTicks::zero_pulse`], [`PulseTicks::one_pulse`] or
+/// [`PulseTicks::bit_pulses`].
+///
+/// # Example
+///
+/// ```
+/// use ledkit_core::encode::BitPulse;
+///
+/// let pulse = BitPulse { high: 8, low: 6 };
+/// assert_eq!(pulse.high + pulse.low, 14);
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct BitPulse {
+    /// Ticks the line is high.
+    pub high: u16,
+    /// Ticks the line is low afterwards.
+    pub low: u16,
+}
+
+/// Narrows a tick count to `u16`, saturating at `u16::MAX`.
+const fn saturate_u16(ticks: u32) -> u16 {
+    if ticks > u16::MAX as u32 {
+        u16::MAX
+    } else {
+        ticks as u16
+    }
+}
+
+impl PulseTicks {
+    /// The pulse pair that sends a `0` bit.
+    ///
+    /// Tick counts above 65 535 saturate. Every backend passes a `max_ticks`
+    /// of at most 65 535 to [`ClocklessTiming::pulse_ticks`], so that never
+    /// happens for the values it returns.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use ledkit_core::encode::BitPulse;
+    /// use ledkit_core::{ClocklessTiming, Ws2812b};
+    ///
+    /// let ticks = ClocklessTiming::of::<Ws2812b>().pulse_ticks(10_000_000, 32_767)?;
+    /// assert_eq!(ticks.zero_pulse(), BitPulse { high: 4, low: 9 });
+    /// # Ok::<(), ledkit_core::TimingError>(())
+    /// ```
+    #[must_use]
+    pub const fn zero_pulse(&self) -> BitPulse {
+        BitPulse {
+            high: saturate_u16(self.zero_high),
+            low: saturate_u16(self.zero_low),
+        }
+    }
+
+    /// The pulse pair that sends a `1` bit.
+    ///
+    /// Tick counts above 65 535 saturate (see [`PulseTicks::zero_pulse`]).
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use ledkit_core::encode::BitPulse;
+    /// use ledkit_core::{ClocklessTiming, Ws2812b};
+    ///
+    /// let ticks = ClocklessTiming::of::<Ws2812b>().pulse_ticks(10_000_000, 32_767)?;
+    /// assert_eq!(ticks.one_pulse(), BitPulse { high: 8, low: 6 });
+    /// # Ok::<(), ledkit_core::TimingError>(())
+    /// ```
+    #[must_use]
+    pub const fn one_pulse(&self) -> BitPulse {
+        BitPulse {
+            high: saturate_u16(self.one_high),
+            low: saturate_u16(self.one_low),
+        }
+    }
+
+    /// Turns wire bytes into one [`BitPulse`] per bit, most significant bit
+    /// first, which is the order LED chips read them. It yields 8 pulses per
+    /// byte and does not allocate.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use ledkit_core::{ClocklessTiming, Ws2812b};
+    ///
+    /// let ticks = ClocklessTiming::of::<Ws2812b>().pulse_ticks(10_000_000, 32_767)?;
+    /// let mut pulses = ticks.bit_pulses([0b1000_0000u8]);
+    /// assert_eq!(pulses.next(), Some(ticks.one_pulse()));
+    /// assert_eq!(pulses.next(), Some(ticks.zero_pulse()));
+    /// assert_eq!(pulses.count(), 6);
+    /// # Ok::<(), ledkit_core::TimingError>(())
+    /// ```
+    pub fn bit_pulses(&self, wire: impl IntoIterator<Item = u8>) -> impl Iterator<Item = BitPulse> {
+        let zero = self.zero_pulse();
+        let one = self.one_pulse();
+        wire.into_iter().flat_map(move |byte| {
+            (0..8u8)
+                .rev()
+                .map(move |bit| if (byte >> bit) & 1 == 1 { one } else { zero })
+        })
+    }
+}
+
 /// Converts nanoseconds to the nearest whole number of ticks.
 const fn ns_to_ticks(ns: u64, ticks_per_second: u32) -> u64 {
     let ticks = (ns as u128 * ticks_per_second as u128 + 500_000_000) / 1_000_000_000;
@@ -187,6 +293,40 @@ impl ClocklessTiming {
 mod tests {
     use super::*;
     use crate::{Sk6812, Ws2812b};
+
+    #[test]
+    fn bit_pulses_are_msb_first_with_u16_ticks() {
+        let t = ClocklessTiming::of::<Ws2812b>()
+            .pulse_ticks(10_000_000, 32_767)
+            .unwrap();
+        let (z, o) = (t.zero_pulse(), t.one_pulse());
+        assert_eq!(z, BitPulse { high: 4, low: 9 });
+        assert_eq!(o, BitPulse { high: 8, low: 6 });
+        let got: Vec<BitPulse> = t.bit_pulses([0b1010_0000u8]).collect();
+        assert_eq!(got, vec![o, z, o, z, z, z, z, z]);
+        assert_eq!(t.bit_pulses([0u8; 3]).count(), 24);
+        assert_eq!(t.bit_pulses(core::iter::empty()).count(), 0);
+    }
+
+    #[test]
+    fn oversized_ticks_saturate() {
+        let t = PulseTicks {
+            zero_high: 70_000,
+            zero_low: 1,
+            one_high: 65_535,
+            one_low: 65_536,
+            reset: 0,
+        };
+        let max = u16::MAX;
+        assert_eq!(t.zero_pulse(), BitPulse { high: max, low: 1 });
+        assert_eq!(
+            t.one_pulse(),
+            BitPulse {
+                high: max,
+                low: max
+            }
+        );
+    }
 
     #[test]
     fn ws2812b_at_10mhz() {

@@ -15,6 +15,8 @@ cargo build -p ledkit-core --all-features --target thumbv6m-none-eabi
 cargo build -p ledkit-core --all-features --target riscv32imc-unknown-none-elf
 ```
 
+`ledkit-esp` and `ledkit-esp-idf` are outside the workspace and only build for an ESP32 target. Check them through their examples (`examples/esp32c6-rmt`, `examples/esp32c6-esp-idf`; see AGENTS.md and CI) with `cargo build --release` and `cargo clippy -- -D warnings` in the example's folder.
+
 The embedded targets come from `rustup target add thumbv6m-none-eabi riscv32imc-unknown-none-elf`.
 See [AGENTS.md](AGENTS.md) for the code conventions.
 
@@ -50,13 +52,13 @@ The same table appears in three places, and they must stay identical: the top of
 
 ## Add a backend
 
-A backend turns a `Strip`'s finished frame into signals on a real peripheral. `crates/ledkit-spi` is the model to copy. The steps:
+A backend turns a `Strip`'s finished frame into signals on a real peripheral. `crates/ledkit-spi` is the model to copy for a bus backend (SPI). Pulse peripherals (the ESP32 RMT, later the RP PIO) are a second model: copy `crates/ledkit-esp-idf` (std) or `crates/ledkit-esp` (`no_std`), which turn the chip's timing into pulses with `PulseTicks` / `BitPulse` and the RMT word helpers in `ledkit_core::encode`. The steps:
 
 1. **Implement `Output` (blocking) and `OutputAsync` (if the HAL has async)** from `ledkit-core`. `write` receives the pixels after `Strip` has applied brightness, gamma, dithering and the power limit; never do any of that yourself.
 2. **Check the chip kind at compile time**, with `const { ClocklessTiming::of::<C>() }` (or, for a clocked chip, `const { assert!(matches!(C::PROTOCOL, Protocol::Clocked(_))) }`, as `ClockedSpi::new` does), so a DotStar chip on a clockless backend fails to build instead of misbehaving.
 3. **Use the `wire` and `encode` helpers** (`wire::clockless_bytes`, `wire::clocked_frame`, `SpiEncoding`, `PulseTicks`) instead of re-deriving color order, timing or bit patterns.
 4. **Flush before returning**, so `show()` means the data has really left the chip and the LEDs can't be handed a half-sent frame.
-5. **Own the reset gap.** A clockless chip needs a pause with the line low (its `reset_us`) between frames to latch the colors, and `Output`'s docs make that the backend's job. SPI satisfies it by sending trailing reset bytes and then flushing. RMT and PIO backends must time it themselves: remember when the last frame ended and wait out the rest before the next one.
+5. **Own the reset gap.** A clockless chip needs a pause with the line low (its `reset_us`) between frames to latch the colors, and `Output`'s docs make that the backend's job. SPI satisfies it by sending trailing reset bytes and then flushing. RMT and PIO backends must time it themselves: get the gap from `ResetGap::of::<C>()`, remember when the last frame ended and wait out the rest before the next one (`ledkit-esp-idf` sleeps, and counts a failed send as ended too; `ledkit-esp` instead appends the gap to the frame as a long low pulse).
 6. **Test with a fake bus** (see `crates/ledkit-spi/src/testing.rs`): check the exact bytes for a known frame, error propagation, and that flush happens.
 7. **Add a `smart-leds` impl** behind a `smart-leds` feature, so code written for the existing ecosystem needs only a new constructor.
 8. **Write docs and an example** in the style of `crates/ledkit-spi/src/lib.rs`, and keep the crate's README identical in content (`crates/ledkit-core` does the same; the README uses plain backticks instead of links).

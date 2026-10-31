@@ -1,3 +1,4 @@
 /target
 **/*.rs.bk
 # Cargo.lock is committed: this is a workspace with future binaries and examples.
+.superpowers/

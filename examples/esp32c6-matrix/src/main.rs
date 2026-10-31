@@ -153,11 +153,11 @@ fn main() -> ! {
         let width = WIDTH as usize;
         for (index, pixel) in strip.pixels_mut().iter_mut().enumerate() {
             if index == 0 {
-                *pixel = Rgb::RED.into();
+                *pixel = Rgb::RED;
             } else if index < width {
-                *pixel = Rgb::GREEN.into();
+                *pixel = Rgb::GREEN;
             } else if index < width + 3 {
-                *pixel = Rgb::BLUE.into();
+                *pixel = Rgb::BLUE;
             }
         }
         strip.show().unwrap();

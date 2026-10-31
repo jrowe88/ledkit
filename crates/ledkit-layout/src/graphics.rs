@@ -92,6 +92,15 @@ mod tests {
     use ledkit_color::Rgb;
 
     #[test]
+    fn draw_target_clear_blacks_out_the_canvas() {
+        let mut px = [Rgb::RED; 14];
+        let mut c = Canvas::new(&mut px, MatrixLayout::new(4, 3)).unwrap();
+        c.clear(Rgb888::BLACK).unwrap();
+        assert!(px[..12].iter().all(|p| *p == Rgb::BLACK));
+        assert_eq!(px[12], Rgb::RED);
+    }
+
+    #[test]
     fn draws_a_rectangle_outline() {
         let mut px = [Rgb::BLACK; 16];
         let mut c = Canvas::new(&mut px, MatrixLayout::new(4, 4)).unwrap();

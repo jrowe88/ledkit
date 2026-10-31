@@ -114,12 +114,15 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
+          components: clippy
           targets: riscv32imac-unknown-none-elf
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: |
             examples/esp32c6-matrix
       - run: cargo build --release --locked
+        working-directory: examples/esp32c6-matrix
+      - run: cargo clippy --release --locked -- -D warnings
         working-directory: examples/esp32c6-matrix
 
   example-linux:

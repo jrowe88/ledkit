@@ -20,7 +20,8 @@ use core::fmt;
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct LayoutTooBig {
-    /// How many LEDs the layout needs.
+    /// How many LEDs the layout needs. For a segment, it is the position just
+    /// past the segment's end.
     pub needed: usize,
     /// How many LEDs the strip has.
     pub available: usize,
@@ -46,6 +47,10 @@ impl core::error::Error for LayoutTooBig {}
 /// LEDs are not part of the canvas and are never touched.
 ///
 /// Drawing outside the canvas is ignored, so shapes can run off the edge.
+///
+/// To turn every LED of the canvas off, call `fill(Rgb::BLACK)`. (With the
+/// `embedded-graphics` feature, `canvas.clear(Rgb888::BLACK)` from `DrawTarget`
+/// does the same thing.)
 ///
 /// # Example
 ///
@@ -212,27 +217,6 @@ impl<'a, P, L: Layout> Canvas<'a, P, L> {
             *slot = color.clone();
         }
     }
-
-    /// Turns every LED of the canvas off (the pixel type's default, which is
-    /// black).
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use ledkit_color::Rgb;
-    /// use ledkit_layout::{Canvas, MatrixLayout};
-    ///
-    /// let mut pixels = [Rgb::RED; 12];
-    /// let mut canvas = Canvas::new(&mut pixels, MatrixLayout::new(4, 3)).unwrap();
-    /// canvas.clear();
-    /// assert_eq!(pixels[0], Rgb::BLACK);
-    /// ```
-    pub fn clear(&mut self)
-    where
-        P: Default + Clone,
-    {
-        self.fill(P::default());
-    }
 }
 
 #[cfg(test)]
@@ -289,12 +273,12 @@ mod tests {
     }
 
     #[test]
-    fn clear_and_get_work() {
+    fn fill_black_and_get_work() {
         let mut px = [Rgb::BLACK; 4];
         let mut c = Canvas::new(&mut px, MatrixLayout::new(2, 2)).unwrap();
         c.set(1, 1, Rgb::RED);
         assert_eq!(c.get(1, 1), Some(Rgb::RED));
-        c.clear();
+        c.fill(Rgb::BLACK);
         assert_eq!(c.get(1, 1), Some(Rgb::BLACK));
         assert_eq!((c.width(), c.height()), (2, 2));
         assert_eq!(c.layout().len(), 4);

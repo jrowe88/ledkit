@@ -140,7 +140,9 @@
 //! The finder assumes the panel is wired rows first. If the green runs down a
 //! column instead, or wraps onto a second line, the panel is wired columns first
 //! (or `WIDTH` is wrong). Settle rows versus columns before you judge serpentine
-//! from the blue LEDs.
+//! from the blue LEDs. On a columns-first panel, follow the green instead: if it
+//! runs down one column and back up the next, the panel is serpentine; if it
+//! jumps back to the top for the next column, it's progressive.
 //!
 //! Then use the table:
 //!

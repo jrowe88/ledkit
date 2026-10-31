@@ -148,7 +148,7 @@ checkout, as the examples do.
 | `ledkit-spi` | Drives LEDs from any `embedded-hal` SPI bus, blocking or async | ✅ available |
 | `ledkit-esp` | ESP32 RMT driver for esp-hal (`no_std`, blocking or async) | ✅ available |
 | `ledkit-esp-idf` | ESP32 RMT driver for ESP-IDF (`std`) | ✅ available |
-| `ledkit-layout` | Segments, matrices, text and shapes | ✅ available |
+| `ledkit-layout` | Segments, matrices, text and shapes | ✅ available (matrix hardware test pending) |
 | `ledkit-anim` | Effects (rainbow, breathe, fire, …) and ways to combine them | 🔜 planned |
 | `ledkit-rp` | Raspberry Pi Pico (RP2040/RP2350) PIO driver | 🔜 planned |
 | `ledkit` | One crate to add, with everything re-exported | 🔜 planned |

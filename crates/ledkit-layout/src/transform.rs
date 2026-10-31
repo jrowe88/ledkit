@@ -162,6 +162,10 @@ impl Tiled {
     #[must_use]
     pub const fn new(panel: MatrixLayout, across: u16, down: u16) -> Self {
         assert!(
+            across > 0 && down > 0,
+            "a tiled picture needs at least one panel each way"
+        );
+        assert!(
             panel.width() as u32 * across as u32 <= u16::MAX as u32
                 && panel.height() as u32 * down as u32 <= u16::MAX as u32,
             "the tiled picture is too big"
@@ -314,6 +318,8 @@ mod tests {
         assert_eq!((r.width(), r.height()), (32, 8));
         // After a clockwise quarter turn, the picture's top-left is the panel's bottom-left.
         assert_eq!(r.index(0, 0), MatrixLayout::new(8, 32).index(0, 31));
+        // One step right in the picture is one step up the panel's left edge.
+        assert_eq!(r.index(1, 0), MatrixLayout::new(8, 32).index(0, 30));
     }
 
     #[test]
@@ -321,6 +327,11 @@ mod tests {
         let m = MatrixLayout::new(4, 3);
         let r = m.rotated(Rotation::Half);
         assert_eq!(r.index(0, 0), m.index(3, 2));
+        let tall = MatrixLayout::new(8, 32);
+        let r = tall.rotated(Rotation::Half);
+        assert_eq!(r.index(0, 0), tall.index(7, 31));
+        // One step right in the picture is one step left along the panel's bottom row.
+        assert_eq!(r.index(1, 0), tall.index(6, 31));
     }
 
     #[test]
@@ -329,6 +340,32 @@ mod tests {
         let r = m.rotated(Rotation::ThreeQuarter);
         assert_eq!((r.width(), r.height()), (32, 8));
         assert_eq!(r.index(0, 0), m.index(7, 0));
+        // One step right in the picture is one step down the panel's right edge.
+        assert_eq!(r.index(1, 0), m.index(7, 1));
+    }
+
+    #[test]
+    #[should_panic(expected = "at least one panel")]
+    fn tiled_with_zero_panels_across_panics() {
+        let _ = Tiled::new(MatrixLayout::new(4, 3), 0, 1);
+    }
+
+    #[test]
+    #[should_panic(expected = "at least one panel")]
+    fn tiled_with_zero_panels_down_panics() {
+        let _ = Tiled::new(MatrixLayout::new(4, 3), 1, 0);
+    }
+
+    #[test]
+    #[should_panic(expected = "too big")]
+    fn tiled_wider_than_u16_panics() {
+        let _ = Tiled::new(MatrixLayout::new(1000, 1), 100, 1);
+    }
+
+    #[test]
+    #[should_panic(expected = "too big")]
+    fn tiled_taller_than_u16_panics() {
+        let _ = Tiled::new(MatrixLayout::new(1, 1000), 1, 100);
     }
 
     #[test]

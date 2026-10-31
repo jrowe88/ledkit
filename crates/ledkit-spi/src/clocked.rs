@@ -230,18 +230,20 @@ where
 
 /// Where [`FrameBytes`] is in the frame.
 enum Stage {
-    /// Sending the zero bytes that open the frame; this many are left.
+    /// Sending the zero bytes of the start frame; this many are left.
     Start(usize),
     /// Sending LEDs.
     Leds,
-    /// Sending the closing zero bytes; this many are left.
+    /// Sending the `0xFF` bytes of the end frame; this many are left.
     End(usize),
 }
 
 /// The bytes of a DotStar frame, made on demand from any pixel iterator.
 ///
-/// The closing zeros depend on the LED count, which is counted as the
-/// pixels stream through, so the iterator needs no known length.
+/// The end frame is `ceil(n / 16)` bytes of `0xFF` (see
+/// [`wire::clocked_frame`](ledkit_core::wire::clocked_frame) for why). It
+/// depends on the LED count `n`, which is counted as the pixels stream
+/// through, so the iterator needs no known length.
 struct FrameBytes<C: Chip, I> {
     pixels: I,
     stage: Stage,
@@ -279,9 +281,13 @@ impl<C: Chip, I: Iterator<Item = C::Pixel>> Iterator for FrameBytes<C, I> {
     fn next(&mut self) -> Option<u8> {
         loop {
             match &mut self.stage {
-                Stage::Start(left) | Stage::End(left) if *left > 0 => {
+                Stage::Start(left) if *left > 0 => {
                     *left -= 1;
                     return Some(0x00);
+                }
+                Stage::End(left) if *left > 0 => {
+                    *left -= 1;
+                    return Some(0xFF);
                 }
                 Stage::Start(_) => self.stage = Stage::Leds,
                 Stage::Leds => {
@@ -294,7 +300,7 @@ impl<C: Chip, I: Iterator<Item = C::Pixel>> Iterator for FrameBytes<C, I> {
                         // Every LED starts with full brightness (0xFF).
                         return Some(0xFF);
                     }
-                    self.stage = Stage::End(4 + self.led_count.div_ceil(16));
+                    self.stage = Stage::End(self.led_count.div_ceil(16));
                 }
                 Stage::End(_) => return None,
             }

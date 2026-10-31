@@ -135,8 +135,9 @@ impl<C: Chip, I: FusedIterator<Item = C::Pixel>> FusedIterator for ClocklessByte
 
 /// How many bytes [`clocked_frame`] produces for `led_count` LEDs.
 ///
-/// That is a 4-byte start frame, 4 bytes per LED, a 4-byte end frame and one
-/// extra byte for every 16 LEDs (rounded up) so the last LEDs get clocked.
+/// That is a 4-byte start frame, 4 bytes per LED and an end frame of one
+/// `0xFF` byte for every 16 LEDs (rounded up). For zero LEDs the end frame is
+/// empty, so the frame is just the 4-byte start frame.
 ///
 /// The "4 bytes per LED" assumes 3-channel DotStar pixels (a brightness byte
 /// plus blue, green and red), which is what every clocked chip in the
@@ -147,20 +148,32 @@ impl<C: Chip, I: FusedIterator<Item = C::Pixel>> FusedIterator for ClocklessByte
 /// ```
 /// use ledkit_core::wire::clocked_frame_len;
 ///
-/// assert_eq!(clocked_frame_len(2), 17);
+/// assert_eq!(clocked_frame_len(2), 13);
 /// ```
 pub const fn clocked_frame_len(led_count: usize) -> usize {
-    4 + 4 * led_count + 4 + led_count.div_ceil(16)
+    4 + 4 * led_count + led_count.div_ceil(16)
 }
 
 /// Yields a complete DotStar (APA102/SK9822) frame for a clocked chip.
 ///
 /// The frame is a start frame of four `0x00` bytes, then for each LED a
 /// `0xFF` byte (full global brightness) followed by its channels in the
-/// chip's wire order, then an end frame of zeros. Use this for clocked
-/// chips; [`clockless_bytes`] is for clockless ones. Using the wrong one does
+/// chip's wire order, then an end frame of `ceil(n / 16)` bytes of `0xFF`
+/// (`n` is the LED count). Use this for clocked chips; [`clockless_bytes`] is for clockless ones. Using the wrong one does
 /// not panic. The iterator must know its length up front, because the end
 /// frame depends on the LED count.
+///
+/// # Why the end frame is `0xFF`
+///
+/// Each LED in the chain delays the data by half a clock, so the last LEDs only
+/// latch their colors if the strip gets about `n / 2` more clock edges after
+/// the data. `ceil(n / 16)` bytes is `n / 2` bits or more. They are `0xFF`
+/// rather than `0x00` because the chips read a run of 32 or more zero bits as a
+/// new start frame, which made the last LEDs (60 to 63 of 64 on an APA102-2020
+/// DotStar HD 8x8) miss their colors. A full 32-bit frame of ones is avoided
+/// too, since an LED past the end of the strip would see it as pixel data. This
+/// is the same end frame Adafruit's DotStar library sends. The SK9822 uses the
+/// same frame.
 ///
 /// # Example
 ///
@@ -168,7 +181,7 @@ pub const fn clocked_frame_len(led_count: usize) -> usize {
 /// use ledkit_core::{wire::clocked_frame, Apa102, Rgb};
 ///
 /// let frame: Vec<u8> = clocked_frame::<Apa102, _>([Rgb::new(1, 2, 3)]).collect();
-/// assert_eq!(frame, [0, 0, 0, 0, 0xFF, 3, 2, 1, 0, 0, 0, 0, 0]);
+/// assert_eq!(frame, [0, 0, 0, 0, 0xFF, 3, 2, 1, 0xFF]);
 /// ```
 pub fn clocked_frame<C, I>(pixels: I) -> ClockedFrame<C, I::IntoIter>
 where
@@ -177,7 +190,7 @@ where
     I::IntoIter: ExactSizeIterator,
 {
     let pixels = pixels.into_iter();
-    let end_left = 4 + pixels.len().div_ceil(16);
+    let end_left = pixels.len().div_ceil(16);
     ClockedFrame {
         pixels,
         start_left: 4,
@@ -281,7 +294,7 @@ impl<C: Chip, I: Iterator<Item = C::Pixel>> Iterator for ClockedFrame<C, I> {
         }
         if self.end_left > 0 {
             self.end_left -= 1;
-            return Some(0x00);
+            return Some(0xFF);
         }
         None
     }
@@ -365,18 +378,15 @@ mod tests {
     fn dotstar_frame() {
         let frame =
             clocked_frame::<Apa102, _>([Rgb::new(1, 2, 3), Rgb::new(4, 5, 6)]).collect::<Vec<_>>();
-        assert_eq!(
-            frame,
-            [0, 0, 0, 0, 0xFF, 3, 2, 1, 0xFF, 6, 5, 4, 0, 0, 0, 0, 0]
-        );
-        assert_eq!(clocked_frame_len(2), 17);
+        assert_eq!(frame, [0, 0, 0, 0, 0xFF, 3, 2, 1, 0xFF, 6, 5, 4, 0xFF]);
+        assert_eq!(clocked_frame_len(2), 13);
     }
 
     #[test]
     fn dotstar_frame_lengths() {
-        assert_eq!(clocked_frame_len(0), 8);
-        assert_eq!(clocked_frame_len(16), 4 + 64 + 4 + 1);
-        assert_eq!(clocked_frame_len(17), 4 + 68 + 4 + 2);
+        assert_eq!(clocked_frame_len(0), 4);
+        assert_eq!(clocked_frame_len(16), 4 + 64 + 1);
+        assert_eq!(clocked_frame_len(17), 4 + 68 + 2);
     }
 
     #[test]

@@ -151,14 +151,14 @@ fn main() -> ! {
         );
         strip.fill(Rgb::BLACK);
         let width = WIDTH as usize;
-        for (index, pixel) in strip.pixels_mut().iter_mut().enumerate() {
-            if index == 0 {
-                *pixel = Rgb::RED;
-            } else if index < width {
-                *pixel = Rgb::GREEN;
-            } else if index < width + 3 {
-                *pixel = Rgb::BLUE;
-            }
+        // `set` takes anything that converts into the chip's pixel type, so this
+        // works for RGB and RGBW chips alike, and ignores indices past the end.
+        strip.set(0, Rgb::RED);
+        for index in 1..width {
+            strip.set(index, Rgb::GREEN);
+        }
+        for index in width..width + 3 {
+            strip.set(index, Rgb::BLUE);
         }
         strip.show().unwrap();
         delay.delay_millis(3000);

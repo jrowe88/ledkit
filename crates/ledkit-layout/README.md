@@ -19,15 +19,18 @@ assert_eq!(LAYOUT.index(15, 1), Some(16));
 
 Light the panel with the wiring finder from the matrix example. It lights
 LED 0 red, LEDs 1 to `WIDTH - 1` green, and the first 3 LEDs of the next line
-(LEDs `WIDTH` to `WIDTH + 2`) blue. Look at the panel:
+(LEDs `WIDTH` to `WIDTH + 2`) blue. Red plus green together cover `WIDTH`
+LEDs; the green alone is `WIDTH - 1`. Look at the panel:
 
 - Red to the end of the green is where the first line runs.
 - Where the blue starts is where the second line starts. Blue next to the end
   of the green means serpentine; blue back at the red's side means
   progressive.
 
-The green run is as long as the `WIDTH` you set. If the green wraps around
-onto a second line, the panel is wired columns first, or the width is wrong.
+The finder assumes the panel is wired rows first. If the green runs down a
+column instead, or wraps onto a second line, the panel is wired columns first
+(or `WIDTH` is wrong). Settle rows versus columns before you judge serpentine
+from the blue LEDs.
 
 Then use the table:
 

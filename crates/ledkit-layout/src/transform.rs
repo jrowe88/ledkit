@@ -395,6 +395,43 @@ mod tests {
         }
     }
 
+    /// A grid that is not square (3 panels across, 2 down) is still one-to-one
+    /// under every panel-order choice.
+    #[test]
+    fn non_square_tiled_grid_is_a_bijection() {
+        let corners = [
+            Corner::TopLeft,
+            Corner::TopRight,
+            Corner::BottomLeft,
+            Corner::BottomRight,
+        ];
+        for wiring in [Wiring::Progressive, Wiring::Serpentine] {
+            for order in [Order::RowsFirst, Order::ColumnsFirst] {
+                for corner in corners {
+                    let mut t =
+                        Tiled::new(MatrixLayout::new(4, 3).serpentine(), 3, 2).starting_at(corner);
+                    t = if wiring == Wiring::Serpentine {
+                        t.serpentine()
+                    } else {
+                        t.progressive()
+                    };
+                    t = if order == Order::ColumnsFirst {
+                        t.columns_first()
+                    } else {
+                        t.rows_first()
+                    };
+                    assert_eq!((t.width(), t.height()), (12, 6));
+                    assert_bijection(
+                        t.width(),
+                        t.height(),
+                        |x, y| t.index(x, y),
+                        &format!("tiled 3x2 {wiring:?} {order:?} {corner:?}"),
+                    );
+                }
+            }
+        }
+    }
+
     #[test]
     fn tiled_panels_follow_each_other() {
         let t = Tiled::new(MatrixLayout::new(4, 3), 2, 1);

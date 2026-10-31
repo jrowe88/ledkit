@@ -23,22 +23,50 @@
 //!
 //! `x` grows to the right and `y` grows down, as you look at the panel.
 //!
+//! ## Drawing
+//!
+//! A [`Canvas`] lets you draw on a strip's pixels by `(x, y)`. Make it in its
+//! own block: it borrows the pixels, so the strip can't send them until you
+//! are done drawing.
+//!
+//! ```
+//! use ledkit_core::prelude::*;
+//! use ledkit_core::testing::MemoryOutput;
+//! use ledkit_layout::{Canvas, MatrixLayout};
+//!
+//! let mut strip = Strip::<Ws2812b, 12, _>::new(MemoryOutput::<_, 12>::new());
+//!
+//! {
+//!     let layout = MatrixLayout::new(4, 3).serpentine();
+//!     let mut canvas = Canvas::new(strip.pixels_mut(), layout).unwrap();
+//!     canvas.set(0, 1, Rgb::RED);
+//!     canvas.set(99, 99, Rgb::RED); // off the canvas: ignored
+//! }
+//! strip.show().unwrap();
+//!
+//! assert_eq!(strip.output().last_frame()[7], Rgb::RED);
+//! ```
+//!
+//! To use part of a strip as a strip of its own, see [`Segment`].
+//!
 //! ## Finding your wiring
 //!
 //! Panels differ in where the data wire goes in and which way the chain
 //! snakes, and unbranded ones rarely say. Light the panel with the wiring
 //! finder from the matrix example. It lights LED 0 red, LEDs 1 to `WIDTH - 1`
 //! green, and the first 3 LEDs of the next line (LEDs `WIDTH` to `WIDTH + 2`)
-//! blue. Look at the panel:
+//! blue. Red plus green together cover `WIDTH` LEDs; the green alone is
+//! `WIDTH - 1`. Look at the panel:
 //!
 //! - Red to the end of the green is where the first line runs.
-//! - Where the blue starts is where the second line starts. Blue next to the
-//!   end of the green means serpentine; blue back at the red's side means
+//! - Where the blue starts is where the second line starts. Blue next to the end
+//!   of the green means serpentine; blue back at the red's side means
 //!   progressive.
 //!
-//! The green run is as long as the `WIDTH` you set. If the green wraps around
-//! onto a second line, the panel is wired columns first, or the width is
-//! wrong.
+//! The finder assumes the panel is wired rows first. If the green runs down a
+//! column instead, or wraps onto a second line, the panel is wired columns first
+//! (or `WIDTH` is wrong). Settle rows versus columns before you judge serpentine
+//! from the blue LEDs.
 //!
 //! Then use the table:
 //!
@@ -58,10 +86,14 @@
 
 #![cfg_attr(not(test), no_std)]
 
+mod canvas;
 mod layout;
+mod segment;
 #[cfg(test)]
 pub(crate) mod test_support;
 mod transform;
 
+pub use canvas::{Canvas, LayoutTooBig};
 pub use layout::{Corner, Layout, MatrixLayout, Order, Wiring};
+pub use segment::{Segment, SegmentMut};
 pub use transform::{Rotated, Rotation, Tiled};

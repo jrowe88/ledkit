@@ -1,0 +1,22 @@
+[package]
+name = "ledkit-layout"
+description = "ledkit layouts: map (x, y) positions on LED matrices onto strip positions. no_std."
+keywords = ["led", "neopixel", "matrix", "ws2812", "embedded"]
+categories = ["embedded", "no-std", "hardware-support"]
+readme = "README.md"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+ledkit-core = { path = "../ledkit-core", version = "0.1.0" }
+ledkit-color = { path = "../ledkit-color", version = "0.1.0" }
+
+[package.metadata.docs.rs]
+all-features = true
+
+[lints]
+workspace = true

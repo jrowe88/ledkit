@@ -57,6 +57,8 @@ jobs:
       - run: cargo build -p ledkit-core --all-features --target riscv32imc-unknown-none-elf
       - run: cargo build -p ledkit-spi --all-features --target thumbv6m-none-eabi
       - run: cargo build -p ledkit-spi --all-features --target riscv32imc-unknown-none-elf
+      - run: cargo build -p ledkit-layout --all-features --target thumbv6m-none-eabi
+      - run: cargo build -p ledkit-layout --all-features --target riscv32imc-unknown-none-elf
 
   msrv:
     runs-on: ubuntu-latest

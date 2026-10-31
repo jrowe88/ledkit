@@ -42,6 +42,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "ledkit-layout"
+version = "0.1.0"
+dependencies = [
+ "ledkit-color",
+ "ledkit-core",
+]
+
+[[package]]
 name = "ledkit-spi"
 version = "0.1.0"
 dependencies = [

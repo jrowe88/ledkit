@@ -56,7 +56,7 @@ were deferred:
 - ~~Teensy 4 hardware test~~: NeoPixel pass 2026-10-31 on an Adafruit 8×8. It needed two LPSPI settings in the example (tristate the data pin between transfers, no PCS-to-SCK delay); without them the first LED of each transfer reads a stray "1". DotStar pass 2026-10-31 on an Adafruit DotStar HD 8×8 (APA102-2020, 64 LEDs). It exposed an end-frame bug: the old zero-byte end frame left LEDs 60 to 63 unlit, and `0xFF` end bytes fixed it.
 - Pi hardware test (the example builds in CI)
 - WS2812B strip at 2.3, 2.4, 3.2, 4.0 and 6.4 MHz
-- ~~APA102/SK9822 end frame~~: done. The end frame is now `ceil(n / 16)` bytes of `0xFF` (as in Adafruit's library), verified on an APA102-2020 on 2026-10-31. An SK9822 strip is still untested.
+- ~~APA102/SK9822 end frame~~: done. The APA102 end frame is now `ceil(n / 16)` bytes of `0xFF` (as in Adafruit's library), verified on an APA102-2020 on 2026-10-31. The SK9822 keeps a 4-byte zero reset frame plus `ceil(n / 16)` zero bytes (`ClockedFormat::Sk9822`); that SK9822 end frame still needs hardware verification.
 - `MAX_CLOCK_HZ` for the clocked chips
 - RGBW byte order
 - datasheet citations in `chips.rs`

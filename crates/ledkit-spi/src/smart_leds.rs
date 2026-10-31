@@ -263,7 +263,7 @@ mod tests {
 
         let mut c = ClockedSpi::<Apa102, _>::new(FakeBus::default());
         SmartLedsWrite::write(&mut c, core::iter::empty::<RGB8>()).unwrap();
-        // No LEDs: just the 4-byte start frame (the end frame is empty).
+        // No LEDs: just the 4-byte start frame (the APA102 end frame is empty).
         assert_eq!(c.release().bytes, [0u8; 4]);
     }
 

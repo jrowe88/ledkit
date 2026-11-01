@@ -58,7 +58,7 @@ were deferred:
 - WS2812B strip at 2.3, 2.4, 3.2, 4.0 and 6.4 MHz
 - ~~APA102/SK9822 end frame~~: done. The APA102 end frame is now `ceil(n / 16)` bytes of `0xFF` (as in Adafruit's library), verified on an APA102-2020 on 2026-10-31. The SK9822 keeps a 4-byte zero reset frame plus `ceil(n / 16)` zero bytes (`ClockedFormat::Sk9822`); that SK9822 end frame still needs hardware verification.
 - DotStar on the ESP32-C6: pass 2026-10-31 (SPI2 at 4 MHz, data GPIO4, clock GPIO6, Adafruit DotStar HD 8×8). At 10% brightness nothing seemed to light: ledkit dims DotStars only through the 8-bit color values, so 10% green is 3/255, invisible on these LEDs; 40% looked right.
-- ~~DotStar "HD" brightness~~: done (`Strip::set_hd_brightness`, off by default; `Output::set_global_brightness` lets a backend take the 5-bit level, and `ClockedSpi` does). It splits each frame's brightness between the 5-bit level and the channels. Later, if wanted: a per-LED split (FastLED-style) for dim pixels in a bright frame
+- ~~DotStar "HD" brightness~~: done (`Strip::set_hd_brightness`, off by default; `Output::set_global_brightness` lets a backend take the 5-bit level, and `ClockedSpi` does). It lowers the 5-bit level only below raw level 64 (about 52%); above that it sends the same bytes as without HD, because on an APA102-2020 a lowered 5-bit level gives less light than the math says (tested on an ESP32-C6, 2026-10-31). Later, if wanted: a per-LED split (FastLED-style) for dim pixels in a bright frame
 - `MAX_CLOCK_HZ` for the clocked chips
 - RGBW byte order
 - datasheet citations in `chips.rs`

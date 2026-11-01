@@ -421,12 +421,12 @@ mod tests {
         strip.set_hd_brightness(true);
         strip.fill(Rgb::new(255, 128, 0));
         strip.show().unwrap();
-        // Level 3 is global 1, channels scaled by 93.
-        let want: Vec<u8> = wire::clocked_frame::<Apa102, _>([Rgb::new(94, 47, 0); 3])
-            .with_global_brightness(1)
+        // Level 3 is global 2, channels scaled by 47.
+        let want: Vec<u8> = wire::clocked_frame::<Apa102, _>([Rgb::new(48, 24, 0); 3])
+            .with_global_brightness(2)
             .collect();
         assert_eq!(strip.output().bus().bytes, want);
-        assert_eq!(want[4], 0xE1);
+        assert_eq!(want[4], 0xE2);
 
         // Turning HD off goes back to full global brightness.
         strip.set_hd_brightness(false);

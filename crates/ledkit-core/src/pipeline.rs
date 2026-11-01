@@ -33,19 +33,27 @@ pub(crate) const fn scale_channel(value: u8, brightness: u8, dither: u8) -> u8 {
     }
 }
 
+/// The brightness below which HD brightness starts lowering the DotStar
+/// global level. Above it, the channels alone have enough steps.
+pub(crate) const HD_KNEE: u8 = 64;
+
 /// Splits a brightness level between a DotStar's 5-bit global brightness and
 /// its 8-bit channels, for [`Strip::set_hd_brightness`](crate::Strip::set_hd_brightness).
 ///
-/// Returns `(global, channel)`: the smallest global level (1 to 31) that can
-/// still reach `brightness`, and the channel scale that makes up the rest, so
-/// `global / 31 * channel / 255` stays close to `brightness / 255`. A dim
-/// level then keeps most of the channels' 256 steps. 0 gives `(31, 0)`.
+/// Returns `(global, channel)`, with `global / 31 * channel / 255` close to
+/// `brightness / 255`. From [`HD_KNEE`] up the global level stays at 31, as
+/// without HD, because a DotStar's global level doesn't scale its light
+/// exactly in proportion (an APA102-2020 comes out dimmer at middle levels
+/// than the same brightness made with the channels). Below the knee the
+/// global level drops just enough to keep the channel scale at about
+/// `HD_KNEE` or more, so dim colors keep their steps. 0 gives `(31, 0)`.
 pub(crate) const fn hd_split(brightness: u8) -> (u8, u8) {
     if brightness == 0 {
         return (31, 0);
     }
     let wanted = brightness as u16 * 31;
-    let global = wanted.div_ceil(255);
+    let global = wanted.div_ceil(HD_KNEE as u16);
+    let global = if global > 31 { 31 } else { global };
     let channel = (wanted + global / 2) / global;
     #[allow(clippy::cast_possible_truncation)] // global <= 31, channel <= 255
     (
@@ -129,7 +137,9 @@ mod tests {
     fn hd_split_keeps_the_light_and_gains_steps() {
         assert_eq!(hd_split(0), (31, 0));
         assert_eq!(hd_split(255), (31, 255));
-        assert_eq!(hd_split(3), (1, 93));
+        assert_eq!(hd_split(3), (2, 47));
+        assert_eq!(hd_split(1), (1, 31));
+        assert_eq!(hd_split(HD_KNEE - 1), (31, HD_KNEE - 1));
         for b in 1..=255u8 {
             let (global, channel) = hd_split(b);
             assert!((1..=31).contains(&global));
@@ -140,6 +150,13 @@ mod tests {
             assert!((hd - plain).abs() <= 0.5 / 255.0, "{b}: {global} {channel}");
             // And the channels get at least as many steps as before.
             assert!(channel >= b, "{b}: {channel}");
+            // At and above the knee nothing changes; below it the channels
+            // keep at least about half the knee's steps.
+            if b >= HD_KNEE {
+                assert_eq!((global, channel), (31, b));
+            } else {
+                assert!(channel >= HD_KNEE / 2 - 1, "{b}: {channel}");
+            }
         }
     }
     #[test]

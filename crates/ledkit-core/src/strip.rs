@@ -430,11 +430,15 @@ impl<C: Chip, const N: usize, O> Strip<C, N, O> {
     /// on top of the 8-bit color channels. Normally ledkit leaves it at full
     /// and dims through the channels alone, so a dim strip has few color
     /// steps left: at 10% brightness each channel only goes from 0 to about
-    /// 3, and soft colors round to off. With HD on, ledkit turns the 5-bit
-    /// level down instead and keeps the channels wide, so dim colors stay
-    /// smooth and true. On paper the light is the same either way, but very
-    /// short color pulses barely light some DotStars: on an Adafruit DotStar
-    /// HD 8x8 (APA102-2020), 10% brightness is dark without HD and lit with it.
+    /// 2, and soft colors round to off. With HD on, ledkit turns the 5-bit
+    /// level down for the dim half of the range and keeps the channels wide,
+    /// so dim colors stay smooth and true. Above about half brightness HD
+    /// changes nothing, because the 5-bit level doesn't scale the light
+    /// exactly in proportion, and turning it down there would make HD dimmer.
+    ///
+    /// On paper the light is the same either way, but very short color
+    /// pulses barely light some DotStars: on an Adafruit DotStar HD 8x8
+    /// (APA102-2020), 10% brightness is dark without HD and lit with it.
     ///
     /// It only works with an output that sends the 5-bit level, such as
     /// `ledkit-spi`'s `ClockedSpi`. With any other output (and with
@@ -979,10 +983,10 @@ mod tests {
         let mut s = hd_strip();
         s.set_hd_brightness(true);
         s.show().unwrap();
-        // Level 3 is global 1 with the channels at 93: the same light on
-        // paper, with about 31 times as many steps.
-        assert_eq!(s.output().global, 1);
-        assert_eq!(s.output().memory.last_frame(), &[Rgb::new(94, 47, 0)]);
+        // Level 3 is global 2 with the channels at 47: the same light on
+        // paper, with about 15 times as many steps.
+        assert_eq!(s.output().global, 2);
+        assert_eq!(s.output().memory.last_frame(), &[Rgb::new(48, 24, 0)]);
         assert_eq!(s.effective_brightness(), Brightness::exact(3));
         s.set_hd_brightness(false);
         embassy_futures::block_on(s.show_async()).unwrap();

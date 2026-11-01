@@ -93,7 +93,7 @@ driver might not.
 | Board | LEDs | Result |
 |---|---|---|
 | ESP32-C6 (UART1, 4 Mbaud, inverted in the GPIO matrix) | WS2812-type strip, 100 LEDs | ✅ pass (2026-11-01): colors, counting and a fast rainbow clean through to LED 99, blocking and async |
-| Teensy 4 (LPUART6, 4 Mbaud from a 24 MHz UART clock, blocking and DMA) | WS2812-type strip, 100 LEDs | ✅ pass (2026-11-01): full cycles of colors, counting and a rainbow in both rounds, through a 74HCT245 level shifter |
+| Teensy 4 (LPUART6, 4 Mbaud from a 24 MHz UART clock, blocking and DMA) | WS2812-type strip, 100 LEDs | ✅ pass (2026-11-01): full cycles of colors, counting and a rainbow in both rounds, through an SN74LVC245AN buffer |
 
 Examples are in the `examples` folder of the repository: `esp32c6-uart` and `teensy4-uart`.
 If you try one on your hardware, please report what you see.

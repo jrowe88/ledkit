@@ -138,6 +138,7 @@ Microcontrollers can produce that in a few distinct ways:
 | SPI | Almost every MCU | Each LED bit becomes N SPI bits, **computed for the actual SPI clock** |
 | PWM + DMA | STM32, nRF | One PWM duty value per bit |
 | Clocked SPI (DotStar) | Any SPI | Native: start frame, per-LED brightness + color, end frame |
+| Serial port (UART) | Teensy 4 LPUART, ESP32 UART, any UART with an inverted output | 2 LED bits per serial byte, computed for the actual baud (`ledkit-uart`, added 2026-11-01) |
 
 The core crate holds **one definition per LED chip** (timing with tolerances, color order,
 channels, frame format) and **computes each technique's encoding from it**, at compile time

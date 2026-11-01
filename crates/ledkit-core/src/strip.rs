@@ -540,9 +540,11 @@ impl<C: Chip, const N: usize, O> Strip<C, N, O> {
         &mut self.output
     }
 
-    /// Works out the settings for this frame. Nothing is changed until
-    /// [`commit`](Self::commit) is called after a successful send.
-    fn prepare(&self) -> PipelineSettings {
+    /// Works out the settings for this frame, with `hd` saying whether it
+    /// goes out with HD brightness (so the power limit counts what HD
+    /// sends). Nothing is changed until [`commit`](Self::commit) is called
+    /// after a successful send.
+    fn prepare(&self, hd: bool) -> PipelineSettings {
         let mut settings = PipelineSettings {
             correction: self.correction,
             gamma: self.gamma,
@@ -560,20 +562,9 @@ impl<C: Chip, const N: usize, O> Strip<C, N, O> {
                 NO_DITHER
             };
             settings.brightness =
-                limited_brightness(&self.pixels, &settings, C::POWER, limit, assumed);
+                limited_brightness(&self.pixels, &settings, C::POWER, limit, assumed, hd);
         }
         settings
-    }
-
-    /// Splits this frame's brightness for an output, given whether it takes
-    /// a DotStar global level: returns that level (31 when HD is off) and
-    /// the channel brightness to use. See [`set_hd_brightness`](Self::set_hd_brightness).
-    fn split(&self, brightness: u8) -> (u8, u8) {
-        if self.hd {
-            hd_split(brightness)
-        } else {
-            (31, brightness)
-        }
     }
 
     /// Records a frame that was sent: remembers its brightness and moves
@@ -608,10 +599,14 @@ impl<C: Chip, const N: usize, O> Strip<C, N, O> {
     where
         O: Output<C>,
     {
-        let mut settings = self.prepare();
+        // Full global level first; this also tells us whether the output
+        // takes one at all.
+        let hd = Output::<C>::set_global_brightness(&mut self.output, 31) && self.hd;
+        let mut settings = self.prepare(hd);
         let brightness = settings.brightness;
-        let (global, channel) = self.split(brightness);
-        if Output::<C>::set_global_brightness(&mut self.output, global) {
+        if hd {
+            let (global, channel) = hd_split(brightness);
+            Output::<C>::set_global_brightness(&mut self.output, global);
             settings.brightness = channel;
         }
         self.output
@@ -641,10 +636,12 @@ impl<C: Chip, const N: usize, O> Strip<C, N, O> {
     where
         O: OutputAsync<C>,
     {
-        let mut settings = self.prepare();
+        let hd = OutputAsync::<C>::set_global_brightness(&mut self.output, 31) && self.hd;
+        let mut settings = self.prepare(hd);
         let brightness = settings.brightness;
-        let (global, channel) = self.split(brightness);
-        if OutputAsync::<C>::set_global_brightness(&mut self.output, global) {
+        if hd {
+            let (global, channel) = hd_split(brightness);
+            OutputAsync::<C>::set_global_brightness(&mut self.output, global);
             settings.brightness = channel;
         }
         self.output
@@ -986,15 +983,28 @@ mod tests {
         let mut s = hd_strip();
         s.set_hd_brightness(true);
         s.show().unwrap();
-        // Level 3 is global 2 with the channels at 47: the same light on
-        // paper, with about 15 times as many steps.
+        // Level 3 is global 2 with the channels at 61: the same light on
+        // paper (62 * 2 / 31 = 4), with about 15 times as many steps.
         assert_eq!(s.output().global, 2);
-        assert_eq!(s.output().memory.last_frame(), &[Rgb::new(48, 24, 0)]);
+        assert_eq!(s.output().memory.last_frame(), &[Rgb::new(62, 31, 0)]);
         assert_eq!(s.effective_brightness(), Brightness::exact(3));
         s.set_hd_brightness(false);
         embassy_futures::block_on(s.show_async()).unwrap();
         assert_eq!(s.output().global, 31);
         assert_eq!(s.output().memory.last_frame(), &[Rgb::new(4, 2, 0)]);
+    }
+    #[test]
+    fn hd_power_limit_counts_what_hd_sends() {
+        // A limit of just the idle current: without HD the dim pixel rounds
+        // to black; HD must not send it at a lower global level instead.
+        let mut s = hd_strip();
+        s.set_brightness(Brightness::FULL);
+        s.fill(Rgb::new(4, 4, 4));
+        s.set_power_limit(Milliamps(1));
+        s.show().unwrap();
+        assert_eq!(s.output().memory.last_frame(), &[Rgb::BLACK]);
+        embassy_futures::block_on(s.show_async()).unwrap();
+        assert_eq!(s.output().memory.last_frame(), &[Rgb::BLACK]);
     }
     #[test]
     fn hd_on_does_nothing_without_a_global_level() {

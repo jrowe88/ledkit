@@ -1,6 +1,6 @@
 //! Power estimation and current limiting.
 
-use crate::pipeline::{process, PipelineSettings, DITHER_SEQUENCE};
+use crate::pipeline::{hd_split, process, PipelineSettings, DITHER_SEQUENCE};
 use crate::{Channel, Pixel};
 
 pub use crate::timing::PowerModel;
@@ -41,15 +41,21 @@ const CHANNELS: [Channel; 4] = [Channel::Red, Channel::Green, Channel::Blue, Cha
 /// ```
 #[must_use]
 pub fn estimate_microamps<P: Pixel>(pixels: &[P], model: PowerModel) -> u32 {
-    let total = total_microamps(pixels.iter().copied(), model);
+    let total = total_microamps(pixels.iter().copied(), model, 31);
     u32::try_from(total).unwrap_or(u32::MAX)
 }
 
 /// Adds up the estimated current of some pixels, in microamps.
 ///
 /// This is the one place the power model is applied; both
-/// [`estimate_microamps`] and [`limited_brightness`] use it.
-fn total_microamps<P: Pixel>(pixels: impl Iterator<Item = P>, model: PowerModel) -> u64 {
+/// [`estimate_microamps`] and [`limited_brightness`] use it. `global` is the
+/// DotStar global level the pixels are sent at (31 for full, and for LEDs
+/// without one): it scales the channel current, not the idle current.
+fn total_microamps<P: Pixel>(
+    pixels: impl Iterator<Item = P>,
+    model: PowerModel,
+    global: u8,
+) -> u64 {
     let mut count: u64 = 0;
     let mut sum: u64 = 0;
     for pixel in pixels {
@@ -58,7 +64,8 @@ fn total_microamps<P: Pixel>(pixels: impl Iterator<Item = P>, model: PowerModel)
             sum += u64::from(pixel.channel(channel));
         }
     }
-    count * u64::from(model.idle_microamps) + sum * u64::from(model.channel_full_microamps) / 255
+    count * u64::from(model.idle_microamps)
+        + sum * u64::from(model.channel_full_microamps) * u64::from(global) / (255 * 31)
 }
 
 /// The largest offset in [`DITHER_SEQUENCE`] (224), which gives the
@@ -81,20 +88,32 @@ const fn largest_offset(offsets: &[u8]) -> u8 {
 
 /// The estimated current, in microamps, of `pixels` after the pipeline runs
 /// with `settings` at brightness `brightness` and dither offset `dither`.
+/// With `hd`, the brightness is split as DotStar HD brightness sends it
+/// (see [`hd_split`]), so the estimate covers the bytes really sent.
 pub(crate) fn processed_microamps<P: Pixel>(
     pixels: &[P],
     settings: &PipelineSettings,
     brightness: u8,
     model: PowerModel,
     dither: u8,
+    hd: bool,
 ) -> u64 {
+    let (global, brightness) = if hd {
+        hd_split(brightness)
+    } else {
+        (31, brightness)
+    };
     let trial = PipelineSettings {
         correction: settings.correction,
         gamma: settings.gamma,
         brightness,
         dither,
     };
-    total_microamps(pixels.iter().map(|&pixel| process(pixel, &trial)), model)
+    total_microamps(
+        pixels.iter().map(|&pixel| process(pixel, &trial)),
+        model,
+        global,
+    )
 }
 
 /// Finds the largest brightness (up to the requested one) that keeps the
@@ -103,17 +122,19 @@ pub(crate) fn processed_microamps<P: Pixel>(
 ///
 /// `dither` is the offset to assume: pass [`WORST_CASE_DITHER`] when
 /// dithering is on, so the limit holds on every dithered frame, and
-/// [`NO_DITHER`](crate::pipeline::NO_DITHER) when it is off.
+/// [`NO_DITHER`](crate::pipeline::NO_DITHER) when it is off. Pass `hd` when
+/// the frame goes out with DotStar HD brightness.
 pub(crate) fn limited_brightness<P: Pixel>(
     pixels: &[P],
     settings: &PipelineSettings,
     model: PowerModel,
     limit: Milliamps,
     dither: u8,
+    hd: bool,
 ) -> u8 {
     let requested = settings.brightness;
     let limit_ua = u64::from(limit.0) * 1000;
-    let estimate_at = |b: u8| processed_microamps(pixels, settings, b, model, dither);
+    let estimate_at = |b: u8| processed_microamps(pixels, settings, b, model, dither, hd);
 
     if pixels.is_empty() {
         return requested;
@@ -177,6 +198,7 @@ mod tests {
             PowerModel::TYPICAL_5V,
             Milliamps(300),
             WORST_CASE_DITHER,
+            false,
         );
         assert_eq!(b, 122);
         assert_eq!(scale_channel(255, b, 128), 123);
@@ -191,7 +213,8 @@ mod tests {
                 &settings(255),
                 PowerModel::TYPICAL_5V,
                 Milliamps(1000),
-                WORST_CASE_DITHER
+                WORST_CASE_DITHER,
+                false,
             ),
             255
         );
@@ -201,7 +224,8 @@ mod tests {
                 &settings(128),
                 PowerModel::TYPICAL_5V,
                 Milliamps(500),
-                NO_DITHER
+                NO_DITHER,
+                false,
             ),
             128
         );
@@ -214,7 +238,8 @@ mod tests {
                 &settings(255),
                 PowerModel::TYPICAL_5V,
                 Milliamps(5),
-                WORST_CASE_DITHER
+                WORST_CASE_DITHER,
+                false,
             ),
             0
         );
@@ -228,7 +253,8 @@ mod tests {
                 &settings(200),
                 PowerModel::TYPICAL_5V,
                 Milliamps(0),
-                NO_DITHER
+                NO_DITHER,
+                false,
             ),
             200
         );
@@ -242,19 +268,31 @@ mod tests {
             Rgbw::new(0, 0, 0, 255),
             Rgbw::new(10, 200, 90, 40),
         ];
-        for dithering in [true, false] {
-            for limit in [50, 100, 250, 333, 499, 777] {
-                for requested in [255, 200, 128, 30] {
-                    for gamma in gammas {
-                        for color in colors_rgb {
-                            check_limit(&[color; 24], requested, gamma, limit, dithering);
-                        }
-                        for color in colors_rgbw {
-                            check_limit(&[color; 24], requested, gamma, limit, dithering);
+        for hd in [false, true] {
+            for dithering in [true, false] {
+                for limit in [50, 100, 250, 333, 499, 777] {
+                    for requested in [255, 200, 128, 30] {
+                        for gamma in gammas {
+                            for color in colors_rgb {
+                                check_limit(&[color; 24], requested, gamma, limit, dithering, hd);
+                            }
+                            for color in colors_rgbw {
+                                check_limit(&[color; 24], requested, gamma, limit, dithering, hd);
+                            }
                         }
                     }
                 }
             }
+        }
+    }
+    #[test]
+    fn hd_limit_counts_what_hd_sends() {
+        // 64 dim LEDs and a limit equal to their idle current. Without HD
+        // the limited level rounds every channel to 0; with HD the same
+        // level would send 1s at a lower global level, so HD must dim
+        // further to stay inside the limit.
+        for dithering in [false, true] {
+            check_limit(&[Rgb::new(4, 4, 4); 64], 255, None, 64, dithering, true);
         }
     }
     #[test]
@@ -275,8 +313,16 @@ mod tests {
             model,
             Milliamps(363),
             WORST_CASE_DITHER,
+            false,
         );
-        let off = limited_brightness(&pixels, &settings(255), model, Milliamps(363), NO_DITHER);
+        let off = limited_brightness(
+            &pixels,
+            &settings(255),
+            model,
+            Milliamps(363),
+            NO_DITHER,
+            false,
+        );
         assert_eq!((on, off), (149, 150));
         assert!(off > on);
     }
@@ -290,6 +336,7 @@ mod tests {
         gamma: Option<&'static GammaTable>,
         limit: u32,
         dithering: bool,
+        hd: bool,
     ) {
         let base = PipelineSettings {
             correction: Rgb::WHITE,
@@ -303,7 +350,7 @@ mod tests {
         } else {
             NO_DITHER
         };
-        let b = limited_brightness(pixels, &base, model, Milliamps(limit), assumed);
+        let b = limited_brightness(pixels, &base, model, Milliamps(limit), assumed, hd);
         assert!(b <= requested);
         let idle_only = pixels.len() as u64 * 1000;
         let allowed = (u64::from(limit) * 1000).max(idle_only);
@@ -312,24 +359,26 @@ mod tests {
         } else {
             &[NO_DITHER]
         };
+        // What the strip sends at level b: with HD, a split level.
+        let (global, channel) = if hd { hd_split(b) } else { (31, b) };
         for &dither in offsets {
             let frame = PipelineSettings {
                 correction: base.correction,
                 gamma,
-                brightness: b,
+                brightness: channel,
                 dither,
             };
-            let used = total_microamps(pixels.iter().map(|&p| process(p, &frame)), model);
+            let used = total_microamps(pixels.iter().map(|&p| process(p, &frame)), model, global);
             assert!(
                 used <= allowed,
-                "limit {limit} requested {requested} dither {dither} pixels {:?}",
+                "limit {limit} requested {requested} dither {dither} hd {hd} pixels {:?}",
                 pixels[0]
             );
         }
         if b < requested {
             assert!(
-                processed_microamps(pixels, &base, b + 1, model, assumed) > u64::from(limit) * 1000,
-                "not maximal: limit {limit} requested {requested} b {b} dithering {dithering} pixels {:?}",
+                processed_microamps(pixels, &base, b + 1, model, assumed, hd) > u64::from(limit) * 1000,
+                "not maximal: limit {limit} requested {requested} b {b} dithering {dithering} hd {hd} pixels {:?}",
                 pixels[0]
             );
         }

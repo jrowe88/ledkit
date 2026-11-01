@@ -17,6 +17,11 @@ use ledkit_core::{wire, BufferTooSmall, Chip, ClocklessTiming, Output, OutputAsy
 /// flushed, and followed by a pause of the LED's reset time (280 µs for a
 /// WS2812B) so the LEDs show it. That pause uses the delay you gave.
 ///
+/// The very first frame, and a frame after a failed or cancelled send, get
+/// the same pause before them too. That clears whatever was on the line
+/// before (a port that rested high until its inversion was switched on, or
+/// half a frame), so the LEDs never read it as part of the new frame.
+///
 /// # Example
 ///
 /// ```ignore
@@ -43,6 +48,9 @@ pub struct ClocklessUart<C: Chip, U, D, B> {
     buffer: B,
     encoding: UartEncoding,
     reset_us: u32,
+    /// Whether the line may not have rested low for the reset time yet:
+    /// true at start-up and after a send that didn't finish.
+    pause_first: bool,
     chip: PhantomData<C>,
 }
 
@@ -63,6 +71,7 @@ impl<C: Chip, U, D, B: AsMut<[u8]>> ClocklessUart<C, U, D, B> {
             buffer,
             encoding,
             reset_us: timing.reset_us,
+            pause_first: true,
             chip: PhantomData,
         })
     }
@@ -109,10 +118,16 @@ where
 {
     /// Sends the first `used` bytes of the buffer, then waits out the reset time.
     pub(crate) fn send(&mut self, used: usize) -> Result<(), Error<U::Error>> {
+        if self.pause_first {
+            self.delay.delay_us(self.reset_us);
+        }
+        // Until this send has finished, the next one must pause first.
+        self.pause_first = true;
         let frame = &self.buffer.as_mut()[..used];
         self.uart.write_all(frame).map_err(Error::Uart)?;
         self.uart.flush().map_err(Error::Uart)?;
         self.delay.delay_us(self.reset_us);
+        self.pause_first = false;
         Ok(())
     }
 }
@@ -126,10 +141,17 @@ where
 {
     /// Like [`send`](Self::send), but `async`.
     pub(crate) async fn send_async(&mut self, used: usize) -> Result<(), Error<U::Error>> {
+        if self.pause_first {
+            self.delay.delay_us(self.reset_us).await;
+        }
+        // Until this send has finished (it may also be cancelled), the next
+        // one must pause first.
+        self.pause_first = true;
         let frame = &self.buffer.as_mut()[..used];
         self.uart.write_all(frame).await.map_err(Error::Uart)?;
         self.uart.flush().await.map_err(Error::Uart)?;
         self.delay.delay_us(self.reset_us).await;
+        self.pause_first = false;
         Ok(())
     }
 }
@@ -191,7 +213,7 @@ pub const fn buffer_len<C: Chip>(led_count: usize, baud: u32) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::testing::{FakeDelay, FakeError, FakePort};
+    use crate::testing::{pair, Event, FakeDelay, FakeError, FakePort};
     use crate::Error;
     use ledkit_core::{
         wire, Brightness, ClocklessTiming, Rgb, Rgbw, Sk6812Rgbw, Strip, TimingError, Ws2812b,
@@ -230,7 +252,73 @@ mod tests {
         let port = strip.output().port();
         assert_eq!(port.bytes, expected(&[Rgb::RED, Rgb::BLACK]));
         assert_eq!(port.flushes, 1);
-        assert_eq!(strip.output().delay().waits_us, [280]);
+        // The first frame also gets a reset pause before it (start-up).
+        assert_eq!(strip.output().delay().waits_us, [280, 280]);
+    }
+
+    #[test]
+    fn first_frame_pauses_writes_flushes_then_pauses() {
+        let (port, delay, log) = pair();
+        let mut strip = red_strip(ClocklessUart::new(port, BAUD, delay, [0u8; 24]).unwrap());
+        strip.show().unwrap();
+        strip.show().unwrap();
+        assert_eq!(
+            *log.borrow(),
+            [
+                Event::Wait(280),
+                Event::Write(24),
+                Event::Flush,
+                Event::Wait(280),
+                Event::Write(24),
+                Event::Flush,
+                Event::Wait(280),
+            ]
+        );
+    }
+
+    #[test]
+    fn mid_frame_error_skips_flush_and_pause() {
+        let (mut port, delay, log) = pair();
+        port.max_per_write = 3;
+        port.fail_on_write = Some(2);
+        let mut strip = red_strip(ClocklessUart::new(port, BAUD, delay, [0u8; 24]).unwrap());
+        assert_eq!(strip.show(), Err(Error::Uart(FakeError)));
+        assert_eq!(
+            *log.borrow(),
+            [Event::Wait(280), Event::Write(3), Event::Write(3)]
+        );
+    }
+
+    #[test]
+    fn retry_after_an_error_pauses_first() {
+        let (mut port, delay, log) = pair();
+        port.fail_on_write = Some(1);
+        let mut strip = red_strip(ClocklessUart::new(port, BAUD, delay, [0u8; 24]).unwrap());
+        strip.show().unwrap();
+        assert_eq!(strip.show(), Err(Error::Uart(FakeError)));
+        log.borrow_mut().clear();
+        strip.show().unwrap();
+        assert_eq!(
+            *log.borrow(),
+            [
+                Event::Wait(280),
+                Event::Write(24),
+                Event::Flush,
+                Event::Wait(280),
+            ]
+        );
+    }
+
+    #[test]
+    fn async_retry_after_an_error_pauses_first() {
+        let (mut port, delay, log) = pair();
+        port.fail_on_write = Some(1);
+        let mut strip = red_strip(ClocklessUart::new(port, BAUD, delay, [0u8; 24]).unwrap());
+        embassy_futures::block_on(strip.show_async()).unwrap();
+        assert!(embassy_futures::block_on(strip.show_async()).is_err());
+        log.borrow_mut().clear();
+        embassy_futures::block_on(strip.show_async()).unwrap();
+        assert_eq!(log.borrow()[0], Event::Wait(280));
     }
 
     #[test]
@@ -240,7 +328,7 @@ mod tests {
         strip.show().unwrap();
         let frame = expected(&[Rgb::RED, Rgb::BLACK]);
         assert_eq!(strip.output().port().bytes, [frame.clone(), frame].concat());
-        assert_eq!(strip.output().delay().waits_us, [280, 280]);
+        assert_eq!(strip.output().delay().waits_us, [280, 280, 280]);
     }
 
     #[test]
@@ -277,7 +365,7 @@ mod tests {
         let mut strip = red_strip(output);
         assert_eq!(strip.show(), Err(Error::Uart(FakeError)));
         assert_eq!(strip.output().port().flushes, 0);
-        assert_eq!(strip.output().delay().waits_us, [0u32; 0]);
+        assert_eq!(strip.output().delay().waits_us, [280]);
     }
 
     #[test]
@@ -313,7 +401,7 @@ mod tests {
         strip.show().unwrap();
         assert_eq!(strip.output().port().bytes, [0u8; 0]);
         assert_eq!(strip.output().port().flushes, 1);
-        assert_eq!(strip.output().delay().waits_us, [280]);
+        assert_eq!(strip.output().delay().waits_us, [280, 280]);
     }
 
     #[test]
@@ -327,7 +415,7 @@ mod tests {
             blocking.output().port().bytes
         );
         assert_eq!(asynchronous.output().port().flushes, 1);
-        assert_eq!(asynchronous.output().delay().waits_us, [280]);
+        assert_eq!(asynchronous.output().delay().waits_us, [280, 280]);
     }
 
     #[test]
@@ -342,7 +430,7 @@ mod tests {
             embassy_futures::block_on(strip.show_async()),
             Err(Error::Uart(FakeError))
         );
-        assert_eq!(strip.output().delay().waits_us, [0u32; 0]);
+        assert_eq!(strip.output().delay().waits_us, [280]);
     }
 
     #[test]

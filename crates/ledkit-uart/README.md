@@ -28,7 +28,9 @@ of buffer (16 for RGBW).
 
 After each frame, ledkit waits the LED's reset time (280 µs for a WS2812B) with the delay you
 give it, so the LEDs show the frame. A serial port can't send "all low" bytes the way SPI
-can, so the latch has to be a pause.
+can, so the latch has to be a pause. The first frame, and any frame after a failed or
+cancelled send, get the same pause before them as well, so a port that rested high until its
+inversion was switched on, or half a frame, is never read as part of the next one.
 
 ## Which baud?
 

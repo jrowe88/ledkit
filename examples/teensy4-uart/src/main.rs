@@ -133,13 +133,22 @@ impl embedded_io::ErrorType for DmaUart<'_> {
     type Error = DmaError;
 }
 
+/// The most bytes one DMA transfer can send: its count register holds up to
+/// 32767. Longer frames go out in several transfers (`write_all` loops).
+const MAX_DMA_BYTES: usize = 32_767;
+
 impl embedded_io_async::Write for DmaUart<'_> {
     async fn write(&mut self, buf: &[u8]) -> Result<usize, DmaError> {
+        // A DMA transfer of 0 bytes never finishes, so don't start one.
+        if buf.is_empty() {
+            return Ok(0);
+        }
+        let piece = &buf[..buf.len().min(MAX_DMA_BYTES)];
         self.uart
-            .dma_write(self.channel, buf)
+            .dma_write(self.channel, piece)
             .await
             .map_err(DmaError)?;
-        Ok(buf.len())
+        Ok(piece.len())
     }
 
     async fn flush(&mut self) -> Result<(), DmaError> {

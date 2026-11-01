@@ -21,7 +21,7 @@ use esp_hal::{
     delay::Delay,
     gpio::interconnect::OutputSignal,
     main,
-    uart::{Config as UartConfig, UartTx},
+    uart::{ClockSource, Config as UartConfig, UartTx},
 };
 use esp_println::println;
 use ledkit_core::prelude::*;
@@ -43,7 +43,7 @@ const LED_COUNT: usize = 100;
 type LedType = Ws2812b;
 
 /// The serial port's speed. 4 Mbaud suits a WS2812B (see `ledkit-uart`'s
-/// README for other LED types). The C6 makes it exactly: 80 MHz / 20.
+/// README for other LED types).
 const BAUD: u32 = 4_000_000;
 
 /// How bright the strip may get.
@@ -54,9 +54,20 @@ const POWER_LIMIT: Milliamps = Milliamps(500);
 
 // The data wire is GPIO4. To use another pin, change `GPIO4` in `main` below.
 
+/// The clock the serial port runs from: the C6's 40 MHz crystal (set below).
+const UART_CLOCK_HZ: u32 = 40_000_000;
+
+/// The speed the port really runs at, which ledkit needs to know. The C6
+/// divides its clock in steps of 1/16, so most speeds come out a little off;
+/// this repeats esp-hal 1.2's divider maths. 4 Mbaud is exact (40 MHz / 10).
+const ACTUAL_BAUD: u32 = {
+    let divider_16ths = UART_CLOCK_HZ as u64 * 16 / BAUD as u64;
+    (UART_CLOCK_HZ as u64 * 16 / divider_16ths) as u32
+};
+
 /// How many bytes ledkit needs for the encoded frame, worked out when the
 /// program is compiled. A baud that can't drive `LedType` stops the build.
-const BUFFER_LEN: usize = buffer_len::<LedType>(LED_COUNT, BAUD);
+const BUFFER_LEN: usize = buffer_len::<LedType>(LED_COUNT, ACTUAL_BAUD);
 
 /// An async delay that simply waits, for `ClocklessUart`'s pause after each
 /// frame. (A program with an async runtime would use its timer instead.)
@@ -119,12 +130,15 @@ fn main() -> ! {
     let mut hue = Hue::RED;
 
     // The serial port: 8 data bits, no parity, 1 stop bit (the defaults), at
-    // BAUD. Only its transmit side is used.
-    let uart_config = UartConfig::default().with_baudrate(BAUD);
+    // BAUD, clocked from the crystal (as ACTUAL_BAUD assumes). Only its
+    // transmit side is used.
+    let uart_config = UartConfig::default()
+        .with_baudrate(BAUD)
+        .with_clock_source(ClockSource::Xtal);
 
     println!(
         "ledkit on a serial port: {} LEDs at {} baud",
-        LED_COUNT, BAUD
+        LED_COUNT, ACTUAL_BAUD
     );
     loop {
         println!("BLOCKING");
@@ -136,7 +150,7 @@ fn main() -> ! {
                 .unwrap()
                 .with_tx(pin);
             let output =
-                ClocklessUart::<LedType, _, _, _>::new(uart, BAUD, delay, [0u8; BUFFER_LEN])
+                ClocklessUart::<LedType, _, _, _>::new(uart, ACTUAL_BAUD, delay, [0u8; BUFFER_LEN])
                     .unwrap();
             let mut strip = Strip::<LedType, LED_COUNT, _>::new(output);
             run_round!(strip, strip.show().unwrap(), delay, hue);
@@ -150,7 +164,7 @@ fn main() -> ! {
                 .into_async();
             let output = ClocklessUart::<LedType, _, _, _>::new(
                 uart,
-                BAUD,
+                ACTUAL_BAUD,
                 BusyDelay(delay),
                 [0u8; BUFFER_LEN],
             )

@@ -189,7 +189,8 @@ pub const fn clocked_frame_len<C: Chip>(led_count: usize) -> usize {
 ///   all-ones end frame would leave the update pending until the next start
 ///   frame (see
 ///   [cpldcpu's write-up](https://cpldcpu.com/2016/12/13/sk9822-a-clone-of-the-apa102/)).
-///   This is not yet verified on an SK9822 strip in ledkit.
+///   Verified on a 144-LED SK9822 strip: each frame latches as soon as it is
+///   sent, through to the last LED.
 ///
 /// # Example
 ///

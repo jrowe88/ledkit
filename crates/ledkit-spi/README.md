@@ -132,7 +132,7 @@ sets how finely those pulses can be shaped, so only some speeds work.
 |---|---|
 | WS2812/SK6812 family | 3.2 MHz is a good pick (2.3 to 6.8 MHz works for a WS2812B) |
 | WS2811 at 400 kHz | make a guess with `ClocklessSpi::new`; the error message names the clocks that work |
-| DotStars | anything up to 8 MHz for now |
+| DotStars | any speed; 1 to 40 MHz all ran clean on an ESP32-C6 with a 64-LED DotStar HD 8×8 on a breadboard. Long strips and long wires may need slower |
 
 **Pass the clock your bus really runs at.** Many HALs round the speed you
 ask for to what the hardware can divide down to (a Raspberry Pi asking for
@@ -220,7 +220,7 @@ strip.set_hd_brightness(false);
 | Raspberry Pi (Linux spidev) | | untested on hardware; builds in CI |
 | Teensy 4 (LPSPI) | NeoPixel 8×8 matrix (64 LEDs) | ✅ pass (2026-10-31), with the two SPI settings in `examples/teensy4-spi` |
 | Teensy 4 (LPSPI) | DotStar HD 8×8 (APA102-2020, 64 LEDs) | ✅ pass (2026-10-31); the `0xFF` end frame was the fix |
-| ESP32-C6 (SPI2, 4 MHz) | DotStar HD 8×8 (APA102-2020, 64 LEDs) | ✅ pass (2026-10-31); dark at 10% brightness without HD, lit with it (see "Dim DotStars" above) |
+| ESP32-C6 (SPI2, 1 to 40 MHz requested) | DotStar HD 8×8 (APA102-2020, 64 LEDs) | ✅ pass (2026-10-31), clean at every speed tried; dark at 10% brightness without HD, lit with it (see "Dim DotStars" above) |
 | SK9822, other boards (`ClockedSpi`) | | untested on hardware |
 
 Everything else is covered by host tests with a pretend SPI bus. Examples

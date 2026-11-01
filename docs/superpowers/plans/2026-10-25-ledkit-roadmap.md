@@ -130,7 +130,7 @@ the owner until `ledkit-core` has a multi-strip output. These notes are backgrou
   per RGB LED, 300 µs latch, UART TX pins only, best under about 600 LEDs per pin.
 - **OctoWS2811** (`OctoWS2811_imxrt.cpp`, MIT; parallel strips, paused): QuadTimer 4 channels
   0 to 2 mark the bit start, the "0" point (0.30 µs) and the "1" point (0.75 µs); XBAR turns
-  each into a DMA request, and three DMA channels write the fast GPIO set/clear registers
+  each into a DMA request, and three DMA channels write the standard GPIO1–GPIO4 set/clear registers
   (set every LED pin, clear the pins whose bit is 0, clear the rest). Any pins on up to four
   GPIO ports (8 by default); pixels are transposed so each word holds one bit per pin,
   double-buffered in about 10 KB with an interrupt refilling the idle half. Seen in passing:

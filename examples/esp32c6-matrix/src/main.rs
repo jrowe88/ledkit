@@ -9,7 +9,7 @@
 //! 1. A wiring finder, for 3 seconds: it lights LEDs by their raw position on
 //!    the strip, so you can see how your panel is wired.
 //! 2. Shapes, for 5 seconds: a border, a diagonal line and a filled circle.
-//! 3. Scrolling text, for about 5 seconds: "ledkit", a different color per letter.
+//! 3. Scrolling text, for about 8 seconds: "ledkit", a different color per letter.
 
 // No operating system here, and no ordinary `main`: esp-hal provides the start-up.
 #![no_std]
@@ -46,8 +46,8 @@ esp_bootloader_esp_idf::esp_app_desc!();
 // Settings you may want to change
 // ---------------------------------------------------------------------------
 
-// These are placeholders. The owner of the matrix sets the real size and
-// wiring (see "Finding your wiring" in the README).
+// These are the defaults for a generic 8x8 panel. Set the real size and wiring
+// for yours (see "Finding your wiring" in the README).
 
 /// How many LEDs wide the matrix is.
 const WIDTH: u16 = 8;
@@ -65,6 +65,8 @@ type LedType = Ws2812b;
 /// "Finding your wiring" in the README. For a zig-zag panel starting at the
 /// bottom-right, for example, write
 /// `.serpentine().starting_at(Corner::BottomRight)` (and import `Corner`).
+/// An Adafruit NeoPixel 8x8, held with its data-in pin at the bottom left, is
+/// `.columns_first().starting_at(Corner::BottomLeft)`.
 const LAYOUT: MatrixLayout = MatrixLayout::new(WIDTH, HEIGHT);
 
 /// How many LEDs make one line of the chain: a row, or a column on a
@@ -108,10 +110,10 @@ const LETTER_WIDTH: i32 = (FONT.character_size.width + FONT.character_spacing) a
 const LETTER_HEIGHT: i32 = FONT.character_size.height as i32;
 
 /// How long the scrolling text runs before the modes start over, in milliseconds.
-const SCROLL_MS: u32 = 5000;
+const SCROLL_MS: u32 = 8000;
 
 /// How long one frame of the scrolling text lasts. The text moves one pixel per frame.
-const FRAME_MS: u32 = 30;
+const FRAME_MS: u32 = 100;
 
 #[main]
 fn main() -> ! {

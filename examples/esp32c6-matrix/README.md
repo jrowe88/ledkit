@@ -7,7 +7,9 @@ RMT peripheral, which makes the precisely timed pulses the LEDs need, in hardwar
 and its `embedded-graphics` feature lets you draw text and shapes with the usual
 `embedded-graphics` tools.
 
-> **Status: pending hardware test.** It builds, but has not been run on a matrix yet.
+> **Status: tested on hardware.** Run on an ESP32-C6 DevKit with an Adafruit
+> NeoPixel 8×8 (WS2812B) through a 74AHCT125: the finder, the shapes and the
+> text all came out right.
 
 ## What you'll see
 
@@ -16,13 +18,15 @@ The program repeats three modes forever:
 1. **Wiring finder** (3 seconds): LED 0 red, the rest of the first line green, and
    the first three LEDs of the second line blue. See "Finding your wiring" below.
 2. **Shapes** (5 seconds): a red border, a green diagonal line and a blue filled circle.
-3. **Scrolling text** (5 seconds): "ledkit", a different color per letter, one pixel per
-   frame (about 30 ms), moving right to left. The font is `FONT_5X8` below 10 rows and
+3. **Scrolling text** (8 seconds): "ledkit", a different color per letter, one pixel per
+   frame (100 ms), moving right to left. The font is `FONT_5X8` below 10 rows and
    `FONT_6X10` otherwise.
 
-The settings at the top of `src/main.rs` are placeholders (8 by 8, `Ws2812b`,
-progressive, rows first, starting top-left). Set `WIDTH`, `HEIGHT`, `LedType` and
-the wiring to match your panel. An 8-row panel fits the 5×8 font exactly; below 8 rows the text is clipped.
+The settings at the top of `src/main.rs` are defaults for a generic panel (8 by 8,
+`Ws2812b`, progressive, rows first, starting top-left). Set `WIDTH`, `HEIGHT`,
+`LedType` and the wiring to match your panel. The tested Adafruit NeoPixel 8×8, held
+with its data-in pin at the bottom left, is
+`MatrixLayout::new(8, 8).columns_first().starting_at(Corner::BottomLeft)`. An 8-row panel fits the 5×8 font exactly; below 8 rows the text is clipped.
 
 ## Wiring
 

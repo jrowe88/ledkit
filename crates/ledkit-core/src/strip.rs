@@ -58,7 +58,8 @@ impl<C: Chip, const N: usize, O> Strip<C, N, O> {
     /// correction and no power limit. Dithering is on, which suits
     /// animations that call `show` about 100 times a second or more; for a
     /// mostly still, dim display that calls `show` slowly, see
-    /// [`set_dithering`](Strip::set_dithering).
+    /// [`set_dithering`](Strip::set_dithering). DotStar "HD" brightness is
+    /// on; see [`set_hd_brightness`](Strip::set_hd_brightness).
     ///
     /// # Example
     ///
@@ -79,7 +80,7 @@ impl<C: Chip, const N: usize, O> Strip<C, N, O> {
             correction: correction::NONE,
             power_limit: None,
             dithering: true,
-            hd: false,
+            hd: true,
             frame: 0,
             last_raw: None,
             chip: PhantomData,
@@ -424,7 +425,7 @@ impl<C: Chip, const N: usize, O> Strip<C, N, O> {
         self.dithering = on;
     }
 
-    /// Turns DotStar "HD" brightness on or off (it is off by default).
+    /// Turns DotStar "HD" brightness on or off (it is on by default).
     ///
     /// DotStars (APA102, SK9822) have a 5-bit brightness level in every LED,
     /// on top of the 8-bit color channels. Normally ledkit leaves it at full
@@ -445,7 +446,7 @@ impl<C: Chip, const N: usize, O> Strip<C, N, O> {
     /// NeoPixels) it does nothing. One catch on the APA102 (not the SK9822):
     /// it makes that 5-bit level with a slow on/off flicker (a few hundred
     /// times a second), which some cameras pick up as banding at low
-    /// brightness, so it is off unless you ask.
+    /// brightness. If you film your LEDs, turn HD off.
     ///
     /// # Example
     ///
@@ -453,8 +454,9 @@ impl<C: Chip, const N: usize, O> Strip<C, N, O> {
     /// # use ledkit_core::testing::MemoryOutput;
     /// # use ledkit_core::{Apa102, Rgb, Strip};
     /// let mut strip: Strip<Apa102, 4, MemoryOutput<Rgb, 4>> = Strip::new(MemoryOutput::new());
-    /// strip.set_hd_brightness(true);
-    /// assert!(strip.hd_brightness());
+    /// // Filming at low brightness: avoid the APA102's 5-bit flicker.
+    /// strip.set_hd_brightness(false);
+    /// assert!(!strip.hd_brightness());
     /// ```
     pub fn set_hd_brightness(&mut self, on: bool) {
         self.hd = on;
@@ -469,7 +471,7 @@ impl<C: Chip, const N: usize, O> Strip<C, N, O> {
     /// # use ledkit_core::testing::MemoryOutput;
     /// # use ledkit_core::{Apa102, Rgb, Strip};
     /// let strip: Strip<Apa102, 4, MemoryOutput<Rgb, 4>> = Strip::new(MemoryOutput::new());
-    /// assert!(!strip.hd_brightness());
+    /// assert!(strip.hd_brightness());
     /// ```
     #[must_use]
     pub fn hd_brightness(&self) -> bool {
@@ -974,6 +976,7 @@ mod tests {
     #[test]
     fn hd_off_sends_full_global_brightness() {
         let mut s = hd_strip();
+        s.set_hd_brightness(false);
         s.show().unwrap();
         assert_eq!(s.output().global, 31);
         assert_eq!(s.output().memory.last_frame(), &[Rgb::new(4, 2, 0)]);

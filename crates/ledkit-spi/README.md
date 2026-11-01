@@ -194,24 +194,23 @@ inside a high pulse.
 
 ## Dim DotStars: HD brightness
 
-ledkit normally dims DotStars through their 8-bit color channels, so a dim
-strip has few color steps: at 10% brightness each channel only goes from 0
-to about 2, and soft colors round to off. `ClockedSpi` also sends the
-DotStar's 5-bit per-LED brightness, so you can turn on "HD" brightness:
-
-```rust,ignore
-strip.set_brightness(0.1);
-strip.set_hd_brightness(true);
-```
-
-ledkit then lowers the 5-bit level in the dim half of the range and keeps
+DotStars have a 5-bit brightness level in every LED, on top of the 8-bit
+color channels, and `ClockedSpi` sends it. So `Strip` uses "HD" brightness
+by default: in the dim half of the range it lowers the 5-bit level and keeps
 the channels wide (at 10%, a level of 1 out of 31 with channels up to about
 62), so dim colors stay smooth and true. Above about half brightness it
-sends the same bytes as without HD. It also lights LEDs that ignore very short pulses: on an
-Adafruit DotStar HD 8×8, 10% is dark without HD and lit with it, as tested on
-an ESP32-C6. It is off by default:
-the APA102 makes its 5-bit level with a slow flicker, which some cameras
-show as banding at low brightness. The SK9822 doesn't have that flicker.
+sends the same bytes as plain dimming. Plain dimming would leave each
+channel only 0 to about 2 at 10%, and soft colors would round to off. HD
+also lights LEDs that ignore very short pulses: on an Adafruit DotStar HD
+8×8, 10% is dark without HD and lit with it, as tested on an ESP32-C6.
+
+The APA102 makes its 5-bit level with a slow flicker, which some cameras
+show as banding at low brightness (the SK9822 doesn't have it). If you film
+your LEDs, you can turn HD off:
+
+```rust,ignore
+strip.set_hd_brightness(false);
+```
 
 ## Tested on hardware
 

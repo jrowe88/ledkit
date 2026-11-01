@@ -23,9 +23,9 @@ replacing it. The design lives in `docs/superpowers/specs/`.
 | `ledkit-rp` | RP2040/RP2350 PIO backend | `ledkit-core`, an RP HAL |
 | `ledkit-sim` | Desktop simulator (`std`) | `ledkit-anim` |
 
-Exist so far: `ledkit-color`, `ledkit-core`, `ledkit-spi`, `ledkit-esp` and `ledkit-esp-idf`. The rest are planned.
+Exist so far: `ledkit-color`, `ledkit-core`, `ledkit-layout`, `ledkit-spi`, `ledkit-esp` and `ledkit-esp-idf`. The rest are planned.
 
-`ledkit-esp` and `ledkit-esp-idf` live outside the root workspace (they only build for an ESP32 target, with their own toolchains), so `cargo test --workspace` doesn't touch them. They are built and linted through their examples (`examples/esp32c6-rmt`, `examples/esp32c6-esp-idf`) and in CI. The ESP-IDF example sets `target-dir = "C:/t/ledkit"` in its `.cargo/config.toml`, because `esp-idf-sys` rejects output paths over 88 characters on Windows; on macOS/Linux (and in CI) set `CARGO_TARGET_DIR=target`. Hardware status is recorded in each crate's README.
+`ledkit-esp` and `ledkit-esp-idf` live outside the root workspace (they only build for an ESP32 target, with their own toolchains), so `cargo test --workspace` doesn't touch them. They are built and linted through their examples (`examples/esp32c6-rmt`, `examples/esp32c6-esp-idf`, `examples/esp32c6-matrix`) and in CI. The ESP-IDF example sets `target-dir = "C:/t/ledkit"` in its `.cargo/config.toml`, because `esp-idf-sys` rejects output paths over 88 characters on Windows; on macOS/Linux (and in CI) set `CARGO_TARGET_DIR=target`. Hardware status is recorded in each crate's README.
 
 Writing a new backend? Follow the "Add a backend" guide in `CONTRIBUTING.md`; `ledkit-spi` is the model for a bus backend, and `ledkit-esp` / `ledkit-esp-idf` for a pulse (RMT) backend that times the reset gap itself.
 

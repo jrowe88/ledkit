@@ -224,6 +224,7 @@ strip.set_hd_brightness(false);
 | Teensy 4 (LPSPI) | DotStar HD 8×8 (APA102-2020, 64 LEDs) | ✅ pass (2026-10-31); the `0xFF` end frame was the fix |
 | ESP32-C6 (SPI2, 1 to 40 MHz requested) | DotStar HD 8×8 (APA102-2020, 64 LEDs) | ✅ pass (2026-10-31), clean at every speed tried; dark at 10% brightness without HD, lit with it (see "Dim DotStars" above) |
 | ESP32-C6 (SPI2, 4 MHz) | SK9822 strip, 144 LEDs | ✅ pass (2026-10-31): each frame latched at once through to LED 143 with the zero end frame, and HD brightness worked |
+| ESP32-C6 (SPI2, 4 MHz) | DotStar strip (APA102-type 5050), 300 LEDs | ✅ pass (2026-11-01): sized to exactly 300, the last LED lit, every frame latched at once through to LED 299 with the `0xFF` end frame (19 bytes), and an HD rainbow ran clean |
 | other boards (`ClockedSpi`) | | untested on hardware |
 
 Everything else is covered by host tests with a pretend SPI bus. Examples

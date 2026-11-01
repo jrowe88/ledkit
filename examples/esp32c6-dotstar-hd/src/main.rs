@@ -19,8 +19,9 @@
 //! 2. Seven steps, 5 seconds each: 5%, 10%, 15%, 20%, 30%, 40% and 60%
 //!    brightness. The counter shows the step number (1 LED for step 1, and
 //!    so on).
-//! 3. A sweep from 1% to 60% and back, about 7 seconds. The counter follows
-//!    along, lighting one LED for each step's brightness the sweep has
+//! 3. A sweep from 0% to 60% and back, about 9 seconds, spending the same
+//!    time between each pair of steps. The counter follows along, lighting
+//!    one LED for each step's brightness the sweep has
 //!    passed, so you can match what you see to the steps.
 //!
 //! How it works: ledkit's `Strip` sends one 5-bit level for a whole frame,
@@ -70,6 +71,12 @@ const STEPS: [u8; 7] = [5, 10, 15, 20, 30, 40, 60];
 
 /// How long each step is held.
 const STEP_MS: u32 = 5000;
+
+/// The sweep moves from one step's brightness to the next in this many
+/// frames of `FRAME_MS`, so every step gets the same time, however far
+/// apart the steps are.
+const SWEEP_FRAMES: u8 = 10;
+const FRAME_MS: u32 = 60;
 
 // Data goes on GPIO4 and clock on GPIO6; change them in `main` below.
 
@@ -175,6 +182,16 @@ fn build(
     frame
 }
 
+/// The brightness `frame` frames of `SWEEP_FRAMES` along from `from` to `to`.
+fn between(from: u8, to: u8, frame: u8) -> u8 {
+    let (from, to, frame) = (i16::from(from), i16::from(to), i16::from(frame));
+    let steps = i16::from(SWEEP_FRAMES);
+    // Between two percentages (0 to 100), so it always fits in a u8.
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+    let percent = (from + (to - from) * frame / steps) as u8;
+    percent
+}
+
 #[main]
 fn main() -> ! {
     // Start the chip at full speed.
@@ -233,12 +250,30 @@ fn main() -> ! {
             delay.delay_millis(STEP_MS);
         }
 
-        println!("sweep 1% -> 60% -> 1%");
+        println!("sweep 0% -> 60% -> 0%");
         let top = STEPS[STEPS.len() - 1];
-        for percent in (1..=top).chain((1..=top).rev()) {
+        let mut sweep = |percent: u8| {
             let passed = STEPS.iter().filter(|&&s| s <= percent).count();
             show(&mut plain, &mut hd, percent, passed);
-            delay.delay_millis(60);
+            delay.delay_millis(FRAME_MS);
+        };
+        // Up: from 0% to each step in turn, equal time per step.
+        let mut from = 0;
+        for &to in &STEPS {
+            for f in 0..SWEEP_FRAMES {
+                sweep(between(from, to, f));
+            }
+            from = to;
+        }
+        // Hold the top as long as one step, then come back down.
+        for _ in 0..SWEEP_FRAMES {
+            sweep(top);
+        }
+        for i in (0..STEPS.len()).rev() {
+            let to = if i == 0 { 0 } else { STEPS[i - 1] };
+            for f in 1..=SWEEP_FRAMES {
+                sweep(between(STEPS[i], to, f));
+            }
         }
     }
 }

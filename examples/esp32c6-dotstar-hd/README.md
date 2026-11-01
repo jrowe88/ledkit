@@ -26,7 +26,8 @@ The program repeats forever:
 1. **Start**: the top row blinks three times.
 2. **Seven steps**, 5 seconds each: 5%, 10%, 15%, 20%, 30%, 40% and 60% brightness.
    The counter shows the step number: 1 LED for step 1, 2 for step 2, and so on.
-3. **A sweep** from 1% up to 60% and back down, about 7 seconds. The counter follows
+3. **A sweep** from 0% up to 60% and back down, about 9 seconds, with the same time
+   between each pair of steps and a short hold at the top. The counter follows
    along: it lights one LED for each step's brightness the sweep has passed, so you
    can match the sweep to the steps.
 
@@ -132,7 +133,7 @@ step 4: 20%  plain: level 31, red 8  HD: level 4, red 62
 step 5: 30%  plain: level 31, red 19  HD: level 10, red 59
 step 6: 40%  plain: level 31, red 35  HD: level 17, red 64
 step 7: 60%  plain: level 31, red 84  HD: level 31, red 84
-sweep 1% -> 60% -> 1%
+sweep 0% -> 60% -> 0%
 start
 ...
 ```

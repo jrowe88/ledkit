@@ -63,6 +63,12 @@ pub struct FakePort {
     pub fail_on_write: Option<usize>,
     /// How many `write` calls have been made, failed ones included.
     pub writes: usize,
+    /// If set, the `flush` call with this index (counting every call from 0) fails.
+    pub fail_on_flush: Option<usize>,
+    /// How many `flush` calls have been made, failed ones included.
+    pub flush_calls: usize,
+    /// Async writes yield once before accepting, so a test can cancel them.
+    pub yield_on_write: bool,
     /// Where the port records what it did.
     pub log: Log,
 }
@@ -75,6 +81,9 @@ impl Default for FakePort {
             max_per_write: usize::MAX,
             fail_on_write: None,
             writes: 0,
+            fail_on_flush: None,
+            flush_calls: 0,
+            yield_on_write: false,
             log: Log::default(),
         }
     }
@@ -92,6 +101,17 @@ impl FakePort {
         self.log.borrow_mut().push(Event::Write(n));
         Ok(n)
     }
+
+    fn finish(&mut self) -> Result<(), FakeError> {
+        let call = self.flush_calls;
+        self.flush_calls += 1;
+        if self.fail_on_flush == Some(call) {
+            return Err(FakeError);
+        }
+        self.flushes += 1;
+        self.log.borrow_mut().push(Event::Flush);
+        Ok(())
+    }
 }
 
 impl embedded_io::ErrorType for FakePort {
@@ -103,21 +123,20 @@ impl embedded_io::Write for FakePort {
         self.accept(buf)
     }
     fn flush(&mut self) -> Result<(), FakeError> {
-        self.flushes += 1;
-        self.log.borrow_mut().push(Event::Flush);
-        Ok(())
+        self.finish()
     }
 }
 
 #[allow(clippy::unused_async_trait_impl)] // the trait requires async fns
 impl embedded_io_async::Write for FakePort {
     async fn write(&mut self, buf: &[u8]) -> Result<usize, FakeError> {
+        if self.yield_on_write {
+            embassy_futures::yield_now().await;
+        }
         self.accept(buf)
     }
     async fn flush(&mut self) -> Result<(), FakeError> {
-        self.flushes += 1;
-        self.log.borrow_mut().push(Event::Flush);
-        Ok(())
+        self.finish()
     }
 }
 

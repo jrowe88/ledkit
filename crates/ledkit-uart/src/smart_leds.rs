@@ -93,7 +93,7 @@ mod tests {
             .unwrap();
         let ((port_a, delay_a, _), (port_b, _, _)) = (a.release(), b.release());
         assert_eq!(port_a.bytes, port_b.bytes);
-        assert_eq!((port_a.flushes, delay_a.waits_us), (1, vec![280, 280]));
+        assert_eq!((port_a.flushes, delay_a.waits_us), (2, vec![280, 280]));
     }
 
     #[test]

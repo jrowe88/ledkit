@@ -18,9 +18,10 @@ use ledkit_core::{wire, BufferTooSmall, Chip, ClocklessTiming, Output, OutputAsy
 /// WS2812B) so the LEDs show it. That pause uses the delay you gave.
 ///
 /// The very first frame, and a frame after a failed or cancelled send, get
-/// the same pause before them too. That clears whatever was on the line
-/// before (a port that rested high until its inversion was switched on, or
-/// half a frame), so the LEDs never read it as part of the new frame.
+/// a flush and the same pause before them too. The flush lets any bytes the
+/// port still holds finish going out; the pause then clears whatever was on
+/// the line (a port that rested high until its inversion was switched on,
+/// or half a frame), so the LEDs never read it as part of the new frame.
 ///
 /// # Example
 ///
@@ -119,6 +120,8 @@ where
     /// Sends the first `used` bytes of the buffer, then waits out the reset time.
     pub(crate) fn send(&mut self, used: usize) -> Result<(), Error<U::Error>> {
         if self.pause_first {
+            // Bytes from an unfinished send may still be going out.
+            self.uart.flush().map_err(Error::Uart)?;
             self.delay.delay_us(self.reset_us);
         }
         // Until this send has finished, the next one must pause first.
@@ -142,6 +145,8 @@ where
     /// Like [`send`](Self::send), but `async`.
     pub(crate) async fn send_async(&mut self, used: usize) -> Result<(), Error<U::Error>> {
         if self.pause_first {
+            // Bytes from an unfinished send may still be going out.
+            self.uart.flush().await.map_err(Error::Uart)?;
             self.delay.delay_us(self.reset_us).await;
         }
         // Until this send has finished (it may also be cancelled), the next
@@ -251,8 +256,8 @@ mod tests {
         strip.show().unwrap();
         let port = strip.output().port();
         assert_eq!(port.bytes, expected(&[Rgb::RED, Rgb::BLACK]));
-        assert_eq!(port.flushes, 1);
-        // The first frame also gets a reset pause before it (start-up).
+        // The first frame also gets a flush and a reset pause before it (start-up).
+        assert_eq!(port.flushes, 2);
         assert_eq!(strip.output().delay().waits_us, [280, 280]);
     }
 
@@ -265,6 +270,7 @@ mod tests {
         assert_eq!(
             *log.borrow(),
             [
+                Event::Flush,
                 Event::Wait(280),
                 Event::Write(24),
                 Event::Flush,
@@ -285,7 +291,12 @@ mod tests {
         assert_eq!(strip.show(), Err(Error::Uart(FakeError)));
         assert_eq!(
             *log.borrow(),
-            [Event::Wait(280), Event::Write(3), Event::Write(3)]
+            [
+                Event::Flush,
+                Event::Wait(280),
+                Event::Write(3),
+                Event::Write(3)
+            ]
         );
     }
 
@@ -298,15 +309,42 @@ mod tests {
         assert_eq!(strip.show(), Err(Error::Uart(FakeError)));
         log.borrow_mut().clear();
         strip.show().unwrap();
+        // Bytes the port took before the error may still be going out, so it
+        // is flushed before the pause starts.
         assert_eq!(
             *log.borrow(),
             [
+                Event::Flush,
                 Event::Wait(280),
                 Event::Write(24),
                 Event::Flush,
                 Event::Wait(280),
             ]
         );
+    }
+
+    #[test]
+    fn failed_recovery_flush_keeps_the_pause_pending() {
+        let (mut port, delay, log) = pair();
+        port.fail_on_flush = Some(0);
+        let mut strip = red_strip(ClocklessUart::new(port, BAUD, delay, [0u8; 24]).unwrap());
+        assert_eq!(strip.show(), Err(Error::Uart(FakeError)));
+        assert_eq!(*log.borrow(), []);
+        strip.show().unwrap();
+        assert_eq!(log.borrow()[..2], [Event::Flush, Event::Wait(280)]);
+    }
+
+    #[test]
+    fn cancelled_async_send_flushes_and_pauses_before_the_next() {
+        let (mut port, delay, log) = pair();
+        port.yield_on_write = true;
+        let mut strip = red_strip(ClocklessUart::new(port, BAUD, delay, [0u8; 24]).unwrap());
+        embassy_futures::block_on(strip.show_async()).unwrap();
+        // Cancelled in the middle of writing a frame.
+        assert!(embassy_futures::poll_once(strip.show_async()).is_pending());
+        log.borrow_mut().clear();
+        embassy_futures::block_on(strip.show_async()).unwrap();
+        assert_eq!(log.borrow()[..2], [Event::Flush, Event::Wait(280)]);
     }
 
     #[test]
@@ -318,7 +356,7 @@ mod tests {
         assert!(embassy_futures::block_on(strip.show_async()).is_err());
         log.borrow_mut().clear();
         embassy_futures::block_on(strip.show_async()).unwrap();
-        assert_eq!(log.borrow()[0], Event::Wait(280));
+        assert_eq!(log.borrow()[..2], [Event::Flush, Event::Wait(280)]);
     }
 
     #[test]
@@ -364,7 +402,7 @@ mod tests {
         let output = ClocklessUart::new(port, BAUD, FakeDelay::default(), [0u8; 24]).unwrap();
         let mut strip = red_strip(output);
         assert_eq!(strip.show(), Err(Error::Uart(FakeError)));
-        assert_eq!(strip.output().port().flushes, 0);
+        assert_eq!(strip.output().port().flushes, 1);
         assert_eq!(strip.output().delay().waits_us, [280]);
     }
 
@@ -400,7 +438,7 @@ mod tests {
         let mut strip: Strip<Ws2812b, 0, _> = Strip::new(uart::<0>());
         strip.show().unwrap();
         assert_eq!(strip.output().port().bytes, [0u8; 0]);
-        assert_eq!(strip.output().port().flushes, 1);
+        assert_eq!(strip.output().port().flushes, 2);
         assert_eq!(strip.output().delay().waits_us, [280, 280]);
     }
 
@@ -414,7 +452,7 @@ mod tests {
             asynchronous.output().port().bytes,
             blocking.output().port().bytes
         );
-        assert_eq!(asynchronous.output().port().flushes, 1);
+        assert_eq!(asynchronous.output().port().flushes, 2);
         assert_eq!(asynchronous.output().delay().waits_us, [280, 280]);
     }
 

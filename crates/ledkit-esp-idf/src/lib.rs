@@ -89,6 +89,23 @@
 //! `[patch.crates-io]` section. ESP-IDF projects that already depend on `esp-idf-svc` can
 //! use it as is, as long as both resolve to the same `esp-idf-hal`.
 //!
+//! ## Long strips and an esp-idf-hal 0.47 bug
+//!
+//! ESP-IDF's RMT driver fills the RMT memory in blocks while it sends (on the
+//! ESP32-C6, 96 symbols and then 48 at a time). When a frame's last bits fill a
+//! block exactly, the encoder reports "complete" and "memory full" together.
+//! esp-idf-hal 0.47 has no value for that combination and panics ("Unknown
+//! rmt_encode_state_t value: 3"), which aborts the program. On the ESP32-C6 that hit
+//! every WS2812B frame of 4 or more LEDs whose bit count is a multiple of 48, such as
+//! 100 LEDs.
+//!
+//! `RmtOutput` works around it: when a frame has an even number of bytes, it adds one
+//! `0x00` byte after the last LED. Every block size is a multiple of 16 bits and an
+//! odd number of bytes never is, so a frame never ends exactly on a block. The LEDs
+//! ignore the extra byte (an LED only takes a color from a full 24 or 32 bits). The
+//! workaround can go once esp-idf-hal accepts combined encoder states.
+//!
+//!
 //! ## Tested on hardware
 //!
 //! | Board | LEDs | Result |
@@ -96,6 +113,7 @@
 //! | ESP32-C6 dev kit (chip rev v0.2), 2026-10-30 | the onboard LED | pass: colors in order, back-to-back frames latch |
 //! | ESP32-C6 dev kit (chip rev v0.2), 2026-10-30 | the onboard LED, slow rainbow | flickered with dithering on (20% brightness, about 45 frames a second), steady with it off; the example now turns it off, see its troubleshooting |
 //! | ESP32-C6, the pulse project (first consumer) | its status LED | pass (2026-10-30): breathes as before after pulse raised its own minimum brightness |
+//! | ESP32-C6 dev kit, 2026-10-31 | WS2812-type strip, 100 LEDs, through a 74AHCT125 | runs after the padding fix below: frames of every length from 1 to 150 LEDs, then colors, a counting pattern and a rainbow on 100 LEDs, with no crash (checked over serial; how the strip looks is not checked yet). Before the fix, every frame of 4 or more LEDs whose bit count was a multiple of 48 crashed |
 //!
 //! The example is `examples/esp32c6-esp-idf` in the repository. If you try it on your
 //! hardware, please report what you see.
@@ -235,6 +253,8 @@ impl<'d, C: Chip> RmtOutput<'d, C> {
             return Ok(());
         }
 
+        pad_for_rmt(&mut self.bytes);
+
         if let Some(end) = self.last_frame_end {
             let elapsed_us = u64::try_from(end.elapsed().as_micros()).unwrap_or(u64::MAX);
             let remaining_us = self.gap.remaining_us(elapsed_us);
@@ -271,6 +291,27 @@ impl<C: Chip> Output<C> for RmtOutput<'_, C> {
 }
 
 /// One bit's RMT symbol: high for `pulse.high` ticks, then low for `pulse.low` ticks.
+/// Adds one `0x00` byte to a frame with an even number of bytes, to work around a
+/// crash in esp-idf-hal 0.47.
+///
+/// ESP-IDF's bytes encoder fills the RMT memory in blocks (96 symbols, then 48 at a
+/// time on the ESP32-C6 with esp-idf-hal's default; 64 then 32 on the ESP32). When a
+/// frame's last bits fill a block exactly, it reports "complete" and "memory full"
+/// together, as two bit flags. esp-idf-hal turns that state into an enum that has no
+/// value for both, and panics, inside the RMT interrupt, which aborts the program. On
+/// the ESP32-C6 that is every WS2812B frame of 4, 6, 8, … LEDs whose bit count is a
+/// multiple of 48, such as 100 LEDs.
+///
+/// Every block size is a multiple of 16 bits, and a frame with an odd number of bytes
+/// never is, so its end never lands exactly on a block. The extra byte goes out after
+/// the last LED, which passes it on and ignores it: an LED only takes a color from a
+/// full 24 (or 32) bits.
+fn pad_for_rmt(bytes: &mut Vec<u8>) {
+    if bytes.len() % 2 == 0 {
+        bytes.push(0);
+    }
+}
+
 fn symbol(pulse: BitPulse) -> Result<Symbol, EspError> {
     let half = |state, ticks: u16| -> Result<Pulse, EspError> {
         Ok(Pulse::new(state, PulseTicks::new(ticks)?))

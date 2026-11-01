@@ -231,6 +231,7 @@
 //! | ESP32-C6 (SPI2, 3.2 MHz, esp-hal blocking) | WS2812-type strip, 100 LEDs, through a 74AHCT125 | ✅ pass (2026-10-31) with `new` and with `new_packed`: solid colors, a counting pattern with the last LED marked, and a rainbow at 50 frames a second, no glitches |
 //! | Raspberry Pi (Linux spidev) | | untested on hardware; builds in CI |
 //! | Teensy 4 (LPSPI) | NeoPixel 8×8 matrix (64 LEDs) | ✅ pass (2026-10-31), with the two SPI settings in `examples/teensy4-spi` |
+//! | Teensy 4 (LPSPI) | WS2812-type strip, 100 LEDs | ✅ pass (2026-11-01): colors, counting and a fast rainbow clean through to LED 99, with each frame sent in three 512-byte writes (`with_max_write_len`), so the pauses between writes don't break the strip |
 //! | Teensy 4 (LPSPI) | DotStar HD 8×8 (APA102-2020, 64 LEDs) | ✅ pass (2026-10-31); the `0xFF` end frame was the fix |
 //! | ESP32-C6 (SPI2, 1 to 40 MHz requested) | DotStar HD 8×8 (APA102-2020, 64 LEDs) | ✅ pass (2026-10-31), clean at every speed tried; dark at 10% brightness without HD, lit with it (see "Dim DotStars" above) |
 //! | ESP32-C6 (SPI2, 4 MHz) | SK9822 strip, 144 LEDs | ✅ pass (2026-10-31): each frame latched at once through to LED 143 with the zero end frame, and HD brightness worked |

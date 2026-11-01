@@ -139,8 +139,10 @@ If a refill is late, the RMT can resend stale codes, and you see glitches on lon
 strips. Keep other tasks' busy stretches short. If you see glitches on a long strip,
 try the blocking output, or keep interrupts and other work light while sending.
 
-The onboard 1-LED test never reaches the refill path, so long strips are untested on
-hardware (see "Tested on hardware").
+Refills keep up in both modes on the ESP32-C6: a 64-LED matrix and a 100-LED strip
+ran clean, the strip with both drivers at 50 frames a second (see "Tested on
+hardware"). The async test polled the send in a tight loop, so a busy executor is
+still untested.
 
 ## Coming from `smart-leds`?
 
@@ -181,10 +183,14 @@ ESP32, S2 and S3 use Xtensa cores and need the `esp` toolchain (installed by
 
 | Board | LEDs | Result |
 |---|---|---|
-| ESP32-C6 dev kit | the onboard LED (`examples/esp32c6-rmt`) | pass (2026-10-30): colors, back-to-back frames, rainbow; 1 LED, so long strips (RMT refill) are untested |
+| ESP32-C6 dev kit | the onboard LED (`examples/esp32c6-rmt`) | pass (2026-10-30): colors, back-to-back frames, rainbow |
+| ESP32-C6 dev kit | Adafruit NeoPixel 8×8, 64 LEDs (`examples/esp32c6-matrix`), blocking | pass (2026-10-31): wiring finder, shapes, scrolling text |
+| ESP32-C6 dev kit | WS2812-type strip, 100 LEDs, through a 74AHCT125 | pass (2026-10-31), blocking and async: solid colors, a counting pattern and a rainbow at 50 frames a second, with no glitches |
 
-The onboard LED is a strip of 1, which fits in the RMT channel's memory and never
-reaches the refill path, so long strips (3 or more LEDs) are untested on hardware.
+The onboard LED is a strip of 1, which fits in the RMT channel's memory. The matrix
+and the strip are far longer than the channel's 48 codes, so they exercise the
+refill path. The async run drove `show_async` with `embassy_futures::block_on`,
+which polls continuously; a real executor with other busy tasks is untested.
 
 Everything else is covered by host tests of the shared pulse encoder in
 `ledkit-core` (`fill_rmt_words`). If you try it on your hardware, please report what

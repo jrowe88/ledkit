@@ -103,7 +103,7 @@ The pulse project switched its status LED to `ledkit-core` with a ~60-line RMT `
 - async `ledkit-esp` on hardware with Embassy
 - async for `ledkit-esp-idf`
 - ESP32-H2 support needs a per-chip RMT tick (its RMT runs from a 32 MHz clock, which can't make the 10 MHz tick)
-- check long strips on the esp-hal RMT for underruns, in both blocking and async: the blocking refill happens in the `wait()` loop and the async refill when the executor next polls the task. Verify with an external strip of 3 or more LEDs, blocking and async, before calling long strips supported (the onboard-LED pass is 1 LED and never refills); later consider `TxChannelConfig::with_memsize`
+- ~~check long strips on the esp-hal RMT for underruns~~: done 2026-10-31 on an ESP32-C6. A 100-LED WS2812-type strip ran clean with the blocking and the async driver (async polled with `embassy_futures::block_on`), at 50 frames a second, and the 64-LED matrix ran clean blocking. Still open: async on a real executor with other busy tasks; later consider `TxChannelConfig::with_memsize`
 - ~~use `--locked` in the CI example builds~~ (done in the milestone 4 review fixes)
 
 ## Follow-ups after milestone 6 (`ledkit-layout`)

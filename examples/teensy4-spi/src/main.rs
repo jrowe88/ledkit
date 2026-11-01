@@ -174,7 +174,8 @@ fn main() -> ! {
     //
     // `with_max_write_len` is needed because the Teensy's SPI driver refuses to
     // send more than 512 bytes at once. Longer strips are sent in several
-    // writes. The tiny pauses between them are harmless for a NeoPixel.
+    // writes. The tiny pauses between them are harmless for a NeoPixel (tested
+    // on a 100-LED strip, which takes three writes per frame).
     let output = ClocklessSpi::<LedType, _, _>::new(spi, ACTUAL_SPI_HZ, [0u8; BUFFER_LEN])
         .unwrap()
         .with_max_write_len(MAX_WRITE_BYTES);

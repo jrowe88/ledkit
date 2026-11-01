@@ -105,7 +105,9 @@ every WS2812B frame of 4 or more LEDs whose bit count is a multiple of 48, such 
 `0x00` byte after the last LED. Every block size is a multiple of 16 bits and an
 odd number of bytes never is, so a frame never ends exactly on a block. The LEDs
 ignore the extra byte (an LED only takes a color from a full 24 or 32 bits). The
-workaround can go once esp-idf-hal accepts combined encoder states.
+workaround can go once an esp-idf-hal release after 0.47.0 includes the upstream
+fix ([esp-rs/esp-idf#600](https://github.com/esp-rs/esp-idf/pull/600), merged but
+not yet released).
 
 
 ## Tested on hardware

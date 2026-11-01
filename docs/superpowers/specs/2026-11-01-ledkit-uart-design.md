@@ -83,7 +83,8 @@ output waits the chip's reset time (280 µs for the WS2812B) before the next fra
 
 **Gaps inside a frame.** If the port pauses between bytes, the line sits low, which only
 lengthens the low part of LED bit B. A pause is harmless while that low part stays inside
-the chip's window (up to 5000 ns for the WS2812B, so pauses up to about 4.5 µs). With DMA or
+the chip's window (up to 5000 ns for the WS2812B, and a `0` bit's low part is already 1000 ns
+at 4 Mbaud, so pauses up to about 4 µs). With DMA or
 a hardware FIFO there are no pauses; a slow blocking driver could cause them. Document it.
 
 ## The parts

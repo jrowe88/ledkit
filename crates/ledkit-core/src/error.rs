@@ -91,16 +91,16 @@ pub enum TimingError {
 /// The unit is "MHz" for a clock or "Mbaud" for a serial port.
 struct Mega(u32, &'static str);
 
-/// A frequency in MHz (see [`Mega`]).
-#[allow(non_snake_case)]
-const fn Mhz(hz: u32) -> Mega {
-    Mega(hz, "MHz")
-}
+impl Mega {
+    /// A frequency in MHz.
+    const fn mhz(hz: u32) -> Self {
+        Self(hz, "MHz")
+    }
 
-/// A serial rate in Mbaud (see [`Mega`]).
-#[allow(non_snake_case)]
-const fn Mbaud(baud: u32) -> Mega {
-    Mega(baud, "Mbaud")
+    /// A serial rate in Mbaud.
+    const fn mbaud(baud: u32) -> Self {
+        Self(baud, "Mbaud")
+    }
 }
 
 impl fmt::Display for Mega {
@@ -156,11 +156,13 @@ impl fmt::Display for TimingError {
                 write!(
                     f,
                     "an SPI clock of {} can't produce valid timing for this LED",
-                    Mhz(spi_hz)
+                    Mega::mhz(spi_hz)
                 )?;
                 match (nearest_lower_hz, nearest_higher_hz) {
-                    (Some(lo), Some(hi)) => write!(f, "; try {} or {}", Mhz(lo), Mhz(hi)),
-                    (Some(hz), None) | (None, Some(hz)) => write!(f, "; try {}", Mhz(hz)),
+                    (Some(lo), Some(hi)) => {
+                        write!(f, "; try {} or {}", Mega::mhz(lo), Mega::mhz(hi))
+                    }
+                    (Some(hz), None) | (None, Some(hz)) => write!(f, "; try {}", Mega::mhz(hz)),
                     (None, None) => f.write_str("; no SPI clock works for this LED"),
                 }
             }
@@ -172,11 +174,13 @@ impl fmt::Display for TimingError {
                 write!(
                     f,
                     "a serial port at {} can't produce valid timing for this LED",
-                    Mbaud(baud)
+                    Mega::mbaud(baud)
                 )?;
                 match (nearest_lower_baud, nearest_higher_baud) {
-                    (Some(lo), Some(hi)) => write!(f, "; try {} or {}", Mbaud(lo), Mbaud(hi)),
-                    (Some(b), None) | (None, Some(b)) => write!(f, "; try {}", Mbaud(b)),
+                    (Some(lo), Some(hi)) => {
+                        write!(f, "; try {} or {}", Mega::mbaud(lo), Mega::mbaud(hi))
+                    }
+                    (Some(b), None) | (None, Some(b)) => write!(f, "; try {}", Mega::mbaud(b)),
                     (None, None) => f.write_str("; no serial baud works for this LED"),
                 }
             }
@@ -300,7 +304,7 @@ mod tests {
             (1, "0.000001 MHz"),
             (12_345_670, "12.34567 MHz"),
         ] {
-            assert_eq!(format!("{}", Mhz(hz)), want, "{hz} Hz");
+            assert_eq!(format!("{}", Mega::mhz(hz)), want, "{hz} Hz");
         }
     }
     #[test]

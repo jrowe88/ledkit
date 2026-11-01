@@ -37,14 +37,16 @@ inversion was switched on, or half a frame, is never read as part of the next on
 | LED type | Bauds that work | Use |
 |---|---|---|
 | WS2812B | 2.25 to 4.4 Mbaud | 4 Mbaud |
-| WS2812 | 2.4 to 4.4 Mbaud | 4 Mbaud |
+| WS2812 | 2.4 to 4.4 Mbaud | 3 Mbaud |
 | SK6812, SK6812 RGBW | 2.7 to 4.4 Mbaud | 4 Mbaud |
 | WS2811 (800 kHz) | 2.7 to 4.4 Mbaud | 4 Mbaud |
-| WS2813, WS2815 | 2.25 to 2.65, or 3.0 to 3.3 Mbaud | 3 Mbaud |
+| WS2813, WS2815 | 2.25 to 2.65, or 3.0 to 3.3 Mbaud | 2.5 Mbaud |
 | APA106 | 2.0 to 2.45, or 2.65 to 3.3 Mbaud | 3 Mbaud |
-| WS2811 (400 kHz) | 1.55 to 1.9 Mbaud | 1.6 Mbaud |
+| WS2811 (400 kHz) | 1.55 to 1.9 Mbaud | 1.7 Mbaud |
 
-(Worked out from ledkit's datasheet windows in 50 kHz steps.)
+(Worked out from ledkit's datasheet windows in 50 kHz steps. Each "Use" baud keeps every
+pulse at least 30 ns inside its window; WS2812B at 4 Mbaud is the hardware-tested one. The
+edges of a range work too, but leave no room for a port that runs slightly fast or slow.)
 
 ## Use it
 
@@ -53,15 +55,17 @@ use ledkit_core::{Rgb, Strip, Ws2812b};
 use ledkit_uart::{buffer_len, ClocklessUart};
 
 const LED_COUNT: usize = 30;
-const BAUD: u32 = 4_000_000;
+// The baud your port REALLY runs at. Ask your HAL for 4 Mbaud, then put the
+// rate it actually makes here (many ports can only get close).
+const ACTUAL_BAUD: u32 = 4_000_000;
 
-// `uart` is your HAL's serial port: 8N1, transmit inverted, at BAUD.
+// `uart` is your HAL's serial port: 8N1, transmit inverted.
 // `delay` is anything that implements `embedded_hal::delay::DelayNs`.
 let output = ClocklessUart::<Ws2812b, _, _, _>::new(
     uart,
-    BAUD,
+    ACTUAL_BAUD,
     delay,
-    [0u8; buffer_len::<Ws2812b>(LED_COUNT, BAUD)],
+    [0u8; buffer_len::<Ws2812b>(LED_COUNT, ACTUAL_BAUD)],
 )
 .unwrap();
 let mut strip = Strip::<Ws2812b, LED_COUNT, _>::new(output);
@@ -86,8 +90,9 @@ LPUART, the ESP32's GPIO matrix). Without it, the line rests high and the LEDs n
 ## Pauses between bytes
 
 If the port pauses between bytes, the line sits low, which only lengthens the low part of an
-LED bit. That is harmless while the low part stays inside the LED's limit: up to about
-4.5 µs for a WS2812B. DMA and hardware FIFOs send without pauses; a very slow blocking
+LED bit. That is harmless while the low part stays inside the LED's limit. For a WS2812B at
+4 Mbaud, a `0` bit's low part is already 1 µs of its 5 µs limit, so pauses up to about 4 µs
+are safe. DMA and hardware FIFOs send without pauses; a very slow blocking
 driver might not.
 
 ## Tested on hardware

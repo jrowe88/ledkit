@@ -113,7 +113,7 @@ and wiring, setup and troubleshooting in its README.
 | Any board with an SPI bus | `ledkit-spi` | [esp32c6-spi](examples/esp32c6-spi) | ✅ on hardware |
 | Raspberry Pi (Linux) | `ledkit-spi` | [linux-spidev](examples/linux-spidev) | 🟡 builds in CI |
 | Teensy 4 | `ledkit-spi` | [teensy4-spi](examples/teensy4-spi) | 🟡 builds in CI |
-| LED matrix on the ESP32-C6 | `ledkit-layout` + `ledkit-esp` | [esp32c6-matrix](examples/esp32c6-matrix) | 🟡 hardware test pending |
+| LED matrix on the ESP32-C6 | `ledkit-layout` + `ledkit-esp` | [esp32c6-matrix](examples/esp32c6-matrix) | ✅ tested on hardware |
 | Raspberry Pi Pico | `ledkit-rp` | | 🔜 coming soon |
 
 ## Get started
@@ -148,7 +148,7 @@ checkout, as the examples do.
 | `ledkit-spi` | Drives LEDs from any `embedded-hal` SPI bus, blocking or async | ✅ available |
 | `ledkit-esp` | ESP32 RMT driver for esp-hal (`no_std`, blocking or async) | ✅ available |
 | `ledkit-esp-idf` | ESP32 RMT driver for ESP-IDF (`std`) | ✅ available |
-| `ledkit-layout` | Segments, matrices, text and shapes | ✅ available (matrix hardware test pending) |
+| `ledkit-layout` | Segments, matrices, text and shapes | ✅ available |
 | `ledkit-anim` | Effects (rainbow, breathe, fire, …) and ways to combine them | 🔜 planned |
 | `ledkit-rp` | Raspberry Pi Pico (RP2040/RP2350) PIO driver | 🔜 planned |
 | `ledkit` | One crate to add, with everything re-exported | 🔜 planned |
@@ -158,9 +158,9 @@ checkout, as the examples do.
 
 ## Status and roadmap
 
-ledkit is young. The core, the SPI driver and both ESP32 drivers work and
-are tested on real hardware. Matrices, text and shapes (`ledkit-layout`) are
-here too; the matrix example builds and is waiting for its first hardware test.
+ledkit is young. The core, the SPI driver, both ESP32 drivers and the matrix
+layer (`ledkit-layout`: matrices, text and shapes) work and are tested on real
+hardware.
 Next up: effects, then the Raspberry Pi Pico. See the [roadmap](docs/superpowers/plans/2026-10-25-ledkit-roadmap.md)
 for the details.
 

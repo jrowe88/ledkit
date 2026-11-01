@@ -111,7 +111,7 @@ and wiring, setup and troubleshooting in its README.
 | ESP32-C6 with esp-hal (`no_std`) | `ledkit-esp` | [esp32c6-rmt](examples/esp32c6-rmt) | ✅ on hardware |
 | ESP32-C6 with ESP-IDF (`std`, Wi-Fi) | `ledkit-esp-idf` | [esp32c6-esp-idf](examples/esp32c6-esp-idf) | ✅ on hardware |
 | Any board with an SPI bus | `ledkit-spi` | [esp32c6-spi](examples/esp32c6-spi) | ✅ on hardware |
-| Raspberry Pi (Linux) | `ledkit-spi` | [linux-spidev](examples/linux-spidev) | 🟡 builds in CI |
+| Raspberry Pi (Linux) | `ledkit-spi` | [linux-spidev](examples/linux-spidev) | ✅ on hardware |
 | Teensy 4 | `ledkit-spi` | [teensy4-spi](examples/teensy4-spi) | ✅ on hardware |
 | LED matrix on the ESP32-C6 | `ledkit-layout` + `ledkit-esp` | [esp32c6-matrix](examples/esp32c6-matrix) | ✅ on hardware |
 | DotStar HD vs plain dimming on the ESP32-C6 | `ledkit-core` | [esp32c6-dotstar-hd](examples/esp32c6-dotstar-hd) | ✅ on hardware |

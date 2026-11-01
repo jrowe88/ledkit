@@ -11,7 +11,7 @@ ends with something that works and is tested on its own.
 |---|---|---|---|---|
 | **1** | **Foundation + `ledkit-color`** | Cargo workspace, CI, licenses, README/AGENTS/CONTRIBUTING stubs; the complete color crate | The crate conventions, `no_std` builds on a no-FPU Arm target and on RISC-V, and the readable-API style | No |
 | **2** | **`ledkit-core`** | LED chip catalogue (all phase 1 chips), color orders, encoders for every technique (pulse pairs, SPI with clock validation, clocked frames), `Strip<Led, N>`, the output pipeline (brightness, gamma, power limit, dithering), blocking + async output traits, `smart-leds-trait` interop | The central "define a chip once, encode for any technique" idea, entirely in host-side unit tests | No |
-| **3** | **First light: `ledkit-spi`** | `ledkit-spi` (blocking + async, `smart-leds` impls) plus first light on the ESP32-C6 onboard LED; Raspberry Pi (spidev) and Teensy 4 (LPSPI) examples built in CI | NeoPixel via SPI encoding on real hardware (ESP32-C6 passed 2026-10-30); the Pi and Teensy 4 examples still need hardware tests | ESP32-C6 (done); Pi Zero / 3 A+, Teensy 4, WS2812B + APA102 strips (follow-ups) |
+| **3** | **First light: `ledkit-spi`** | `ledkit-spi` (blocking + async, `smart-leds` impls) plus first light on the ESP32-C6 onboard LED; Raspberry Pi (spidev) and Teensy 4 (LPSPI) examples built in CI | NeoPixel via SPI encoding on real hardware (ESP32-C6 passed 2026-10-30); the Teensy 4 (2026-10-31) and Pi Zero W (2026-11-01) examples passed on hardware too | ESP32-C6 (done); Pi Zero / 3 A+, Teensy 4, WS2812B + APA102 strips (follow-ups) |
 | **4** | **ESP32 backends** | Delivered: `ledkit-esp-idf` (ESP-IDF, `std`; the pulse project's RMT `Output` grown into a crate, with the reset gap enforced) and `ledkit-esp` (esp-hal RMT, `no_std`, blocking + async); core additions `BitPulse`, `ResetGap` and the RMT word helpers in `ledkit_core::encode`; examples `esp32c6-esp-idf` and `esp32c6-rmt` built in CI; pulse switched to `ledkit-esp-idf` and passed on hardware (pulse commit awaiting the owner) | Both ESP32 worlds on the C6 DevKit. `ledkit-esp-idf` passed on hardware 2026-10-30 (colors, back-to-back frames; the rainbow needed dithering off); `ledkit-esp` passed on the onboard LED 2026-10-30 (long strips untested); S3 (Xtensa) still to do | ESP32-C6 (done for both), ESP32-S3, strips |
 | **5** | **`ledkit-rp`** | RP2040/RP2350 PIO backend | Pico 2 | Pico 2, strips |
 | **6** | **`ledkit-layout`** | Delivered: `Layout`, `MatrixLayout` (serpentine, columns first, any starting corner), `Rotated` and `Tiled`, `Canvas`, `Segment`, and `embedded-graphics` support (a `Canvas` is a `DrawTarget`, with `rgb_from_rgb888` / `rgb888_from_rgb`); example `esp32c6-matrix` (wiring finder, shapes, scrolling text) builds in CI. No panel presets (see follow-ups) | Text and shapes on a matrix: tested on an Adafruit NeoPixel 8×8 on the ESP32-C6 (2026-10-31) | Adafruit NeoPixel 8×8 |
@@ -54,7 +54,7 @@ Milestone 3 shipped with first light on the ESP32-C6 only. These items need hard
 were deferred:
 
 - ~~Teensy 4 hardware test~~: NeoPixel pass 2026-10-31 on an Adafruit 8×8, and on a 100-LED WS2812-type strip 2026-11-01 (three 512-byte writes per frame; the pauses between them did no harm). It needed two LPSPI settings in the example (tristate the data pin between transfers, no PCS-to-SCK delay); without them the first LED of each transfer reads a stray "1". DotStar pass 2026-10-31 on an Adafruit DotStar HD 8×8 (APA102-2020, 64 LEDs). It exposed an end-frame bug: the old zero-byte end frame left LEDs 60 to 63 unlit, and `0xFF` end bytes fixed it.
-- Pi hardware test (the example builds in CI)
+- ~~Pi hardware test~~: pass 2026-11-01 on a Raspberry Pi Zero W (32-bit Pi OS trixie, built on the Pi in about 22 minutes) with a 100-LED WS2812-type strip through a 74AHCT125 on GPIO10: colors and a flicker-free rainbow, with `dtparam=spi=on` and `core_freq=250`
 - WS2812B strip at 2.3, 2.4, 3.2, 4.0 and 6.4 MHz
 - ~~APA102/SK9822 end frame~~: done. The APA102 end frame is now `ceil(n / 16)` bytes of `0xFF` (as in Adafruit's library), verified on an APA102-2020 on 2026-10-31, and on a 300-LED APA102-type 5050 strip on 2026-11-01 (ESP32-C6, 4 MHz, frame sized to exactly 300: every frame latched at once through to the last LED). The SK9822 keeps a 4-byte zero reset frame plus `ceil(n / 16)` zero bytes (`ClockedFormat::Sk9822`); that SK9822 end frame passed on a 144-LED strip on 2026-10-31 (ESP32-C6, 4 MHz, frame count set to exactly 144): every frame latched at once, through to the last LED, with HD brightness on.
 - DotStar on the ESP32-C6: pass 2026-10-31 (SPI2 at 4 MHz, and a later sweep of 1, 2, 4, 8, 12, 16, 20, 26, 32 and 40 MHz requested all ran clean through a 74AHCT125 on a breadboard; data GPIO4, clock GPIO6, Adafruit DotStar HD 8×8). At 10% brightness nothing seemed to light: ledkit dims DotStars only through the 8-bit color values, so 10% green is 3/255, invisible on these LEDs; 40% looked right.
@@ -115,6 +115,35 @@ The pulse project switched its status LED to `ledkit-core` with a ~60-line RMT `
 - move `Rgb` ↔ `Rgb888` conversions to `From` impls in `ledkit-color` behind an `embedded-graphics` feature (today they are the functions `rgb_from_rgb888` / `rgb888_from_rgb`, because a `From` impl isn't possible in `ledkit-layout`)
 - an image (BMP) drawing example
 - layouts for rings (circle coordinates), if wanted later
+
+## Notes on Teensy 4 WS2812 techniques (research, 2026-11-01)
+
+How PJRC's C++ libraries drive WS2812s on the Teensy 4, and what exists in Rust. The serial
+technique shipped as `ledkit-uart` (design `specs/2026-11-01-ledkit-uart-design.md`,
+plan `plans/2026-11-01-ledkit-uart.md`; results in the next section); parallel strips are paused by
+the owner until `ledkit-core` has a multi-strip output. These notes are background for both.
+
+- **WS2812Serial** (the model for `ledkit-uart`): an LPUART at 4 Mbaud with inverted output
+  and DMA; ten 250 ns slots per byte carry 2 LED bits. Its timing is fixed: a "1" is 1 µs
+  high and 0.25 µs low, outside ledkit's WS2812B window, which is why `ledkit-uart` picks the
+  high-slot counts from each chip's timing instead (anti-goal in the design). 12 buffer bytes
+  per RGB LED, 300 µs latch, UART TX pins only, best under about 600 LEDs per pin.
+- **OctoWS2811** (`OctoWS2811_imxrt.cpp`, MIT; parallel strips, paused): QuadTimer 4 channels
+  0 to 2 mark the bit start, the "0" point (0.30 µs) and the "1" point (0.75 µs); XBAR turns
+  each into a DMA request, and three DMA channels write the standard GPIO1–GPIO4 set/clear registers
+  (set every LED pin, clear the pins whose bit is 0, clear the rest). Any pins on up to four
+  GPIO ports (8 by default); pixels are transposed so each word holds one bit per pin,
+  double-buffered in about 10 KB with an interrupt refilling the idle half. Seen in passing:
+  the BGRW case uses blue twice, and `busy()` never really checks the DMA.
+- **Rust on the Teensy 4:** `imxrt-hal` 0.6.0 has `lpuart` (with inversion and `dma_write`),
+  `lpspi`, `dma`, `gpio`, `flexpwm`, `gpt` and `pit`, but no FlexIO, QuadTimer or XBAR
+  drivers, so an OctoWS2811-style output would first need those on `imxrt-ral`.
+  [`ws2812-flexio`](https://github.com/finomnis/ws2812-flexio) (MIT/Apache, 0.3.0, June 2024)
+  already drives up to 3 parallel strips per FlexIO block, blocking or DMA, with Teensy 4.0
+  examples (fixed 800 kHz, RGB only, quiet since 2024).
+- **When parallel strips resume:** look at wrapping or contributing to `ws2812-flexio` before
+  writing FlexIO support from scratch; an OctoWS2811-style QuadTimer/XBAR output is the most
+  work and only worth it for many strips.
 
 ## Serial-port technique (`ledkit-uart`, 2026-11-01)
 

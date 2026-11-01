@@ -4,8 +4,10 @@ Drives a WS2812B ("NeoPixel") strip from a Raspberry Pi, or any Linux board
 with an SPI device file, using `ledkit-core` and `ledkit-spi`. The strip's data
 wire is fed from the Pi's SPI hardware, so no special LED driver is needed.
 
-> **Untested on hardware.** This example compiles in CI, but nobody has run it
-> on a real Pi yet. If you try it, please report what you see.
+> **Status: tested on hardware.** Run on a Raspberry Pi Zero W (32-bit
+> Raspberry Pi OS "trixie") with a 100-LED WS2812-type strip through a
+> 74AHCT125, on 2026-11-01: colors and a clean, flicker-free rainbow, with
+> `dtparam=spi=on` and `core_freq=250` as below.
 
 ## What you'll see
 
@@ -93,7 +95,8 @@ cargo build --release --target aarch64-unknown-linux-gnu
 You will need a linker for that target (on Ubuntu, `gcc-aarch64-linux-gnu`,
 set as `linker` in `.cargo/config.toml`). Copy
 `target/aarch64-unknown-linux-gnu/release/linux-spidev` to the Pi and run it.
-Building on the Pi itself is simpler.
+Building on the Pi itself is simpler. On a single-core Pi Zero W the first
+build takes about 20 minutes (later builds only rebuild what changed).
 
 ## Troubleshooting
 

@@ -87,7 +87,7 @@ fails to compile with a clear message.
 
 **One API, many boards**<br>
 ESP32 (esp-hal or ESP-IDF), Raspberry Pi, Teensy 4, or anything with an
-`embedded-hal` SPI bus.
+`embedded-hal` SPI bus or an `embedded-io` serial port.
 
 </td>
 <td valign="top">
@@ -115,6 +115,8 @@ and wiring, setup and troubleshooting in its README.
 | Teensy 4 | `ledkit-spi` | [teensy4-spi](examples/teensy4-spi) | ✅ on hardware |
 | LED matrix on the ESP32-C6 | `ledkit-layout` + `ledkit-esp` | [esp32c6-matrix](examples/esp32c6-matrix) | ✅ on hardware |
 | DotStar HD vs plain dimming on the ESP32-C6 | `ledkit-core` | [esp32c6-dotstar-hd](examples/esp32c6-dotstar-hd) | ✅ on hardware |
+| NeoPixels from a serial port, ESP32-C6 | `ledkit-uart` | [esp32c6-uart](examples/esp32c6-uart) | ✅ on hardware |
+| NeoPixels from a serial port, Teensy 4 (with DMA) | `ledkit-uart` | [teensy4-uart](examples/teensy4-uart) | ✅ on hardware |
 | Raspberry Pi Pico | `ledkit-rp` | | 🔜 coming soon |
 
 ## Get started
@@ -147,6 +149,7 @@ checkout, as the examples do.
 | `ledkit-color` | Colors, hues, gradients, gamma | ✅ available |
 | `ledkit-core` | The LED chip catalogue, the `Strip` buffer, brightness, dithering and power limiting | ✅ available |
 | `ledkit-spi` | Drives LEDs from any `embedded-hal` SPI bus, blocking or async | ✅ available |
+| `ledkit-uart` | Drives NeoPixels from any `embedded-io` serial port with an inverted output, blocking or async (DMA) | ✅ available |
 | `ledkit-esp` | ESP32 RMT driver for esp-hal (`no_std`, blocking or async) | ✅ available |
 | `ledkit-esp-idf` | ESP32 RMT driver for ESP-IDF (`std`) | ✅ available |
 | `ledkit-layout` | Segments, matrices, text and shapes | ✅ available |

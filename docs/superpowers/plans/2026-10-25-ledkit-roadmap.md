@@ -119,8 +119,8 @@ The pulse project switched its status LED to `ledkit-core` with a ~60-line RMT `
 ## Notes on Teensy 4 WS2812 techniques (research, 2026-11-01)
 
 How PJRC's C++ libraries drive WS2812s on the Teensy 4, and what exists in Rust. The serial
-technique is being built as `ledkit-uart` (design `specs/2026-11-01-ledkit-uart-design.md`,
-plan `plans/2026-11-01-ledkit-uart.md`, branch `uart-design`); parallel strips are paused by
+technique shipped as `ledkit-uart` (design `specs/2026-11-01-ledkit-uart-design.md`,
+plan `plans/2026-11-01-ledkit-uart.md`; results in the next section); parallel strips are paused by
 the owner until `ledkit-core` has a multi-strip output. These notes are background for both.
 
 - **WS2812Serial** (the model for `ledkit-uart`): an LPUART at 4 Mbaud with inverted output
@@ -144,3 +144,9 @@ the owner until `ledkit-core` has a multi-strip output. These notes are backgrou
 - **When parallel strips resume:** look at wrapping or contributing to `ws2812-flexio` before
   writing FlexIO support from scratch; an OctoWS2811-style QuadTimer/XBAR output is the most
   work and only worth it for many strips.
+
+## Serial-port technique (`ledkit-uart`, 2026-11-01)
+
+- Shipped: `ledkit-core`'s `UartEncoding` (2 LED bits per inverted 8N1 serial byte, computed from the chip's windows at the real baud, with nearest-baud errors) and the `ledkit-uart` crate (`ClocklessUart`, blocking over `embedded-io`, async over `embedded-io-async`, a reset pause after each frame). Design: `docs/superpowers/specs/2026-11-01-ledkit-uart-design.md`.
+- Hardware 2026-11-01, 100-LED WS2812-type strip: ESP32-C6 (UART1, GPIO4 inverted in the GPIO matrix, blocking and async) pass; Teensy 4 (LPUART6 on pin 1, blocking and DMA) pass. The Teensy BSP clocks its UARTs at 8 MHz (max 2 Mbaud), so the example raises the UART clock to 24 MHz for 4 Mbaud.
+- Still paused: parallel strips (OctoWS2811-style GPIO + DMA, or FlexIO). They need a multi-strip output in `ledkit-core` first. `ws2812-flexio` 0.3 is on `imxrt-ral` 0.5 / `imxrt-dma` 0.1, so it can't take the peripherals from `teensy4-bsp` 0.6 without a port.

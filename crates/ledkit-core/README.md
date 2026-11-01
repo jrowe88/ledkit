@@ -116,7 +116,8 @@ using one of these techniques, and `ledkit-core` provides the pieces:
 - `wire` turns pixels into the bytes a chip expects (including the
   chip's color order, such as green-red-blue for the WS2812B).
 - `encode` turns a chip's timing into what a peripheral needs: SPI bit
-  patterns that imitate the pulses (`encode::SpiEncoding`), or pulse
+  patterns that imitate the pulses (`encode::SpiEncoding`), serial
+  port bytes that do the same (`encode::UartEncoding`), or pulse
   lengths in clock ticks for the ESP32 RMT or RP2040 PIO
   (`encode::PulseTicks`).
 - DotStars are sent as plain SPI frames with `wire::clocked_frame`. The

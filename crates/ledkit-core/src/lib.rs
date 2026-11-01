@@ -114,7 +114,8 @@
 //! - [`wire`] turns pixels into the bytes a chip expects (including the
 //!   chip's color order, such as green-red-blue for the WS2812B).
 //! - [`encode`] turns a chip's timing into what a peripheral needs: SPI bit
-//!   patterns that imitate the pulses ([`encode::SpiEncoding`]), or pulse
+//!   patterns that imitate the pulses ([`encode::SpiEncoding`]), serial
+//!   port bytes that do the same ([`encode::UartEncoding`]), or pulse
 //!   lengths in clock ticks for the ESP32 RMT or RP2040 PIO
 //!   ([`encode::PulseTicks`]); ready-made RMT words are made by
 //!   [`encode::fill_rmt_words`].

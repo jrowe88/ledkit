@@ -1,7 +1,7 @@
 //! SPI bit patterns that imitate a clockless LED signal.
 
-use super::saturate_u32;
-use crate::{BufferTooSmall, ClocklessTiming, Phase, TimingError};
+use super::{miss_ps, saturate_u32, window_ok};
+use crate::{BufferTooSmall, ClocklessTiming, TimingError};
 
 /// How to fake a clockless LED signal with an SPI peripheral.
 ///
@@ -54,17 +54,6 @@ pub struct SpiEncoding {
     pub one_high_bits: u8,
     /// How many zero bytes to send at the end so the LEDs latch the colors.
     pub reset_bytes: u32,
-}
-
-/// Whether `k` SPI bits last between the phase's minimum and maximum, exactly.
-const fn window_ok(phase: Phase, k: u64, spi_hz: u64) -> bool {
-    let t = k * 1_000_000_000;
-    phase.min_ns as u64 * spi_hz <= t && t <= phase.max_ns as u64 * spi_hz
-}
-
-/// How far `k` SPI bits are from the phase's typical length, in picoseconds.
-const fn miss_ps(phase: Phase, k: u64, spi_hz: u64) -> u64 {
-    (k * 1_000_000_000_000 / spi_hz).abs_diff(phase.typical_ns as u64 * 1000)
 }
 
 /// The SPI clocks suggested when one doesn't work: 1 MHz to 40 MHz in 100 kHz steps.

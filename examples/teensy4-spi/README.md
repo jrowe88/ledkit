@@ -4,8 +4,9 @@ Drives a WS2812B ("NeoPixel") strip from a Teensy 4.0 or 4.1 with `ledkit-core`
 and `ledkit-spi`. The strip's data wire is fed from the chip's SPI hardware
 (LPSPI4), so no special LED peripheral is needed.
 
-> **Pending hardware test.** This example builds in CI, but it has not been
-> run on a real Teensy 4 yet. If you try it, please report what you see.
+> **Tested on hardware (2026-10-31):** Teensy 4.0, an Adafruit NeoPixel 8×8
+> matrix (64 LEDs) through a 74AHCT125. Every LED shows the right color and the
+> rainbow is smooth.
 
 ## What you'll see
 
@@ -101,6 +102,13 @@ so check it again if you change the HAL version.
   `ledkit_core` catalogue.
 - **The first LED is wrong, or the strip flickers**: check the level shifter,
   the 330 ohm resistor and the common ground. These are the usual causes.
+- **The first LED, or one LED partway along (LED 42 on a 64-LED panel), shows a
+  dim or wrong color while the rest are right**: the two Teensy SPI settings
+  in `main.rs` are missing. Between transfers the Teensy drives the data pin
+  high, and at the start of each transfer it holds the first bit too long; a
+  NeoPixel reads either as an extra "1". The example tristates the pin between
+  transfers and starts the clock straight away. Keep those lines if you copy
+  the SPI setup into your own project.
 - **Nothing lights up**: check that the data goes to the strip's DIN (not
   DOUT), that you used pin 11, that the grounds are joined, and that the strip
   has 5 V power.

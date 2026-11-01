@@ -55,7 +55,7 @@ macro_rules! clockless_chip {
 }
 
 macro_rules! clocked_chip {
-    ($(#[$doc:meta])* $name:ident, $label:literal) => {
+    ($(#[$doc:meta])* $name:ident, $label:literal, $format:ident) => {
         $(#[$doc])*
         ///
         /// # Example
@@ -73,7 +73,7 @@ macro_rules! clocked_chip {
             type Pixel = Rgb;
             const NAME: &'static str = $label;
             const ORDER: ChannelOrder = ChannelOrder::BGR;
-            const PROTOCOL: Protocol = Protocol::Clocked(ClockedFormat::Apa102);
+            const PROTOCOL: Protocol = Protocol::Clocked(ClockedFormat::$format);
         }
     };
 }
@@ -143,12 +143,14 @@ clockless_chip!(
 
 clocked_chip!(
     /// The APA102: the chip in DotStar strips.
-    Apa102, "APA102"
+    Apa102, "APA102", Apa102
 );
 
 clocked_chip!(
-    /// The SK9822: an APA102 clone found in cheaper DotStar-style strips.
-    Sk9822, "SK9822"
+    /// The SK9822: an APA102 clone found in cheaper DotStar-style strips. It
+    /// uses the [`ClockedFormat::Sk9822`] frame, whose end frame starts with
+    /// a zero reset frame.
+    Sk9822, "SK9822", Sk9822
 );
 
 /// The SK6812 Mini, found in compact NeoPixel-style boards. Same as [`Sk6812`].
@@ -215,7 +217,7 @@ mod tests {
         ));
         assert!(matches!(
             Sk9822::PROTOCOL,
-            Protocol::Clocked(ClockedFormat::Apa102)
+            Protocol::Clocked(ClockedFormat::Sk9822)
         ));
     }
 
@@ -343,7 +345,12 @@ mod tests {
                 <Sk9822 as Chip>::Pixel::CHANNELS,
             ),
         ] {
-            assert_eq!(protocol, Protocol::Clocked(ClockedFormat::Apa102), "{name}");
+            let format = if name == "SK9822" {
+                ClockedFormat::Sk9822
+            } else {
+                ClockedFormat::Apa102
+            };
+            assert_eq!(protocol, Protocol::Clocked(format), "{name}");
             assert_eq!(order, ChannelOrder::BGR, "{name}");
             assert_eq!(channels, 3, "{name}");
         }

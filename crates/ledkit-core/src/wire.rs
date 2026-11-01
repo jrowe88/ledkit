@@ -11,8 +11,8 @@ use core::fmt;
 use core::iter::FusedIterator;
 use core::marker::PhantomData;
 
-use crate::Chip;
 use crate::Pixel;
+use crate::{Chip, ClockedFormat};
 
 /// Yields the bytes for a clockless chip (WS2812B, SK6812 and friends).
 ///
@@ -133,10 +133,14 @@ impl<C: Chip, I: ExactSizeIterator<Item = C::Pixel>> ExactSizeIterator for Clock
 
 impl<C: Chip, I: FusedIterator<Item = C::Pixel>> FusedIterator for ClocklessBytes<C, I> {}
 
-/// How many bytes [`clocked_frame`] produces for `led_count` LEDs.
+/// How many bytes [`clocked_frame`] produces for `led_count` LEDs of chip `C`.
 ///
-/// That is a 4-byte start frame, 4 bytes per LED, a 4-byte end frame and one
-/// extra byte for every 16 LEDs (rounded up) so the last LEDs get clocked.
+/// That is a 4-byte start frame, 4 bytes per LED and the chip's end frame:
+///
+/// - APA102: one byte for every 16 LEDs (rounded up).
+/// - SK9822: 4 reset bytes, then one byte for every 16 LEDs (rounded up).
+///
+/// For zero LEDs the APA102 frame is just the 4-byte start frame.
 ///
 /// The "4 bytes per LED" assumes 3-channel DotStar pixels (a brightness byte
 /// plus blue, green and red), which is what every clocked chip in the
@@ -146,21 +150,45 @@ impl<C: Chip, I: FusedIterator<Item = C::Pixel>> FusedIterator for ClocklessByte
 ///
 /// ```
 /// use ledkit_core::wire::clocked_frame_len;
+/// use ledkit_core::{Apa102, Sk9822};
 ///
-/// assert_eq!(clocked_frame_len(2), 17);
+/// assert_eq!(clocked_frame_len::<Apa102>(2), 13);
+/// assert_eq!(clocked_frame_len::<Sk9822>(2), 17);
 /// ```
-pub const fn clocked_frame_len(led_count: usize) -> usize {
-    4 + 4 * led_count + 4 + led_count.div_ceil(16)
+pub const fn clocked_frame_len<C: Chip>(led_count: usize) -> usize {
+    4 + 4 * led_count + ClockedFormat::of::<C>().end_frame_len(led_count)
 }
 
 /// Yields a complete DotStar (APA102/SK9822) frame for a clocked chip.
 ///
 /// The frame is a start frame of four `0x00` bytes, then for each LED a
 /// `0xFF` byte (full global brightness) followed by its channels in the
-/// chip's wire order, then an end frame of zeros. Use this for clocked
-/// chips; [`clockless_bytes`] is for clockless ones. Using the wrong one does
-/// not panic. The iterator must know its length up front, because the end
-/// frame depends on the LED count.
+/// chip's wire order, then the chip's end frame (`n` is the LED count). Use
+/// this for clocked chips; [`clockless_bytes`] is for clockless ones. Using the
+/// wrong one does not panic. The iterator must know its length up front,
+/// because the end frame depends on the LED count.
+///
+/// # The end frame, in plain words
+///
+/// The LEDs sit in a chain and each one passes the data on half a clock late,
+/// so the last LEDs only show their colors if the strip gets about `n / 2` more
+/// clock edges after the data. `ceil(n / 16)` bytes is `n / 2` bits or more.
+/// What those extra bytes contain depends on the chip.
+///
+/// - **APA102** ([`ClockedFormat::Apa102`]): `ceil(n / 16)` bytes of `0xFF`.
+///   They are ones rather than zeros because the APA102 reads a run of 32 or
+///   more zero bits as a new start frame, which made the last LEDs (60 to 63
+///   of 64 on an APA102-2020 DotStar HD 8x8) miss their colors. A full 32-bit
+///   frame of ones is avoided too, since an LED past the end of the strip would
+///   see it as pixel data. This is the end frame Adafruit's DotStar library
+///   sends, and it is verified on hardware.
+/// - **SK9822** ([`ClockedFormat::Sk9822`]): a reset frame of 4 bytes of
+///   `0x00`, then `ceil(n / 16)` bytes of `0x00` for the propagation clocks.
+///   The SK9822 only latches its colors after it sees 32 zero bits, so an
+///   all-ones end frame would leave the update pending until the next start
+///   frame (see
+///   [cpldcpu's write-up](https://cpldcpu.com/2016/12/13/sk9822-a-clone-of-the-apa102/)).
+///   This is not yet verified on an SK9822 strip in ledkit.
 ///
 /// # Example
 ///
@@ -168,7 +196,7 @@ pub const fn clocked_frame_len(led_count: usize) -> usize {
 /// use ledkit_core::{wire::clocked_frame, Apa102, Rgb};
 ///
 /// let frame: Vec<u8> = clocked_frame::<Apa102, _>([Rgb::new(1, 2, 3)]).collect();
-/// assert_eq!(frame, [0, 0, 0, 0, 0xFF, 3, 2, 1, 0, 0, 0, 0, 0]);
+/// assert_eq!(frame, [0, 0, 0, 0, 0xFF, 3, 2, 1, 0xFF]);
 /// ```
 pub fn clocked_frame<C, I>(pixels: I) -> ClockedFrame<C, I::IntoIter>
 where
@@ -177,7 +205,7 @@ where
     I::IntoIter: ExactSizeIterator,
 {
     let pixels = pixels.into_iter();
-    let end_left = 4 + pixels.len().div_ceil(16);
+    let end_left = ClockedFormat::of::<C>().end_frame_len(pixels.len());
     ClockedFrame {
         pixels,
         start_left: 4,
@@ -201,7 +229,7 @@ where
 /// use ledkit_core::{Apa102, Rgb};
 ///
 /// let frame = clocked_frame::<Apa102, _>([Rgb::RED; 3]);
-/// assert_eq!(frame.len(), clocked_frame_len(3));
+/// assert_eq!(frame.len(), clocked_frame_len::<Apa102>(3));
 /// ```
 pub struct ClockedFrame<C: Chip, I> {
     pixels: I,
@@ -281,7 +309,7 @@ impl<C: Chip, I: Iterator<Item = C::Pixel>> Iterator for ClockedFrame<C, I> {
         }
         if self.end_left > 0 {
             self.end_left -= 1;
-            return Some(0x00);
+            return Some(ClockedFormat::of::<C>().end_frame_byte());
         }
         None
     }
@@ -309,7 +337,7 @@ impl<C: Chip, I: Iterator<Item = C::Pixel>> FusedIterator for ClockedFrame<C, I>
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Apa102, ClocklessTiming, Rgb, Rgbw, Sk6812Rgbw, Ws2812b};
+    use crate::{Apa102, ClocklessTiming, Rgb, Rgbw, Sk6812Rgbw, Sk9822, Ws2812b};
 
     #[test]
     fn grb_wire_order() {
@@ -365,18 +393,51 @@ mod tests {
     fn dotstar_frame() {
         let frame =
             clocked_frame::<Apa102, _>([Rgb::new(1, 2, 3), Rgb::new(4, 5, 6)]).collect::<Vec<_>>();
+        assert_eq!(frame, [0, 0, 0, 0, 0xFF, 3, 2, 1, 0xFF, 6, 5, 4, 0xFF]);
+        assert_eq!(clocked_frame_len::<Apa102>(2), 13);
+    }
+
+    #[test]
+    fn sk9822_frame_has_a_zero_reset_frame() {
+        let frame =
+            clocked_frame::<Sk9822, _>([Rgb::new(1, 2, 3), Rgb::new(4, 5, 6)]).collect::<Vec<_>>();
         assert_eq!(
             frame,
             [0, 0, 0, 0, 0xFF, 3, 2, 1, 0xFF, 6, 5, 4, 0, 0, 0, 0, 0]
         );
-        assert_eq!(clocked_frame_len(2), 17);
+        assert_eq!(clocked_frame_len::<Sk9822>(2), 17);
+    }
+
+    /// The bytes after the LED data, for a chip and LED count.
+    fn end_frame<C: Chip<Pixel = Rgb>>(n: usize) -> Vec<u8> {
+        let frame: Vec<u8> = clocked_frame::<C, _>(vec![Rgb::new(9, 8, 7); n]).collect();
+        frame[4 + 4 * n..].to_vec()
+    }
+
+    #[test]
+    fn apa102_end_frame_is_ceil_n_over_16_bytes_of_ff() {
+        for (n, bytes) in [(0, 0), (1, 1), (15, 1), (16, 1), (17, 2), (64, 4)] {
+            assert_eq!(end_frame::<Apa102>(n), vec![0xFF; bytes], "n = {n}");
+            assert_eq!(clocked_frame_len::<Apa102>(n), 4 + 4 * n + bytes, "n = {n}");
+        }
+    }
+
+    #[test]
+    fn sk9822_end_frame_is_a_zero_reset_frame_then_clocks() {
+        for (n, bytes) in [(0, 4), (1, 5), (15, 5), (16, 5), (17, 6), (64, 8)] {
+            assert_eq!(end_frame::<Sk9822>(n), vec![0x00; bytes], "n = {n}");
+            assert_eq!(clocked_frame_len::<Sk9822>(n), 4 + 4 * n + bytes, "n = {n}");
+        }
     }
 
     #[test]
     fn dotstar_frame_lengths() {
-        assert_eq!(clocked_frame_len(0), 8);
-        assert_eq!(clocked_frame_len(16), 4 + 64 + 4 + 1);
-        assert_eq!(clocked_frame_len(17), 4 + 68 + 4 + 2);
+        assert_eq!(clocked_frame_len::<Apa102>(0), 4);
+        assert_eq!(clocked_frame_len::<Apa102>(16), 4 + 64 + 1);
+        assert_eq!(clocked_frame_len::<Apa102>(17), 4 + 68 + 2);
+        assert_eq!(clocked_frame_len::<Sk9822>(0), 8);
+        assert_eq!(clocked_frame_len::<Sk9822>(16), 4 + 64 + 5);
+        assert_eq!(clocked_frame_len::<Sk9822>(17), 4 + 68 + 6);
     }
 
     #[test]
@@ -384,19 +445,37 @@ mod tests {
         let pixels = [Rgb::new(9, 8, 7); 17];
         for n in [0, 1, 16, 17] {
             let frame = clocked_frame::<Apa102, _>(pixels[..n].iter().copied());
-            assert_eq!(frame.len(), clocked_frame_len(n), "len, n = {n}");
-            assert_eq!(frame.count(), clocked_frame_len(n), "count, n = {n}");
+            assert_eq!(frame.len(), clocked_frame_len::<Apa102>(n), "len, n = {n}");
+            assert_eq!(
+                frame.count(),
+                clocked_frame_len::<Apa102>(n),
+                "count, n = {n}"
+            );
+            let frame = clocked_frame::<Sk9822, _>(pixels[..n].iter().copied());
+            assert_eq!(frame.len(), clocked_frame_len::<Sk9822>(n), "len, n = {n}");
+            assert_eq!(
+                frame.count(),
+                clocked_frame_len::<Sk9822>(n),
+                "count, n = {n}"
+            );
         }
     }
 
     #[test]
     fn dotstar_len_counts_down_exactly() {
         let mut frame = clocked_frame::<Apa102, _>([Rgb::new(1, 2, 3); 17]);
-        for left in (0..=clocked_frame_len(17)).rev() {
+        for left in (0..=clocked_frame_len::<Apa102>(17)).rev() {
             assert_eq!(frame.len(), left);
             assert_eq!(frame.next().is_some(), left > 0);
         }
         assert_eq!(frame.next(), None);
         assert_eq!(frame.len(), 0);
+
+        let mut frame = clocked_frame::<Sk9822, _>([Rgb::new(1, 2, 3); 17]);
+        for left in (0..=clocked_frame_len::<Sk9822>(17)).rev() {
+            assert_eq!(frame.len(), left);
+            assert_eq!(frame.next().is_some(), left > 0);
+        }
+        assert_eq!(frame.next(), None);
     }
 }

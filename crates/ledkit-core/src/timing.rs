@@ -187,18 +187,92 @@ impl ResetGap {
 
 /// The data format of chips that use a separate clock wire.
 ///
+/// Both formats share the same start frame and LED data. They differ only in
+/// the end frame, which is what makes the last LEDs show their colors. See
+/// [`wire::clocked_frame`](crate::wire::clocked_frame) for the details.
+///
 /// # Example
 ///
 /// ```
 /// use ledkit_core::ClockedFormat;
 ///
-/// assert_eq!(ClockedFormat::Apa102, ClockedFormat::Apa102);
+/// assert_eq!(ClockedFormat::Apa102.end_frame_len(64), 4);
+/// assert_eq!(ClockedFormat::Sk9822.end_frame_len(64), 4 + 4);
 /// ```
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum ClockedFormat {
-    /// The APA102 frame format. Also used by the SK9822.
+    /// The APA102 frame format: the end frame is `ceil(n / 16)` bytes of
+    /// `0xFF`. Verified on hardware (APA102-2020).
     Apa102,
+    /// The SK9822 frame format: the end frame is a 4-byte reset frame of
+    /// `0x00`, then `ceil(n / 16)` more `0x00` bytes. The SK9822 needs the
+    /// 32-zero-bit reset to latch its colors. Not yet verified on hardware
+    /// in ledkit.
+    Sk9822,
+}
+
+impl ClockedFormat {
+    /// The format a chip uses. A chip that is not clocked gets
+    /// [`Apa102`](ClockedFormat::Apa102), so using the wrong function never
+    /// panics.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use ledkit_core::{Apa102, ClockedFormat, Sk9822};
+    ///
+    /// assert_eq!(ClockedFormat::of::<Apa102>(), ClockedFormat::Apa102);
+    /// assert_eq!(ClockedFormat::of::<Sk9822>(), ClockedFormat::Sk9822);
+    /// ```
+    #[must_use]
+    pub const fn of<C: crate::Chip>() -> Self {
+        match C::PROTOCOL {
+            Protocol::Clocked(format) => format,
+            _ => ClockedFormat::Apa102,
+        }
+    }
+
+    /// How many bytes the end frame has for `led_count` LEDs.
+    ///
+    /// - APA102: `ceil(n / 16)` bytes.
+    /// - SK9822: 4 reset bytes plus `ceil(n / 16)` bytes.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use ledkit_core::ClockedFormat;
+    ///
+    /// assert_eq!(ClockedFormat::Apa102.end_frame_len(17), 2);
+    /// assert_eq!(ClockedFormat::Sk9822.end_frame_len(17), 6);
+    /// ```
+    #[must_use]
+    pub const fn end_frame_len(self, led_count: usize) -> usize {
+        let clocks = led_count.div_ceil(16);
+        match self {
+            ClockedFormat::Apa102 => clocks,
+            ClockedFormat::Sk9822 => 4 + clocks,
+        }
+    }
+
+    /// The value of every byte in the end frame: `0xFF` for the APA102,
+    /// `0x00` for the SK9822.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use ledkit_core::ClockedFormat;
+    ///
+    /// assert_eq!(ClockedFormat::Apa102.end_frame_byte(), 0xFF);
+    /// assert_eq!(ClockedFormat::Sk9822.end_frame_byte(), 0x00);
+    /// ```
+    #[must_use]
+    pub const fn end_frame_byte(self) -> u8 {
+        match self {
+            ClockedFormat::Apa102 => 0xFF,
+            ClockedFormat::Sk9822 => 0x00,
+        }
+    }
 }
 
 /// How a chip is talked to: one data wire with strict timing, or data plus clock.

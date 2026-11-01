@@ -4,7 +4,7 @@ use crate::Error;
 use core::iter::Once;
 use core::marker::PhantomData;
 use ledkit_core::wire::{clockless_bytes, ClocklessBytes};
-use ledkit_core::{Chip, Output, OutputAsync, Protocol};
+use ledkit_core::{Chip, ClockedFormat, Output, OutputAsync, Protocol};
 
 /// How many bytes are collected before each write to the bus. Small enough
 /// for the stack of a tiny microcontroller, big enough to keep the bus busy.
@@ -230,18 +230,22 @@ where
 
 /// Where [`FrameBytes`] is in the frame.
 enum Stage {
-    /// Sending the zero bytes that open the frame; this many are left.
+    /// Sending the zero bytes of the start frame; this many are left.
     Start(usize),
     /// Sending LEDs.
     Leds,
-    /// Sending the closing zero bytes; this many are left.
+    /// Sending the bytes of the end frame; this many are left.
     End(usize),
 }
 
 /// The bytes of a DotStar frame, made on demand from any pixel iterator.
 ///
-/// The closing zeros depend on the LED count, which is counted as the
-/// pixels stream through, so the iterator needs no known length.
+/// The end frame depends on the chip's [`ClockedFormat`]: `ceil(n / 16)` bytes
+/// of `0xFF` for the APA102, or 4 reset bytes plus `ceil(n / 16)` bytes, all
+/// `0x00`, for the SK9822 (see
+/// [`wire::clocked_frame`](ledkit_core::wire::clocked_frame) for why). It
+/// depends on the LED count `n`, which is counted as the pixels stream
+/// through, so the iterator needs no known length.
 struct FrameBytes<C: Chip, I> {
     pixels: I,
     stage: Stage,
@@ -279,9 +283,13 @@ impl<C: Chip, I: Iterator<Item = C::Pixel>> Iterator for FrameBytes<C, I> {
     fn next(&mut self) -> Option<u8> {
         loop {
             match &mut self.stage {
-                Stage::Start(left) | Stage::End(left) if *left > 0 => {
+                Stage::Start(left) if *left > 0 => {
                     *left -= 1;
                     return Some(0x00);
+                }
+                Stage::End(left) if *left > 0 => {
+                    *left -= 1;
+                    return Some(ClockedFormat::of::<C>().end_frame_byte());
                 }
                 Stage::Start(_) => self.stage = Stage::Leds,
                 Stage::Leds => {
@@ -294,7 +302,7 @@ impl<C: Chip, I: Iterator<Item = C::Pixel>> Iterator for FrameBytes<C, I> {
                         // Every LED starts with full brightness (0xFF).
                         return Some(0xFF);
                     }
-                    self.stage = Stage::End(4 + self.led_count.div_ceil(16));
+                    self.stage = Stage::End(ClockedFormat::of::<C>().end_frame_len(self.led_count));
                 }
                 Stage::End(_) => return None,
             }
@@ -309,18 +317,46 @@ mod tests {
     use crate::Error;
     use ledkit_core::{wire, Apa102, Output, OutputAsync, Rgb, Sk9822, Strip};
 
+    fn frame_matches_core_for<C: Chip<Pixel = Rgb>>() {
+        for n in [0usize, 1, 15, 16, 17, 40, 64] {
+            let pixels: Vec<Rgb> = (0..n).map(|i| Rgb::new(i as u8, 2, 3)).collect();
+            let mut out = ClockedSpi::<C, _>::new(FakeBus::default());
+            Output::<C>::write(&mut out, pixels.iter().copied()).unwrap();
+            let bus = out.release();
+            let want: Vec<u8> = wire::clocked_frame::<C, _>(pixels.iter().copied()).collect();
+            assert_eq!(bus.bytes, want);
+            assert_eq!(bus.bytes.len(), wire::clocked_frame_len::<C>(n));
+            assert_eq!(
+                bus.writes,
+                wire::clocked_frame_len::<C>(n).div_ceil(64).max(1)
+            );
+            assert_eq!(bus.flushes, 1);
+        }
+    }
+
     #[test]
     fn frame_matches_core_for_many_lengths() {
-        for n in [0usize, 1, 15, 16, 17, 40] {
-            let pixels: Vec<Rgb> = (0..n).map(|i| Rgb::new(i as u8, 2, 3)).collect();
-            let mut out = ClockedSpi::<Apa102, _>::new(FakeBus::default());
-            Output::<Apa102>::write(&mut out, pixels.iter().copied()).unwrap();
-            let bus = out.release();
-            let want: Vec<u8> = wire::clocked_frame::<Apa102, _>(pixels.iter().copied()).collect();
-            assert_eq!(bus.bytes, want);
-            assert_eq!(bus.bytes.len(), wire::clocked_frame_len(n));
-            assert_eq!(bus.writes, wire::clocked_frame_len(n).div_ceil(64).max(1));
-            assert_eq!(bus.flushes, 1);
+        frame_matches_core_for::<Apa102>();
+        frame_matches_core_for::<Sk9822>();
+    }
+
+    #[test]
+    fn end_frames_by_chip() {
+        for n in [0usize, 1, 15, 16, 17, 64] {
+            let clocks = n.div_ceil(16);
+            let pixels = vec![Rgb::new(1, 2, 3); n];
+
+            let mut apa = FakeBus::default();
+            write_frame::<Apa102, _, _>(&mut apa, pixels.iter().copied()).unwrap();
+            assert_eq!(apa.bytes[4 + 4 * n..], vec![0xFF; clocks], "apa102 n = {n}");
+
+            let mut sk = FakeBus::default();
+            write_frame::<Sk9822, _, _>(&mut sk, pixels.iter().copied()).unwrap();
+            assert_eq!(
+                sk.bytes[4 + 4 * n..],
+                vec![0x00; 4 + clocks],
+                "sk9822 n = {n}"
+            );
         }
     }
 
@@ -331,7 +367,12 @@ mod tests {
             .filter(|pixel| pixel.r % 2 == 0);
         let mut bus = FakeBus::default();
         write_frame::<Apa102, _, _>(&mut bus, pixels.clone()).unwrap();
-        let want: Vec<u8> = wire::clocked_frame::<Apa102, _>(pixels.collect::<Vec<_>>()).collect();
+        let pixels: Vec<Rgb> = pixels.collect();
+        let want: Vec<u8> = wire::clocked_frame::<Apa102, _>(pixels.iter().copied()).collect();
+        assert_eq!(bus.bytes, want);
+        let mut bus = FakeBus::default();
+        write_frame::<Sk9822, _, _>(&mut bus, pixels.iter().copied()).unwrap();
+        let want: Vec<u8> = wire::clocked_frame::<Sk9822, _>(pixels.iter().copied()).collect();
         assert_eq!(bus.bytes, want);
     }
 
@@ -341,7 +382,7 @@ mod tests {
         strip.fill(Rgb::RED);
         strip.show().unwrap();
         let bus = strip.output().bus();
-        assert_eq!(bus.bytes.len(), wire::clocked_frame_len(4));
+        assert_eq!(bus.bytes.len(), wire::clocked_frame_len::<Sk9822>(4));
         assert_eq!(bus.flushes, 1);
     }
 

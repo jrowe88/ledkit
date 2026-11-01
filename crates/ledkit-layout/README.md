@@ -186,7 +186,7 @@ LEDs misbehave.
 
 ## Tested on hardware
 
-**Status: pending hardware test.** The `esp32c6-matrix` example builds in CI but has not been run on a matrix yet.
+Tested on an ESP32-C6 development board with an Adafruit NeoPixel 8×8 (WS2812B), through the `esp32c6-matrix` example: the wiring finder, the shapes and the scrolling text all came out right with `MatrixLayout::new(8, 8).columns_first().starting_at(Corner::BottomLeft)`.
 
 ## License
 

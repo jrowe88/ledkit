@@ -34,13 +34,14 @@ use teensy4_bsp as bsp;
 use teensy4_panic as _; // If the program panics, stop safely.
 
 use bsp::board;
+use bsp::hal::iomuxc;
 
 // ---------------------------------------------------------------------------
 // Settings you may want to change
 // ---------------------------------------------------------------------------
 
 /// How many LEDs are connected. Change this to your strip's length.
-const LED_COUNT: usize = 30;
+const LED_COUNT: usize = 64;
 
 /// Which kind of LED it is. This decides the timing and the color order
 /// (green, red, blue for the WS2812B). If the colors come out wrong, this is
@@ -61,9 +62,9 @@ const BRIGHTNESS: Brightness = Brightness::from_percent(20);
 const POWER_LIMIT: Milliamps = Milliamps(500);
 
 /// How much the rainbow turns each frame. A hue is a number from 0 to 65535
-/// that covers the whole color circle, so 512 steps every 20 ms means one
-/// full rainbow takes about 2.5 seconds (65536 / 512 * 20 ms).
-const RAINBOW_STEP: u16 = 512;
+/// that covers the whole color circle, so 128 steps every 20 ms means one
+/// full rainbow takes about 10 seconds (65536 / 128 * 20 ms).
+const RAINBOW_STEP: u16 = 128;
 
 // ---------------------------------------------------------------------------
 // Working out the real SPI speed
@@ -125,15 +126,47 @@ fn main() -> ! {
     // and 13 are claimed too, but we leave pin 12 unconnected. There is no
     // chip-select pin, because a NeoPixel has only one data wire. The bus
     // starts in mode 0, the usual idle-low setup, most significant bit first.
+    // Turn on the chip's own pull-down resistor on the data pin. It holds the
+    // line low between transfers (see the SPI settings below).
+    let mut data_pin = pins.p11;
+    iomuxc::configure(
+        &mut data_pin,
+        iomuxc::Config::modify().set_pull_keeper(Some(iomuxc::PullKeeper::Pulldown100k)),
+    );
+
     let spi: board::Lpspi = board::lpspi(
         lpspi4,
         board::LpspiPins {
-            sdo: pins.p11,
+            sdo: data_pin,
             sdi: pins.p12,
             sck: pins.p13,
         },
         SPI_HZ,
     );
+
+    // Two Teensy 4 settings so the first LED of each transfer reads its data
+    // correctly. ledkit leaves bus setup to you, and these are part of it.
+    //
+    // 1. Between transfers, the Teensy's SPI normally drives the data pin
+    //    high. A NeoPixel reads that as an extra "1" bit, so the first LED
+    //    shows the wrong color. Let the pin go instead (tristate); the
+    //    pull-down set above then holds it low.
+    // 2. At the start of each transfer, the SPI waits a little before starting
+    //    its clock, with the first data bit already on the pin. That makes the
+    //    first pulse too long, and an LED can read a 0 as a 1. Start the clock
+    //    straight away instead.
+    let mut spi = spi;
+    spi.disabled(|_| {
+        // Safety: `spi` owns LPSPI4 and the peripheral is switched off while
+        // this runs, so nothing else is using these registers.
+        let regs = unsafe { bsp::ral::lpspi::LPSPI4::instance() };
+        bsp::ral::modify_reg!(bsp::ral::lpspi, regs, CFGR1, OUTCFG: OUTCFG_1);
+    });
+    let mut timing = spi.clock_configs();
+    timing.pcssck = 0;
+    timing.sckpcs = 0;
+    timing.dbt = 0;
+    spi.disabled(|disabled| disabled.set_clock_configs(timing));
 
     // Wrap the bus in a ledkit output. It is told the real bus speed so it can
     // work out the right bytes, and it is given a scratch buffer to build them

@@ -14,7 +14,7 @@ ends with something that works and is tested on its own.
 | **3** | **First light: `ledkit-spi`** | `ledkit-spi` (blocking + async, `smart-leds` impls) plus first light on the ESP32-C6 onboard LED; Raspberry Pi (spidev) and Teensy 4 (LPSPI) examples built in CI | NeoPixel via SPI encoding on real hardware (ESP32-C6 passed 2026-10-30); the Pi and Teensy 4 examples still need hardware tests | ESP32-C6 (done); Pi Zero / 3 A+, Teensy 4, WS2812B + APA102 strips (follow-ups) |
 | **4** | **ESP32 backends** | Delivered: `ledkit-esp-idf` (ESP-IDF, `std`; the pulse project's RMT `Output` grown into a crate, with the reset gap enforced) and `ledkit-esp` (esp-hal RMT, `no_std`, blocking + async); core additions `BitPulse`, `ResetGap` and the RMT word helpers in `ledkit_core::encode`; examples `esp32c6-esp-idf` and `esp32c6-rmt` built in CI; pulse switched to `ledkit-esp-idf` and passed on hardware (pulse commit awaiting the owner) | Both ESP32 worlds on the C6 DevKit. `ledkit-esp-idf` passed on hardware 2026-10-30 (colors, back-to-back frames; the rainbow needed dithering off); `ledkit-esp` passed on the onboard LED 2026-10-30 (long strips untested); S3 (Xtensa) still to do | ESP32-C6 (done for both), ESP32-S3, strips |
 | **5** | **`ledkit-rp`** | RP2040/RP2350 PIO backend | Pico 2 | Pico 2, strips |
-| **6** | **`ledkit-layout`** | Delivered: `Layout`, `MatrixLayout` (serpentine, columns first, any starting corner), `Rotated` and `Tiled`, `Canvas`, `Segment`, and `embedded-graphics` support (a `Canvas` is a `DrawTarget`, with `rgb_from_rgb888` / `rgb888_from_rgb`); example `esp32c6-matrix` (wiring finder, shapes, scrolling text) builds in CI. No panel presets (see follow-ups) | Text and shapes on a matrix: still pending the owner's hardware test | A matrix (the owner's, pending) |
+| **6** | **`ledkit-layout`** | Delivered: `Layout`, `MatrixLayout` (serpentine, columns first, any starting corner), `Rotated` and `Tiled`, `Canvas`, `Segment`, and `embedded-graphics` support (a `Canvas` is a `DrawTarget`, with `rgb_from_rgb888` / `rgb888_from_rgb`); example `esp32c6-matrix` (wiring finder, shapes, scrolling text) builds in CI. No panel presets (see follow-ups) | Text and shapes on a matrix: tested on an Adafruit NeoPixel 8×8 on the ESP32-C6 (2026-10-31) | Adafruit NeoPixel 8×8 |
 | **7** | **`ledkit-anim`** | The `Animation` trait, the phase 1 effects, and the combinators (sequence, crossfade, layer, per-segment) | Combined effects running on strips and matrices | Strips, matrix |
 | **8** | **"Just works" packaging** | The `ledkit` facade + prelude, `cargo generate` board templates, the numbered example ladder, the mdBook guide with photos, `AGENTS.md` + `llms.txt` | A hobbyist going from nothing to a lit strip by following the guide | All first-class boards |
 | **9** | **Release 0.1** | Publish all phase 1 crates to crates.io in dependency order, docs.rs config, guide on GitHub Pages, announcement | Others can depend on it | No |
@@ -53,10 +53,13 @@ milestone 1 is done.
 Milestone 3 shipped with first light on the ESP32-C6 only. These items need hardware and
 were deferred:
 
-- Teensy 4 hardware test (the example builds in CI; status "pending hardware test")
+- ~~Teensy 4 hardware test~~: NeoPixel pass 2026-10-31 on an Adafruit 8×8. It needed two LPSPI settings in the example (tristate the data pin between transfers, no PCS-to-SCK delay); without them the first LED of each transfer reads a stray "1". DotStar pass 2026-10-31 on an Adafruit DotStar HD 8×8 (APA102-2020, 64 LEDs). It exposed an end-frame bug: the old zero-byte end frame left LEDs 60 to 63 unlit, and `0xFF` end bytes fixed it.
 - Pi hardware test (the example builds in CI)
 - WS2812B strip at 2.3, 2.4, 3.2, 4.0 and 6.4 MHz
-- APA102/SK9822 end frame and `MAX_CLOCK_HZ`
+- ~~APA102/SK9822 end frame~~: done. The APA102 end frame is now `ceil(n / 16)` bytes of `0xFF` (as in Adafruit's library), verified on an APA102-2020 on 2026-10-31. The SK9822 keeps a 4-byte zero reset frame plus `ceil(n / 16)` zero bytes (`ClockedFormat::Sk9822`); that SK9822 end frame still needs hardware verification.
+- DotStar on the ESP32-C6: pass 2026-10-31 (SPI2 at 4 MHz, data GPIO4, clock GPIO6, Adafruit DotStar HD 8×8). At 10% brightness nothing seemed to light: ledkit dims DotStars only through the 8-bit color values, so 10% green is 3/255, invisible on these LEDs; 40% looked right.
+- DotStar "HD" brightness: use the 5-bit per-LED global brightness field for dimming (FastLED's APA102 HD idea), so low brightness keeps its color depth instead of rounding to almost nothing
+- `MAX_CLOCK_HZ` for the clocked chips
 - RGBW byte order
 - datasheet citations in `chips.rs`
 - `defmt` on the error types
@@ -105,8 +108,8 @@ The pulse project switched its status LED to `ledkit-core` with a ~60-line RMT `
 
 ## Follow-ups after milestone 6 (`ledkit-layout`)
 
-- **Hardware test of `esp32c6-matrix`** (the owner's matrix): then change the "pending hardware test" status lines in `crates/ledkit-layout/src/lib.rs`, `crates/ledkit-layout/README.md`, `examples/esp32c6-matrix/README.md` and the root `README.md` table.
-- add verified presets once a panel's wiring is confirmed on hardware (the owner's matrix test is the first); no Adafruit presets were added, because Adafruit's pages don't state the panel wiring
+- ~~**Hardware test of `esp32c6-matrix`**~~ (done 2026-10-31: Adafruit NeoPixel 8×8, `.columns_first().starting_at(Corner::BottomLeft)` with the data-in pin at the bottom left)
+- add verified presets: the Adafruit NeoPixel 8×8 is now confirmed (above), but its layout depends on which way the panel is held, so a preset needs a stated orientation
 - move `Rgb` ↔ `Rgb888` conversions to `From` impls in `ledkit-color` behind an `embedded-graphics` feature (today they are the functions `rgb_from_rgb888` / `rgb888_from_rgb`, because a `From` impl isn't possible in `ledkit-layout`)
 - an image (BMP) drawing example
 - layouts for rings (circle coordinates), if wanted later

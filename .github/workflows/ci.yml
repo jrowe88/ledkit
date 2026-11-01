@@ -83,6 +83,22 @@ jobs:
       - run: cargo build --release --locked
         working-directory: examples/esp32c6-spi
 
+  example-esp32c6-uart:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+          targets: riscv32imac-unknown-none-elf
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: examples/esp32c6-uart
+      - run: cargo build --release --locked
+        working-directory: examples/esp32c6-uart
+      - run: cargo clippy --release --locked -- -D warnings
+        working-directory: examples/esp32c6-uart
+
   example-esp32c6-rmt:
     runs-on: ubuntu-latest
     steps:

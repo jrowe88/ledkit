@@ -207,12 +207,13 @@
 //! DotStars have a 5-bit brightness level in every LED, on top of the 8-bit
 //! color channels, and `ClockedSpi` sends it. So `Strip` uses "HD" brightness
 //! by default: in the dim half of the range it lowers the 5-bit level and keeps
-//! the channels wide (at 10%, a level of 1 out of 31 with channels up to about
-//! 62), so dim colors stay smooth and true. Above about half brightness it
+//! the channels wide (at 10%, a level of 2 out of 31 with channels up to about
+//! 47), so dim colors stay smooth and true. Above about half brightness it
 //! sends the same bytes as plain dimming. Plain dimming would leave each
-//! channel only 0 to about 2 at 10%, and soft colors would round to off. HD
+//! channel only 0 to 3 at 10%, and soft colors would round to off. HD
 //! also lights LEDs that ignore very short pulses: on an Adafruit DotStar HD
 //! 8×8, 10% is dark without HD and lit with it, as tested on an ESP32-C6.
+//! The `esp32c6-dotstar-hd` example shows the two side by side.
 //!
 //! The APA102 makes its 5-bit level with a slow flicker, which some cameras
 //! show as banding at low brightness (the SK9822 doesn't have it). If you film
@@ -237,7 +238,7 @@
 //!
 //! Everything else is covered by host tests with a pretend SPI bus. Examples
 //! are in the `examples` folder of the repository: `esp32c6-spi`,
-//! `linux-spidev` and `teensy4-spi`. If you try one on your hardware, please
+//! `esp32c6-dotstar-hd`, `linux-spidev` and `teensy4-spi`. If you try one on your hardware, please
 //! report what you see.
 //!
 //! ## Features

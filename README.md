@@ -114,6 +114,7 @@ and wiring, setup and troubleshooting in its README.
 | Raspberry Pi (Linux) | `ledkit-spi` | [linux-spidev](examples/linux-spidev) | 🟡 builds in CI |
 | Teensy 4 | `ledkit-spi` | [teensy4-spi](examples/teensy4-spi) | ✅ on hardware |
 | LED matrix on the ESP32-C6 | `ledkit-layout` + `ledkit-esp` | [esp32c6-matrix](examples/esp32c6-matrix) | ✅ on hardware |
+| DotStar HD vs plain dimming on the ESP32-C6 | `ledkit-core` | [esp32c6-dotstar-hd](examples/esp32c6-dotstar-hd) | ✅ on hardware |
 | Raspberry Pi Pico | `ledkit-rp` | | 🔜 coming soon |
 
 ## Get started

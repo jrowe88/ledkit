@@ -33,6 +33,39 @@ pub(crate) const fn scale_channel(value: u8, brightness: u8, dither: u8) -> u8 {
     }
 }
 
+/// The brightness below which HD brightness starts lowering the DotStar
+/// global level. Above it, the channels alone have enough steps.
+pub(crate) const HD_KNEE: u8 = 64;
+
+/// Splits a brightness level between a DotStar's 5-bit global brightness and
+/// its 8-bit channels, for [`Strip::set_hd_brightness`](crate::Strip::set_hd_brightness).
+///
+/// Returns `(global, channel)`, chosen so the channels come out as bright as
+/// [`scale_channel`] makes them without HD: `scale_channel` multiplies by
+/// `(brightness + 1) / 256`, so the split keeps `global / 31 * (channel + 1)`
+/// close to `brightness + 1`. From [`HD_KNEE`] up the global level stays at 31, as
+/// without HD, because a DotStar's global level doesn't scale its light
+/// exactly in proportion (an APA102-2020 comes out dimmer at middle levels
+/// than the same brightness made with the channels). Below the knee the
+/// global level drops just enough to keep the channel scale at about
+/// `HD_KNEE` or more, so dim colors keep their steps. 0 gives `(31, 0)`.
+pub(crate) const fn hd_split(brightness: u8) -> (u8, u8) {
+    if brightness == 0 {
+        return (31, 0);
+    }
+    // The multiplier scale_channel uses, in 256ths, times 31.
+    let wanted = (brightness as u16 + 1) * 31;
+    let global = wanted.div_ceil(HD_KNEE as u16 + 1);
+    let global = if global > 31 { 31 } else { global };
+    // wanted >= 62 and global <= wanted / 2, so this is at least 1.
+    let channel = (wanted + global / 2) / global - 1;
+    #[allow(clippy::cast_possible_truncation)] // global <= 31, channel <= 255
+    (
+        global as u8,
+        if channel > 255 { 255 } else { channel as u8 },
+    )
+}
+
 /// Everything the pipeline needs to process one pixel.
 pub(crate) struct PipelineSettings {
     /// White-balance correction for the R, G and B channels.
@@ -103,6 +136,39 @@ mod tests {
             DITHER_SEQUENCE.map(|d| scale_channel(10, 20, d)),
             [0, 1, 1, 1, 0, 1, 1, 1]
         );
+    }
+    #[test]
+    fn hd_split_keeps_the_light_and_gains_steps() {
+        assert_eq!(hd_split(0), (31, 0));
+        assert_eq!(hd_split(255), (31, 255));
+        assert_eq!(hd_split(3), (2, 61));
+        assert_eq!(hd_split(1), (1, 61));
+        assert_eq!(hd_split(HD_KNEE - 1), (31, HD_KNEE - 1));
+        for b in 1..=255u8 {
+            let (global, channel) = hd_split(b);
+            assert!((1..=31).contains(&global));
+            // What the LEDs show, weighted by the global level, stays close
+            // to the exact light the pipeline aims for: within the rounding
+            // of one channel step at that global level.
+            let weight = f32::from(global) / 31.0;
+            for v in 0..=255u8 {
+                let exact = f32::from(v) * (f32::from(b) + 1.0) / 256.0;
+                let hd = f32::from(scale_channel(v, channel, NO_DITHER)) * weight;
+                assert!(
+                    (hd - exact).abs() <= weight + 0.001,
+                    "{b} {v}: {global} {channel}"
+                );
+            }
+            // And the channels get at least as many steps as before.
+            assert!(channel >= b, "{b}: {channel}");
+            // At and above the knee nothing changes; below it the channels
+            // keep at least about half the knee's steps.
+            if b >= HD_KNEE {
+                assert_eq!((global, channel), (31, b));
+            } else {
+                assert!(channel >= HD_KNEE / 2 - 1, "{b}: {channel}");
+            }
+        }
     }
     #[test]
     fn pipeline_defaults_are_identity() {

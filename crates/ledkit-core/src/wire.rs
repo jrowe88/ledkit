@@ -162,8 +162,9 @@ pub const fn clocked_frame_len<C: Chip>(led_count: usize) -> usize {
 /// Yields a complete DotStar (APA102/SK9822) frame for a clocked chip.
 ///
 /// The frame is a start frame of four `0x00` bytes, then for each LED a
-/// `0xFF` byte (full global brightness) followed by its channels in the
-/// chip's wire order, then the chip's end frame (`n` is the LED count). Use
+/// header byte, `0xE0` plus its 5-bit global brightness (`0xFF`, full, unless
+/// you call [`ClockedFrame::with_global_brightness`]), followed by its channels
+/// in the chip's wire order, then the chip's end frame (`n` is the LED count). Use
 /// this for clocked chips; [`clockless_bytes`] is for clockless ones. Using the
 /// wrong one does not panic. The iterator must know its length up front,
 /// because the end frame depends on the LED count.
@@ -188,7 +189,8 @@ pub const fn clocked_frame_len<C: Chip>(led_count: usize) -> usize {
 ///   all-ones end frame would leave the update pending until the next start
 ///   frame (see
 ///   [cpldcpu's write-up](https://cpldcpu.com/2016/12/13/sk9822-a-clone-of-the-apa102/)).
-///   This is not yet verified on an SK9822 strip in ledkit.
+///   Verified on a 144-LED SK9822 strip: each frame latches as soon as it is
+///   sent, through to the last LED.
 ///
 /// # Example
 ///
@@ -213,6 +215,7 @@ where
         next_byte: 0,
         body_done: false,
         end_left,
+        header: 0xFF,
         chip: PhantomData,
     }
 }
@@ -235,14 +238,35 @@ pub struct ClockedFrame<C: Chip, I> {
     pixels: I,
     start_left: usize,
     current: Option<C::Pixel>,
-    /// 0 is the `0xFF` header byte, then one per channel.
+    /// 0 is the header byte, then one per channel.
     next_byte: usize,
     body_done: bool,
     end_left: usize,
+    /// Each LED's first byte: `0xE0` plus the global brightness.
+    header: u8,
     chip: PhantomData<C>,
 }
 
 impl<C: Chip, I> ClockedFrame<C, I> {
+    /// Sets every LED's 5-bit global brightness (0 to 31; larger values
+    /// count as 31). The default is 31, full.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use ledkit_core::{wire::clocked_frame, Apa102, Rgb};
+    ///
+    /// let frame: Vec<u8> = clocked_frame::<Apa102, _>([Rgb::new(1, 2, 3)])
+    ///     .with_global_brightness(4)
+    ///     .collect();
+    /// assert_eq!(frame, [0, 0, 0, 0, 0xE4, 3, 2, 1, 0xFF]);
+    /// ```
+    #[must_use]
+    pub fn with_global_brightness(mut self, level: u8) -> Self {
+        self.header = 0xE0 | if level > 31 { 31 } else { level };
+        self
+    }
+
     /// Bytes left in the LED currently being sent (header plus channels).
     fn left_in_current(&self) -> usize {
         match self.current {
@@ -261,6 +285,7 @@ impl<C: Chip, I: Clone> Clone for ClockedFrame<C, I> {
             next_byte: self.next_byte,
             body_done: self.body_done,
             end_left: self.end_left,
+            header: self.header,
             chip: PhantomData,
         }
     }
@@ -275,6 +300,7 @@ impl<C: Chip, I: fmt::Debug> fmt::Debug for ClockedFrame<C, I> {
             .field("next_byte", &self.next_byte)
             .field("body_done", &self.body_done)
             .field("end_left", &self.end_left)
+            .field("header", &self.header)
             .finish()
     }
 }
@@ -291,7 +317,7 @@ impl<C: Chip, I: Iterator<Item = C::Pixel>> Iterator for ClockedFrame<C, I> {
             if let Some(pixel) = self.current {
                 if self.next_byte == 0 {
                     self.next_byte = 1;
-                    return Some(0xFF);
+                    return Some(self.header);
                 }
                 if let Some(&channel) = C::ORDER.channels().get(self.next_byte - 1) {
                     self.next_byte += 1;

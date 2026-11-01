@@ -69,7 +69,7 @@ where
         T: IntoIterator<Item = I>,
         I: Into<Self::Color>,
     {
-        write_frame::<C, _, _>(&mut self.spi, pixels::<C, T, I>(iterator))
+        write_frame::<C, _, _>(&mut self.spi, self.header, pixels::<C, T, I>(iterator))
     }
 }
 
@@ -88,7 +88,7 @@ where
         T: IntoIterator<Item = I>,
         I: Into<Self::Color>,
     {
-        write_frame_async::<C, _, _>(&mut self.spi, pixels::<C, T, I>(iterator)).await
+        write_frame_async::<C, _, _>(&mut self.spi, self.header, pixels::<C, T, I>(iterator)).await
     }
 }
 

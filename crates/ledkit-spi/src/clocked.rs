@@ -84,6 +84,8 @@ const CHUNK: usize = 64;
 #[derive(Debug)]
 pub struct ClockedSpi<C: Chip, SPI> {
     pub(crate) spi: SPI,
+    /// Each LED's first byte: `0xE0` plus the 5-bit global brightness.
+    pub(crate) header: u8,
     chip: PhantomData<C>,
 }
 
@@ -113,6 +115,7 @@ impl<C: Chip, SPI> ClockedSpi<C, SPI> {
         }
         Self {
             spi,
+            header: 0xFF,
             chip: PhantomData,
         }
     }
@@ -161,11 +164,19 @@ where
 {
     type Error = Error<SPI::Error>;
 
+    /// Sends `level` (0 to 31; larger counts as 31) as every LED's global
+    /// brightness from the next frame on. This is how
+    /// [`Strip::set_hd_brightness`](ledkit_core::Strip::set_hd_brightness) works.
+    fn set_global_brightness(&mut self, level: u8) -> bool {
+        self.header = 0xE0 | level.min(31);
+        true
+    }
+
     fn write<I>(&mut self, pixels: I) -> Result<(), Self::Error>
     where
         I: Iterator<Item = C::Pixel> + ExactSizeIterator,
     {
-        write_frame::<C, _, _>(&mut self.spi, pixels)
+        write_frame::<C, _, _>(&mut self.spi, self.header, pixels)
     }
 }
 
@@ -176,24 +187,36 @@ where
 {
     type Error = Error<SPI::Error>;
 
+    /// The same as the blocking
+    /// [`set_global_brightness`](Output::set_global_brightness).
+    fn set_global_brightness(&mut self, level: u8) -> bool {
+        self.header = 0xE0 | level.min(31);
+        true
+    }
+
     async fn write<I>(&mut self, pixels: I) -> Result<(), Self::Error>
     where
         I: Iterator<Item = C::Pixel> + ExactSizeIterator,
     {
-        write_frame_async::<C, _, _>(&mut self.spi, pixels).await
+        write_frame_async::<C, _, _>(&mut self.spi, self.header, pixels).await
     }
 }
 
 /// Sends one DotStar frame over a blocking bus, then flushes.
 ///
 /// Works with any pixel iterator, even one that does not know its length.
-pub(crate) fn write_frame<C, SPI, I>(spi: &mut SPI, pixels: I) -> Result<(), Error<SPI::Error>>
+/// `header` is each LED's first byte (`0xE0` plus its global brightness).
+pub(crate) fn write_frame<C, SPI, I>(
+    spi: &mut SPI,
+    header: u8,
+    pixels: I,
+) -> Result<(), Error<SPI::Error>>
 where
     C: Chip,
     SPI: embedded_hal::spi::SpiBus,
     I: Iterator<Item = C::Pixel>,
 {
-    let mut bytes = FrameBytes::<C, I>::new(pixels);
+    let mut bytes = FrameBytes::<C, I>::new(header, pixels);
     let mut chunk = [0u8; CHUNK];
     loop {
         let filled = bytes.fill(&mut chunk);
@@ -209,6 +232,7 @@ where
 /// itself comes from the shared `FrameBytes`.
 pub(crate) async fn write_frame_async<C, SPI, I>(
     spi: &mut SPI,
+    header: u8,
     pixels: I,
 ) -> Result<(), Error<SPI::Error>>
 where
@@ -216,7 +240,7 @@ where
     SPI: embedded_hal_async::spi::SpiBus,
     I: Iterator<Item = C::Pixel>,
 {
-    let mut bytes = FrameBytes::<C, I>::new(pixels);
+    let mut bytes = FrameBytes::<C, I>::new(header, pixels);
     let mut chunk = [0u8; CHUNK];
     loop {
         let filled = bytes.fill(&mut chunk);
@@ -252,11 +276,14 @@ struct FrameBytes<C: Chip, I> {
     /// The channel bytes still to send for the LED in progress.
     channels: Option<ClocklessBytes<C, Once<C::Pixel>>>,
     led_count: usize,
+    /// Each LED's first byte: `0xE0` plus the global brightness.
+    header: u8,
 }
 
 impl<C: Chip, I: Iterator<Item = C::Pixel>> FrameBytes<C, I> {
-    fn new(pixels: I) -> Self {
+    fn new(header: u8, pixels: I) -> Self {
         Self {
+            header,
             pixels,
             stage: Stage::Start(4),
             channels: None,
@@ -299,8 +326,8 @@ impl<C: Chip, I: Iterator<Item = C::Pixel>> Iterator for FrameBytes<C, I> {
                     if let Some(pixel) = self.pixels.next() {
                         self.led_count += 1;
                         self.channels = Some(clockless_bytes::<C, _>(core::iter::once(pixel)));
-                        // Every LED starts with full brightness (0xFF).
-                        return Some(0xFF);
+                        // Every LED starts with its global brightness.
+                        return Some(self.header);
                     }
                     self.stage = Stage::End(ClockedFormat::of::<C>().end_frame_len(self.led_count));
                 }
@@ -315,7 +342,7 @@ mod tests {
     use super::*;
     use crate::testing::{FakeAsyncBus, FakeBus, FakeError};
     use crate::Error;
-    use ledkit_core::{wire, Apa102, Output, OutputAsync, Rgb, Sk9822, Strip};
+    use ledkit_core::{wire, Apa102, Brightness, Output, OutputAsync, Rgb, Sk9822, Strip};
 
     fn frame_matches_core_for<C: Chip<Pixel = Rgb>>() {
         for n in [0usize, 1, 15, 16, 17, 40, 64] {
@@ -347,11 +374,11 @@ mod tests {
             let pixels = vec![Rgb::new(1, 2, 3); n];
 
             let mut apa = FakeBus::default();
-            write_frame::<Apa102, _, _>(&mut apa, pixels.iter().copied()).unwrap();
+            write_frame::<Apa102, _, _>(&mut apa, 0xFF, pixels.iter().copied()).unwrap();
             assert_eq!(apa.bytes[4 + 4 * n..], vec![0xFF; clocks], "apa102 n = {n}");
 
             let mut sk = FakeBus::default();
-            write_frame::<Sk9822, _, _>(&mut sk, pixels.iter().copied()).unwrap();
+            write_frame::<Sk9822, _, _>(&mut sk, 0xFF, pixels.iter().copied()).unwrap();
             assert_eq!(
                 sk.bytes[4 + 4 * n..],
                 vec![0x00; 4 + clocks],
@@ -366,12 +393,12 @@ mod tests {
             .map(|i| Rgb::new(i, 2, 3))
             .filter(|pixel| pixel.r % 2 == 0);
         let mut bus = FakeBus::default();
-        write_frame::<Apa102, _, _>(&mut bus, pixels.clone()).unwrap();
+        write_frame::<Apa102, _, _>(&mut bus, 0xFF, pixels.clone()).unwrap();
         let pixels: Vec<Rgb> = pixels.collect();
         let want: Vec<u8> = wire::clocked_frame::<Apa102, _>(pixels.iter().copied()).collect();
         assert_eq!(bus.bytes, want);
         let mut bus = FakeBus::default();
-        write_frame::<Sk9822, _, _>(&mut bus, pixels.iter().copied()).unwrap();
+        write_frame::<Sk9822, _, _>(&mut bus, 0xFF, pixels.iter().copied()).unwrap();
         let want: Vec<u8> = wire::clocked_frame::<Sk9822, _>(pixels.iter().copied()).collect();
         assert_eq!(bus.bytes, want);
     }
@@ -384,6 +411,43 @@ mod tests {
         let bus = strip.output().bus();
         assert_eq!(bus.bytes.len(), wire::clocked_frame_len::<Sk9822>(4));
         assert_eq!(bus.flushes, 1);
+    }
+
+    #[test]
+    fn hd_strip_sends_the_global_brightness() {
+        let mut strip = Strip::<Apa102, 3, _>::new(ClockedSpi::new(FakeBus::default()));
+        strip.set_dithering(false);
+        strip.set_brightness(Brightness::exact(3));
+        strip.set_hd_brightness(true);
+        strip.fill(Rgb::new(255, 128, 0));
+        strip.show().unwrap();
+        // Level 3 is global 2, channels scaled by 61.
+        let want: Vec<u8> = wire::clocked_frame::<Apa102, _>([Rgb::new(62, 31, 0); 3])
+            .with_global_brightness(2)
+            .collect();
+        assert_eq!(strip.output().bus().bytes, want);
+        assert_eq!(want[4], 0xE2);
+
+        // Turning HD off goes back to full global brightness.
+        strip.set_hd_brightness(false);
+        let mut async_strip = Strip::<Apa102, 3, _>::new(ClockedSpi::new(FakeAsyncBus::default()));
+        async_strip.set_dithering(false);
+        async_strip.set_brightness(Brightness::exact(3));
+        async_strip.set_hd_brightness(true);
+        async_strip.fill(Rgb::new(255, 128, 0));
+        embassy_futures::block_on(async_strip.show_async()).unwrap();
+        assert_eq!(async_strip.output().bus().bytes, want);
+        strip.show().unwrap();
+        let plain: Vec<u8> = wire::clocked_frame::<Apa102, _>([Rgb::new(4, 2, 0); 3]).collect();
+        assert_eq!(strip.output().bus().bytes[want.len()..], plain);
+    }
+
+    #[test]
+    fn global_brightness_is_capped_at_31() {
+        let mut out = ClockedSpi::<Apa102, _>::new(FakeBus::default());
+        assert!(Output::<Apa102>::set_global_brightness(&mut out, 200));
+        Output::<Apa102>::write(&mut out, [Rgb::BLACK].into_iter()).unwrap();
+        assert_eq!(out.bus().bytes[4], 0xFF);
     }
 
     #[test]

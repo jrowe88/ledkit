@@ -76,6 +76,14 @@
 //!   `strip.set_dithering(false)`.
 //!   Flicker at low brightness, especially in slow fades, is the same effect:
 //!   call `strip.set_dithering(false)` or show frames faster (≥100 per second).
+//! - **DotStars dim "HD".** DotStars (APA102, SK9822) also have a 5-bit
+//!   brightness level in every LED. With an output that sends it, such as
+//!   `ledkit-spi`'s `ClockedSpi`, ledkit lowers that level at the dim end
+//!   instead of squeezing the color channels, so dim colors keep their detail.
+//!   Without it, 10% brightness leaves each channel only 0 to about 2, and an
+//!   Adafruit DotStar HD 8x8 goes dark. This is on by default. The APA102 makes
+//!   the 5-bit level with a slow flicker some cameras can see; if you film it
+//!   at low brightness, call `strip.set_hd_brightness(false)`.
 //!
 //! ## Which chip type do I use?
 //!
@@ -114,7 +122,7 @@
 //!   frame ends with `ceil(n / 16)` bytes of `0xFF` for the APA102, like
 //!   Adafruit's library (verified on hardware). The SK9822 instead gets a
 //!   4-byte zero reset frame plus `ceil(n / 16)` zero bytes, which it needs to
-//!   latch its colors (not yet verified on hardware).
+//!   latch its colors (verified on a 144-LED strip).
 //!
 //! You only meet these when writing a backend; see [`Output`].
 //!

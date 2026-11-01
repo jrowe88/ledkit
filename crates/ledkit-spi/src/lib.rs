@@ -142,7 +142,7 @@
 //! |---|---|
 //! | WS2812/SK6812 family | 3.2 MHz is a good pick (2.3 to 6.8 MHz works for a WS2812B) |
 //! | WS2811 at 400 kHz | make a guess with [`ClocklessSpi::new`]; the error message names the clocks that work |
-//! | DotStars | anything up to 8 MHz for now |
+//! | DotStars | any speed; 1 to 40 MHz all ran clean on an ESP32-C6 with a 64-LED DotStar HD 8×8 on a breadboard. Long strips and long wires may need slower |
 //!
 //! **Pass the clock your bus really runs at.** Many HALs round the speed you
 //! ask for to what the hardware can divide down to (a Raspberry Pi asking for
@@ -202,16 +202,38 @@
 //! there. It is **not** safe with [`ClocklessSpi::new_packed`], where a pause can land
 //! inside a high pulse.
 //!
+//! ## Dim DotStars: HD brightness
+//!
+//! DotStars have a 5-bit brightness level in every LED, on top of the 8-bit
+//! color channels, and `ClockedSpi` sends it. So `Strip` uses "HD" brightness
+//! by default: in the dim half of the range it lowers the 5-bit level and keeps
+//! the channels wide (at 10%, a level of 1 out of 31 with channels up to about
+//! 62), so dim colors stay smooth and true. Above about half brightness it
+//! sends the same bytes as plain dimming. Plain dimming would leave each
+//! channel only 0 to about 2 at 10%, and soft colors would round to off. HD
+//! also lights LEDs that ignore very short pulses: on an Adafruit DotStar HD
+//! 8×8, 10% is dark without HD and lit with it, as tested on an ESP32-C6.
+//!
+//! The APA102 makes its 5-bit level with a slow flicker, which some cameras
+//! show as banding at low brightness (the SK9822 doesn't have it). If you film
+//! your LEDs, you can turn HD off:
+//!
+//! ```rust,ignore
+//! strip.set_hd_brightness(false);
+//! ```
+//!
 //! ## Tested on hardware
 //!
 //! | Board | LEDs | Result |
 //! |---|---|---|
 //! | ESP32-C6 dev kit (chip rev v0.2), 2026-10-30 | the onboard LED | passed: red, green, blue and white in order, a smooth rainbow, 20% brightness |
+//! | ESP32-C6 (SPI2, 3.2 MHz, esp-hal blocking) | WS2812-type strip, 100 LEDs, through a 74AHCT125 | ✅ pass (2026-10-31) with `new` and with `new_packed`: solid colors, a counting pattern with the last LED marked, and a rainbow at 50 frames a second, no glitches |
 //! | Raspberry Pi (Linux spidev) | | untested on hardware; builds in CI |
 //! | Teensy 4 (LPSPI) | NeoPixel 8×8 matrix (64 LEDs) | ✅ pass (2026-10-31), with the two SPI settings in `examples/teensy4-spi` |
 //! | Teensy 4 (LPSPI) | DotStar HD 8×8 (APA102-2020, 64 LEDs) | ✅ pass (2026-10-31); the `0xFF` end frame was the fix |
-//! | ESP32-C6 (SPI2, 4 MHz) | DotStar HD 8×8 (APA102-2020, 64 LEDs) | ✅ pass (2026-10-31); at 10% brightness the colors are too faint to see (see the roadmap) |
-//! | SK9822, other boards (`ClockedSpi`) | | untested on hardware |
+//! | ESP32-C6 (SPI2, 1 to 40 MHz requested) | DotStar HD 8×8 (APA102-2020, 64 LEDs) | ✅ pass (2026-10-31), clean at every speed tried; dark at 10% brightness without HD, lit with it (see "Dim DotStars" above) |
+//! | ESP32-C6 (SPI2, 4 MHz) | SK9822 strip, 144 LEDs | ✅ pass (2026-10-31): each frame latched at once through to LED 143 with the zero end frame, and HD brightness worked |
+//! | other boards (`ClockedSpi`) | | untested on hardware |
 //!
 //! Everything else is covered by host tests with a pretend SPI bus. Examples
 //! are in the `examples` folder of the repository: `esp32c6-spi`,

@@ -183,6 +183,22 @@ jobs:
       - run: cargo build --release --locked
         working-directory: examples/teensy4-spi
 
+  example-teensy4-uart:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+          targets: thumbv7em-none-eabihf
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: examples/teensy4-uart
+      - run: cargo build --release --locked
+        working-directory: examples/teensy4-uart
+      - run: cargo clippy --release --locked -- -D warnings
+        working-directory: examples/teensy4-uart
+
   # ESP-IDF (std) example. The first run downloads ESP-IDF and its tools (several
   # minutes); ~/.espressif is cached after that. Uncertain until it has run once on
   # GitHub: the cache key and whether ldproxy needs extra system packages.

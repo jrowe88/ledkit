@@ -1,0 +1,39 @@
+[package]
+name = "teensy4-uart"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.95"
+publish = false
+
+# This example is its own little project. The empty [workspace] table keeps
+# Cargo from treating it as part of the ledkit workspace one folder up.
+[workspace]
+
+[dependencies]
+ledkit-core = { path = "../../crates/ledkit-core" }
+ledkit-uart = { path = "../../crates/ledkit-uart" }
+# The serial port and delay traits ledkit-uart works with.
+embedded-io = "0.7"
+embedded-io-async = "0.7"
+embedded-hal = "1.0"
+embedded-hal-async = "1.0"
+# Runs an async function to completion without an async runtime.
+embassy-futures = "0.1"
+
+# The board support package for the Teensy 4. The `rt` feature adds the
+# start-up code and the memory layout for the chip.
+teensy4-bsp = { version = "0.6", features = ["rt"] }
+# If the program panics, this stops the chip safely instead of running wild.
+teensy4-panic = "0.3"
+# For `asm::delay`, a simple wait that counts processor cycles.
+cortex-m = "0.7"
+
+[profile.dev]
+# Rust code is very slow without optimization on a microcontroller.
+opt-level = "s"
+
+[profile.release]
+opt-level = "s"
+lto = "fat"
+codegen-units = 1
+debug = 2

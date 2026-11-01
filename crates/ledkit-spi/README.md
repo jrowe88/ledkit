@@ -200,7 +200,8 @@ inside a high pulse.
 | Raspberry Pi (Linux spidev) | | untested on hardware; builds in CI |
 | Teensy 4 (LPSPI) | NeoPixel 8×8 matrix (64 LEDs) | ✅ pass (2026-10-31), with the two SPI settings in `examples/teensy4-spi` |
 | Teensy 4 (LPSPI) | DotStar HD 8×8 (APA102-2020, 64 LEDs) | ✅ pass (2026-10-31); the `0xFF` end frame was the fix |
-| DotStars on other boards, SK9822 (`ClockedSpi`) | | untested on hardware |
+| ESP32-C6 (SPI2, 4 MHz) | DotStar HD 8×8 (APA102-2020, 64 LEDs) | ✅ pass (2026-10-31); at 10% brightness the colors are too faint to see (see the roadmap) |
+| SK9822, other boards (`ClockedSpi`) | | untested on hardware |
 
 Everything else is covered by host tests with a pretend SPI bus. Examples
 are in the `examples` folder of the repository: `esp32c6-spi`,

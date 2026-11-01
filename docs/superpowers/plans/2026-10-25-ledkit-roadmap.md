@@ -57,6 +57,8 @@ were deferred:
 - Pi hardware test (the example builds in CI)
 - WS2812B strip at 2.3, 2.4, 3.2, 4.0 and 6.4 MHz
 - ~~APA102/SK9822 end frame~~: done. The APA102 end frame is now `ceil(n / 16)` bytes of `0xFF` (as in Adafruit's library), verified on an APA102-2020 on 2026-10-31. The SK9822 keeps a 4-byte zero reset frame plus `ceil(n / 16)` zero bytes (`ClockedFormat::Sk9822`); that SK9822 end frame still needs hardware verification.
+- DotStar on the ESP32-C6: pass 2026-10-31 (SPI2 at 4 MHz, data GPIO4, clock GPIO6, Adafruit DotStar HD 8×8). At 10% brightness nothing seemed to light: ledkit dims DotStars only through the 8-bit color values, so 10% green is 3/255, invisible on these LEDs; 40% looked right.
+- DotStar "HD" brightness: use the 5-bit per-LED global brightness field for dimming (FastLED's APA102 HD idea), so low brightness keeps its color depth instead of rounding to almost nothing
 - `MAX_CLOCK_HZ` for the clocked chips
 - RGBW byte order
 - datasheet citations in `chips.rs`

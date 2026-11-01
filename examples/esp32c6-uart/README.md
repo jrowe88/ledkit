@@ -4,7 +4,9 @@ Drives a WS2812B ("NeoPixel") strip from the ESP32-C6's serial port with `ledkit
 `ledkit-uart`. The strip's data wire is fed from the port's transmit pin with its output
 inverted, so the port's hardware does the timing.
 
-> **Status: not tested on hardware yet.**
+> **Status: tested on hardware.** Run on an ESP32-C6 DevKit with a 100-LED WS2812-type
+> strip through a 74AHCT125, on 2026-11-01: both rounds showed stable colors, the counting
+> pattern through to LED 99, and a clean rainbow.
 
 ## What you'll see
 

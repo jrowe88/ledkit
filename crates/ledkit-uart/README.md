@@ -92,7 +92,7 @@ driver might not.
 
 | Board | LEDs | Result |
 |---|---|---|
-| ESP32-C6 (UART) | WS2812-type strip, 100 LEDs | not tested yet |
+| ESP32-C6 (UART1, 4 Mbaud, inverted in the GPIO matrix) | WS2812-type strip, 100 LEDs | ✅ pass (2026-11-01): colors, counting and a fast rainbow clean through to LED 99, blocking and async |
 | Teensy 4 (LPUART, blocking and DMA) | WS2812-type strip, 100 LEDs | not tested yet |
 
 Examples are in the `examples` folder of the repository: `esp32c6-uart` and `teensy4-uart`.

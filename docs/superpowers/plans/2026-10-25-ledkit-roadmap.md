@@ -115,3 +115,32 @@ The pulse project switched its status LED to `ledkit-core` with a ~60-line RMT `
 - move `Rgb` ↔ `Rgb888` conversions to `From` impls in `ledkit-color` behind an `embedded-graphics` feature (today they are the functions `rgb_from_rgb888` / `rgb888_from_rgb`, because a `From` impl isn't possible in `ledkit-layout`)
 - an image (BMP) drawing example
 - layouts for rings (circle coordinates), if wanted later
+
+## Notes on Teensy 4 WS2812 techniques (research, 2026-11-01)
+
+How PJRC's C++ libraries drive WS2812s on the Teensy 4, and what exists in Rust. The serial
+technique is being built as `ledkit-uart` (design `specs/2026-11-01-ledkit-uart-design.md`,
+plan `plans/2026-11-01-ledkit-uart.md`, branch `uart-design`); parallel strips are paused by
+the owner until `ledkit-core` has a multi-strip output. These notes are background for both.
+
+- **WS2812Serial** (the model for `ledkit-uart`): an LPUART at 4 Mbaud with inverted output
+  and DMA; ten 250 ns slots per byte carry 2 LED bits. Its timing is fixed: a "1" is 1 µs
+  high and 0.25 µs low, outside ledkit's WS2812B window, which is why `ledkit-uart` picks the
+  high-slot counts from each chip's timing instead (anti-goal in the design). 12 buffer bytes
+  per RGB LED, 300 µs latch, UART TX pins only, best under about 600 LEDs per pin.
+- **OctoWS2811** (`OctoWS2811_imxrt.cpp`, MIT; parallel strips, paused): QuadTimer 4 channels
+  0 to 2 mark the bit start, the "0" point (0.30 µs) and the "1" point (0.75 µs); XBAR turns
+  each into a DMA request, and three DMA channels write the fast GPIO set/clear registers
+  (set every LED pin, clear the pins whose bit is 0, clear the rest). Any pins on up to four
+  GPIO ports (8 by default); pixels are transposed so each word holds one bit per pin,
+  double-buffered in about 10 KB with an interrupt refilling the idle half. Seen in passing:
+  the BGRW case uses blue twice, and `busy()` never really checks the DMA.
+- **Rust on the Teensy 4:** `imxrt-hal` 0.6.0 has `lpuart` (with inversion and `dma_write`),
+  `lpspi`, `dma`, `gpio`, `flexpwm`, `gpt` and `pit`, but no FlexIO, QuadTimer or XBAR
+  drivers, so an OctoWS2811-style output would first need those on `imxrt-ral`.
+  [`ws2812-flexio`](https://github.com/finomnis/ws2812-flexio) (MIT/Apache, 0.3.0, June 2024)
+  already drives up to 3 parallel strips per FlexIO block, blocking or DMA, with Teensy 4.0
+  examples (fixed 800 kHz, RGB only, quiet since 2024).
+- **When parallel strips resume:** look at wrapping or contributing to `ws2812-flexio` before
+  writing FlexIO support from scratch; an OctoWS2811-style QuadTimer/XBAR output is the most
+  work and only worth it for many strips.

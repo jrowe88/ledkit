@@ -5,7 +5,14 @@ and `ledkit-uart`. The strip's data wire is fed from serial port 1's transmit pi
 output inverted, so the port's hardware does the timing. One round writes to the port from
 the processor, the next feeds it by DMA.
 
-> **Status: not tested on hardware yet.**
+> **Status: tested on hardware.** Run on a Teensy 4.0 with a 100-LED WS2812-type strip
+> through a 74HCT245 level shifter, on 2026-11-01: both rounds (processor and DMA) cycled
+> through the colors, counting and rainbow correctly.
+
+A 74xx245 works as the level shifter too (it must be an HCT or AHCT part): A1 (pin 2) from
+the Teensy, B1 (pin 18) to the strip, DIR (pin 1) to 5 V, OE (pin 19) to GND, VCC pin 20,
+GND pin 10, unused A inputs to GND. Mind the notch: powered the wrong way round it gets hot
+and dies.
 
 ## What you'll see
 

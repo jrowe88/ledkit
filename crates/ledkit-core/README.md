@@ -82,7 +82,7 @@ much brighter than "half". ledkit takes care of that for you.
   brightness level in every LED. With an output that sends it, such as
   `ledkit-spi`'s `ClockedSpi`, ledkit lowers that level at the dim end
   instead of squeezing the color channels, so dim colors keep their detail.
-  Without it, 10% brightness leaves each channel only 0 to about 2, and an
+  Without it, 10% brightness leaves each channel only 0 to 3, and an
   Adafruit DotStar HD 8x8 goes dark. This is on by default. The APA102 makes
   the 5-bit level with a slow flicker some cameras can see; if you film it
   at low brightness, call `strip.set_hd_brightness(false)`.

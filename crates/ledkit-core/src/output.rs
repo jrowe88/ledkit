@@ -66,6 +66,20 @@ pub trait Output<C: Chip> {
     /// What can go wrong while sending.
     type Error;
 
+    /// Sets the DotStar per-LED global brightness (0 to 31) for the frames
+    /// that follow, and says whether this backend sends it.
+    ///
+    /// [`Strip`](crate::Strip) calls this before every frame, with 31 unless
+    /// [`set_hd_brightness`](crate::Strip::set_hd_brightness) is on. Only a
+    /// DotStar backend that puts the level in each LED's header byte should
+    /// return `true`. The default does nothing and returns `false`, and
+    /// `Strip` then dims through the color channels alone, so a backend that
+    /// ignores this stays correct.
+    fn set_global_brightness(&mut self, level: u8) -> bool {
+        let _ = level;
+        false
+    }
+
     /// Sends one frame of already processed pixels.
     ///
     /// # Errors
@@ -107,6 +121,20 @@ pub trait Output<C: Chip> {
 pub trait OutputAsync<C: Chip> {
     /// What can go wrong while sending.
     type Error;
+
+    /// Sets the DotStar per-LED global brightness (0 to 31) for the frames
+    /// that follow, and says whether this backend sends it.
+    ///
+    /// [`Strip`](crate::Strip) calls this before every frame, with 31 unless
+    /// [`set_hd_brightness`](crate::Strip::set_hd_brightness) is on. Only a
+    /// DotStar backend that puts the level in each LED's header byte should
+    /// return `true`. The default does nothing and returns `false`, and
+    /// `Strip` then dims through the color channels alone, so a backend that
+    /// ignores this stays correct.
+    fn set_global_brightness(&mut self, level: u8) -> bool {
+        let _ = level;
+        false
+    }
 
     /// Sends one frame of already processed pixels.
     ///

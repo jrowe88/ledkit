@@ -33,6 +33,27 @@ pub(crate) const fn scale_channel(value: u8, brightness: u8, dither: u8) -> u8 {
     }
 }
 
+/// Splits a brightness level between a DotStar's 5-bit global brightness and
+/// its 8-bit channels, for [`Strip::set_hd_brightness`](crate::Strip::set_hd_brightness).
+///
+/// Returns `(global, channel)`: the smallest global level (1 to 31) that can
+/// still reach `brightness`, and the channel scale that makes up the rest, so
+/// `global / 31 * channel / 255` stays close to `brightness / 255`. A dim
+/// level then keeps most of the channels' 256 steps. 0 gives `(31, 0)`.
+pub(crate) const fn hd_split(brightness: u8) -> (u8, u8) {
+    if brightness == 0 {
+        return (31, 0);
+    }
+    let wanted = brightness as u16 * 31;
+    let global = wanted.div_ceil(255);
+    let channel = (wanted + global / 2) / global;
+    #[allow(clippy::cast_possible_truncation)] // global <= 31, channel <= 255
+    (
+        global as u8,
+        if channel > 255 { 255 } else { channel as u8 },
+    )
+}
+
 /// Everything the pipeline needs to process one pixel.
 pub(crate) struct PipelineSettings {
     /// White-balance correction for the R, G and B channels.
@@ -103,6 +124,23 @@ mod tests {
             DITHER_SEQUENCE.map(|d| scale_channel(10, 20, d)),
             [0, 1, 1, 1, 0, 1, 1, 1]
         );
+    }
+    #[test]
+    fn hd_split_keeps_the_light_and_gains_steps() {
+        assert_eq!(hd_split(0), (31, 0));
+        assert_eq!(hd_split(255), (31, 255));
+        assert_eq!(hd_split(3), (1, 93));
+        for b in 1..=255u8 {
+            let (global, channel) = hd_split(b);
+            assert!((1..=31).contains(&global));
+            // The light (global/31 * channel/255) stays within half a
+            // channel step of the plain level.
+            let plain = f32::from(b) / 255.0;
+            let hd = f32::from(global) / 31.0 * f32::from(channel) / 255.0;
+            assert!((hd - plain).abs() <= 0.5 / 255.0, "{b}: {global} {channel}");
+            // And the channels get at least as many steps as before.
+            assert!(channel >= b, "{b}: {channel}");
+        }
     }
     #[test]
     fn pipeline_defaults_are_identity() {

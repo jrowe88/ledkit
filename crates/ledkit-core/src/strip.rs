@@ -1,6 +1,6 @@
 //! The [`Strip`] pixel buffer.
 
-use crate::pipeline::{process, PipelineSettings, DITHER_SEQUENCE, NO_DITHER};
+use crate::pipeline::{hd_split, process, PipelineSettings, DITHER_SEQUENCE, NO_DITHER};
 use crate::power::{limited_brightness, WORST_CASE_DITHER};
 use crate::{Brightness, Chip, Milliamps, Output, OutputAsync, Rgb};
 use core::marker::PhantomData;
@@ -45,6 +45,7 @@ pub struct Strip<C: Chip, const N: usize, O> {
     correction: Rgb,
     power_limit: Option<Milliamps>,
     dithering: bool,
+    hd: bool,
     frame: u8,
     last_raw: Option<u8>,
     chip: PhantomData<C>,
@@ -78,6 +79,7 @@ impl<C: Chip, const N: usize, O> Strip<C, N, O> {
             correction: correction::NONE,
             power_limit: None,
             dithering: true,
+            hd: false,
             frame: 0,
             last_raw: None,
             chip: PhantomData,
@@ -422,6 +424,54 @@ impl<C: Chip, const N: usize, O> Strip<C, N, O> {
         self.dithering = on;
     }
 
+    /// Turns DotStar "HD" brightness on or off (it is off by default).
+    ///
+    /// DotStars (APA102, SK9822) have a 5-bit brightness level in every LED,
+    /// on top of the 8-bit color channels. Normally ledkit leaves it at full
+    /// and dims through the channels alone, so a dim strip has few color
+    /// steps left: at 10% brightness each channel only goes from 0 to about
+    /// 3, and soft colors round to off. With HD on, ledkit turns the 5-bit
+    /// level down instead and keeps the channels wide, so dim colors stay
+    /// smooth and true. On paper the light is the same either way, but very
+    /// short color pulses barely light some DotStars: on an Adafruit DotStar
+    /// HD 8x8 (APA102-2020), 10% brightness is dark without HD and lit with it.
+    ///
+    /// It only works with an output that sends the 5-bit level, such as
+    /// `ledkit-spi`'s `ClockedSpi`. With any other output (and with
+    /// NeoPixels) it does nothing. One catch on the APA102 (not the SK9822):
+    /// it makes that 5-bit level with a slow on/off flicker (a few hundred
+    /// times a second), which some cameras pick up as banding at low
+    /// brightness, so it is off unless you ask.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use ledkit_core::testing::MemoryOutput;
+    /// # use ledkit_core::{Apa102, Rgb, Strip};
+    /// let mut strip: Strip<Apa102, 4, MemoryOutput<Rgb, 4>> = Strip::new(MemoryOutput::new());
+    /// strip.set_hd_brightness(true);
+    /// assert!(strip.hd_brightness());
+    /// ```
+    pub fn set_hd_brightness(&mut self, on: bool) {
+        self.hd = on;
+    }
+
+    /// Whether DotStar "HD" brightness is on; see
+    /// [`set_hd_brightness`](Self::set_hd_brightness).
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use ledkit_core::testing::MemoryOutput;
+    /// # use ledkit_core::{Apa102, Rgb, Strip};
+    /// let strip: Strip<Apa102, 4, MemoryOutput<Rgb, 4>> = Strip::new(MemoryOutput::new());
+    /// assert!(!strip.hd_brightness());
+    /// ```
+    #[must_use]
+    pub fn hd_brightness(&self) -> bool {
+        self.hd
+    }
+
     /// The brightness the last successful `show` really used, after power limiting.
     ///
     /// It reflects the last successful `show`: it is updated each time
@@ -509,10 +559,21 @@ impl<C: Chip, const N: usize, O> Strip<C, N, O> {
         settings
     }
 
+    /// Splits this frame's brightness for an output, given whether it takes
+    /// a DotStar global level: returns that level (31 when HD is off) and
+    /// the channel brightness to use. See [`set_hd_brightness`](Self::set_hd_brightness).
+    fn split(&self, brightness: u8) -> (u8, u8) {
+        if self.hd {
+            hd_split(brightness)
+        } else {
+            (31, brightness)
+        }
+    }
+
     /// Records a frame that was sent: remembers its brightness and moves
     /// the dither on to the next frame.
-    fn commit(&mut self, settings: &PipelineSettings) {
-        self.last_raw = Some(settings.brightness);
+    fn commit(&mut self, brightness: u8) {
+        self.last_raw = Some(brightness);
         self.frame = self.frame.wrapping_add(1);
     }
 
@@ -541,10 +602,15 @@ impl<C: Chip, const N: usize, O> Strip<C, N, O> {
     where
         O: Output<C>,
     {
-        let settings = self.prepare();
+        let mut settings = self.prepare();
+        let brightness = settings.brightness;
+        let (global, channel) = self.split(brightness);
+        if Output::<C>::set_global_brightness(&mut self.output, global) {
+            settings.brightness = channel;
+        }
         self.output
             .write(self.pixels.iter().map(|p| process(*p, &settings)))?;
-        self.commit(&settings);
+        self.commit(brightness);
         Ok(())
     }
 
@@ -569,11 +635,16 @@ impl<C: Chip, const N: usize, O> Strip<C, N, O> {
     where
         O: OutputAsync<C>,
     {
-        let settings = self.prepare();
+        let mut settings = self.prepare();
+        let brightness = settings.brightness;
+        let (global, channel) = self.split(brightness);
+        if OutputAsync::<C>::set_global_brightness(&mut self.output, global) {
+            settings.brightness = channel;
+        }
         self.output
             .write(self.pixels.iter().map(|p| process(*p, &settings)))
             .await?;
-        self.commit(&settings);
+        self.commit(brightness);
         Ok(())
     }
 }
@@ -582,7 +653,8 @@ impl<C: Chip, const N: usize, O> Strip<C, N, O> {
 mod tests {
     use super::*;
     use crate::testing::MemoryOutput;
-    use crate::{Brightness, Milliamps, Rgb, Rgbw, Sk6812Rgbw, Ws2812b};
+    use crate::{Apa102, Brightness, Milliamps, Rgb, Rgbw, Sk6812Rgbw, Ws2812b};
+    use core::convert::Infallible;
 
     type Mem<const N: usize> = MemoryOutput<Rgb, N>;
     fn strip<const N: usize>() -> Strip<Ws2812b, N, Mem<N>> {
@@ -848,5 +920,83 @@ mod tests {
         s.set(0, Rgb::BLUE);
         embassy_futures::block_on(s.show_async()).unwrap();
         assert_eq!(s.output().last_frame(), &[Rgb::BLUE]);
+    }
+
+    /// A DotStar output that takes a global brightness and remembers it.
+    struct Hd {
+        global: u8,
+        memory: MemoryOutput<Rgb, 1>,
+    }
+
+    impl Output<Apa102> for Hd {
+        type Error = Infallible;
+        fn set_global_brightness(&mut self, level: u8) -> bool {
+            self.global = level;
+            true
+        }
+        fn write<I>(&mut self, pixels: I) -> Result<(), Infallible>
+        where
+            I: Iterator<Item = Rgb> + ExactSizeIterator,
+        {
+            Output::<Apa102>::write(&mut self.memory, pixels)
+        }
+    }
+
+    impl OutputAsync<Apa102> for Hd {
+        type Error = Infallible;
+        fn set_global_brightness(&mut self, level: u8) -> bool {
+            Output::<Apa102>::set_global_brightness(self, level)
+        }
+        #[allow(clippy::unused_async_trait_impl)] // the trait requires an async fn
+        async fn write<I>(&mut self, pixels: I) -> Result<(), Infallible>
+        where
+            I: Iterator<Item = Rgb> + ExactSizeIterator,
+        {
+            Output::<Apa102>::write(self, pixels)
+        }
+    }
+
+    fn hd_strip() -> Strip<Apa102, 1, Hd> {
+        let mut s = Strip::new(Hd {
+            global: 0,
+            memory: MemoryOutput::new(),
+        });
+        s.set_dithering(false);
+        s.set_brightness(Brightness::exact(3));
+        s.fill(Rgb::new(255, 128, 0));
+        s
+    }
+
+    #[test]
+    fn hd_off_sends_full_global_brightness() {
+        let mut s = hd_strip();
+        s.show().unwrap();
+        assert_eq!(s.output().global, 31);
+        assert_eq!(s.output().memory.last_frame(), &[Rgb::new(4, 2, 0)]);
+    }
+    #[test]
+    fn hd_on_moves_the_dimming_into_the_global_level() {
+        let mut s = hd_strip();
+        s.set_hd_brightness(true);
+        s.show().unwrap();
+        // Level 3 is global 1 with the channels at 93: the same light on
+        // paper, with about 31 times as many steps.
+        assert_eq!(s.output().global, 1);
+        assert_eq!(s.output().memory.last_frame(), &[Rgb::new(94, 47, 0)]);
+        assert_eq!(s.effective_brightness(), Brightness::exact(3));
+        s.set_hd_brightness(false);
+        embassy_futures::block_on(s.show_async()).unwrap();
+        assert_eq!(s.output().global, 31);
+        assert_eq!(s.output().memory.last_frame(), &[Rgb::new(4, 2, 0)]);
+    }
+    #[test]
+    fn hd_on_does_nothing_without_a_global_level() {
+        let mut s: Strip<Apa102, 1, MemoryOutput<Rgb, 1>> = Strip::new(MemoryOutput::new());
+        s.set_dithering(false);
+        s.set_brightness(Brightness::exact(3));
+        s.set_hd_brightness(true);
+        s.fill(Rgb::new(255, 128, 0));
+        s.show().unwrap();
+        assert_eq!(s.output().last_frame(), &[Rgb::new(4, 2, 0)]);
     }
 }

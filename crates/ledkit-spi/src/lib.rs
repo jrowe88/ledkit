@@ -202,6 +202,26 @@
 //! there. It is **not** safe with [`ClocklessSpi::new_packed`], where a pause can land
 //! inside a high pulse.
 //!
+//! ## Dim DotStars: HD brightness
+//!
+//! ledkit normally dims DotStars through their 8-bit color channels, so a dim
+//! strip has few color steps: at 10% brightness each channel only goes from 0
+//! to about 3, and soft colors round to off. `ClockedSpi` also sends the
+//! DotStar's 5-bit per-LED brightness, so you can turn on "HD" brightness:
+//!
+//! ```rust,ignore
+//! strip.set_brightness(0.1);
+//! strip.set_hd_brightness(true);
+//! ```
+//!
+//! ledkit then lowers the 5-bit level and keeps the channels wide (at 10%, a
+//! level of 1 out of 31 with channels up to about 93), so dim colors stay
+//! smooth and true. It also lights LEDs that ignore very short pulses: on an
+//! Adafruit DotStar HD 8×8, 10% is dark without HD and lit with it, as tested on
+//! an ESP32-C6. It is off by default:
+//! the APA102 makes its 5-bit level with a slow flicker, which some cameras
+//! show as banding at low brightness. The SK9822 doesn't have that flicker.
+//!
 //! ## Tested on hardware
 //!
 //! | Board | LEDs | Result |
@@ -210,7 +230,7 @@
 //! | Raspberry Pi (Linux spidev) | | untested on hardware; builds in CI |
 //! | Teensy 4 (LPSPI) | NeoPixel 8×8 matrix (64 LEDs) | ✅ pass (2026-10-31), with the two SPI settings in `examples/teensy4-spi` |
 //! | Teensy 4 (LPSPI) | DotStar HD 8×8 (APA102-2020, 64 LEDs) | ✅ pass (2026-10-31); the `0xFF` end frame was the fix |
-//! | ESP32-C6 (SPI2, 4 MHz) | DotStar HD 8×8 (APA102-2020, 64 LEDs) | ✅ pass (2026-10-31); at 10% brightness the colors are too faint to see (see the roadmap) |
+//! | ESP32-C6 (SPI2, 4 MHz) | DotStar HD 8×8 (APA102-2020, 64 LEDs) | ✅ pass (2026-10-31); dark at 10% brightness without HD, lit with it (see "Dim DotStars" above) |
 //! | SK9822, other boards (`ClockedSpi`) | | untested on hardware |
 //!
 //! Everything else is covered by host tests with a pretend SPI bus. Examples

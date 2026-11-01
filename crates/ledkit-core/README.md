@@ -78,6 +78,14 @@ much brighter than "half". ledkit takes care of that for you.
   `strip.set_dithering(false)`.
   Flicker at low brightness, especially in slow fades, is the same effect:
   call `strip.set_dithering(false)` or show frames faster (≥100 per second).
+- **DotStars can dim "HD".** DotStars (APA102, SK9822) also have a 5-bit
+  brightness level in every LED. Call `strip.set_hd_brightness(true)` and
+  ledkit dims through that level instead of the color channels, so dim
+  colors keep their detail: at 10% brightness the channels would otherwise
+  only go from 0 to about 3. On an Adafruit DotStar HD 8x8, 10% is dark
+  without HD and lit with it. It needs an output that sends the level, such as `ledkit-spi`'s
+  `ClockedSpi`, and is off by default because the APA102 makes that level
+  with a slow flicker some cameras can see.
 
 ## Which chip type do I use?
 

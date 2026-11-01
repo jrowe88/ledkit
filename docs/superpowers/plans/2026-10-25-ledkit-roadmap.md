@@ -104,6 +104,7 @@ The pulse project switched its status LED to `ledkit-core` with a ~60-line RMT `
 - async for `ledkit-esp-idf`
 - ESP32-H2 support needs a per-chip RMT tick (its RMT runs from a 32 MHz clock, which can't make the 10 MHz tick)
 - ~~check long strips on the esp-hal RMT for underruns~~: done 2026-10-31 on an ESP32-C6. A 100-LED WS2812-type strip ran clean with the blocking and the async driver (async polled with `embassy_futures::block_on`), at 50 frames a second, and the 64-LED matrix ran clean blocking. Still open: async on a real executor with other busy tasks; later consider `TxChannelConfig::with_memsize`
+- `ClocklessSpi` long strip on the ESP32-C6: pass 2026-10-31. A 100-LED WS2812-type strip at 3.2 MHz ran clean with `new` and with `new_packed` (esp-hal blocking SPI, refilling its 64-byte FIFO mid-frame), so the FIFO refills leave no gap the LEDs notice. One board; keep the `new_packed` warning for other HALs
 - ~~use `--locked` in the CI example builds~~ (done in the milestone 4 review fixes)
 
 ## Follow-ups after milestone 6 (`ledkit-layout`)

@@ -51,6 +51,10 @@ GPIO8.
 `RmtOutput::new` takes the pin and asks ESP-IDF for any free RMT transmit channel,
 so you never pick a channel number. You only choose the LED type and the pin.
 
+On the ESP32-S3, `RmtOutput::new_with_dma` feeds the RMT through DMA instead, which
+keeps long strips clean even when the processor is busy. Other chips (except the
+ESP32-P4) have no RMT DMA, and there it returns an error.
+
 ## The reset gap
 
 The LEDs latch the new colors once the data line has been idle for the chip's reset
@@ -83,7 +87,8 @@ ws.write([RGB8::new(255, 0, 0); 8]).unwrap();
 This crate only builds for ESP-IDF targets (for example `riscv32imac-esp-espidf`), with
 the setup `esp-idf-sys` needs: a nightly Rust with `rust-src`, `ldproxy`, and a
 `.cargo/config.toml` that sets the target, `build-std` and `ESP_IDF_VERSION`.
-Copy the setup of `examples/esp32c6-esp-idf`; its README walks through it.
+Copy the setup of `examples/esp32c6-esp-idf` (RISC-V chips) or
+`examples/esp32s3-esp-idf` (the Xtensa ESP32-S3); their READMEs walk through it.
 On Windows, keep the build folder short (the example's `.cargo/config.toml` sets
 `target-dir = "C:/t/ledkit"`), because `esp-idf-sys` rejects output paths over 88 characters.
 

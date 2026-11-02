@@ -540,6 +540,24 @@ impl<C: Chip, const N: usize, O> Strip<C, N, O> {
         &mut self.output
     }
 
+    /// Ends the strip and gives back its output (driver), for example to take
+    /// the bus back out of it or to build a new strip on it.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use ledkit_core::testing::MemoryOutput;
+    /// # use ledkit_core::{Rgb, Strip, Ws2812b};
+    /// let mut strip: Strip<Ws2812b, 4, MemoryOutput<Rgb, 4>> = Strip::new(MemoryOutput::new());
+    /// strip.show().unwrap();
+    /// let output = strip.release();
+    /// assert_eq!(output.frames_written, 1);
+    /// ```
+    #[must_use]
+    pub fn release(self) -> O {
+        self.output
+    }
+
     /// Works out the settings for this frame, with `hd` saying whether it
     /// goes out with HD brightness (so the power limit counts what HD
     /// sends). Nothing is changed until [`commit`](Self::commit) is called
@@ -668,6 +686,14 @@ mod tests {
         let s = strip::<4>();
         assert!(s.pixels().iter().all(|p| *p == Rgb::BLACK));
         assert_eq!(s.len(), 4);
+    }
+    #[test]
+    fn release_gives_back_the_output() {
+        let mut s = strip::<2>();
+        s.fill(Rgb::RED);
+        s.show().unwrap();
+        let output = s.release();
+        assert_eq!(output.frames_written, 1);
     }
     #[test]
     fn set_get_and_out_of_range() {

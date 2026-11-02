@@ -1,0 +1,17 @@
+[build]
+target = "xtensa-esp32s3-none-elf"
+
+[target.xtensa-esp32s3-none-elf]
+# `cargo run` flashes the board and then shows its serial output.
+runner = "espflash flash --monitor"
+rustflags = [
+  # esp-hal's linker script.
+  "-C", "link-arg=-nostartfiles",
+  "-C", "link-arg=-Wl,-Tlinkall.x",
+  # esp-hal puts code and data in one segment; that is intended, so hush the linker.
+  "-C", "link-arg=-Wl,--no-warn-rwx-segments",
+]
+
+[unstable]
+# The Xtensa targets ship without a prebuilt `core`, so Cargo builds it.
+build-std = ["core"]

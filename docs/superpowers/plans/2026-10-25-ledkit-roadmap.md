@@ -98,7 +98,7 @@ The pulse project switched its status LED to `ledkit-core` with a ~60-line RMT `
 
 ## Hardware follow-ups after milestone 4
 
-- Xtensa build and test (ESP32-S3) for both ESP crates
+- Xtensa build and test (ESP32-S3) for both ESP crates: builds 2026-11-02 (`esp32s3-*` examples, CI jobs, `new_with_dma` for `ledkit-esp-idf`); hardware test pending, see `2026-11-02-hardware-test-plan.md`
 - an external strip on the RMT at 300 LEDs (buffer RAM and timing), for both crates
 - async `ledkit-esp` on hardware with Embassy
 - async for `ledkit-esp-idf`

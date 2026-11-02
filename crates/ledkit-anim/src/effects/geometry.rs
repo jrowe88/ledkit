@@ -36,7 +36,6 @@ pub(crate) fn polar(at: Position, frame: Frame, center: Option<(u16, u16)>) -> P
     }
 }
 
-#[allow(dead_code)] // used by the iris transition
 /// The largest distance from the center to a corner, in 1/16ths of an LED (at least 1).
 pub(crate) fn farthest(frame: Frame, center: Option<(u16, u16)>) -> u32 {
     let (cx, cy) = center16(frame, center);

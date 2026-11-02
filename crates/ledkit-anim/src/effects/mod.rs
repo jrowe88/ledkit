@@ -7,7 +7,7 @@ mod color_cycle;
 mod color_wipe;
 mod comet;
 mod flames;
-mod geometry;
+pub(crate) mod geometry;
 mod gradient_scroll;
 mod pinwheel;
 mod plasma;

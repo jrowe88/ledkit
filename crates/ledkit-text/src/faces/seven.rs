@@ -6,15 +6,10 @@
 //! (hard-edged). Nothing is drawn into a buffer: each LED works out which
 //! letter it is over and counts lit pixels row by row.
 
-/// Segment bits: a (top), b (top right), c (bottom right), d (bottom),
-/// e (bottom left), f (top left), g (middle).
-const A: u8 = 1;
-const B: u8 = 2;
-const C: u8 = 4;
-const D: u8 = 8;
-const E: u8 = 16;
-const F: u8 = 32;
-const G: u8 = 64;
+// A glyph's segments are bits 0 to 6 of a mask, for a (top), b (top right),
+// c (bottom right), d (bottom), e (bottom left), f (top left), g (middle);
+// `Seven::segment` gives each one's rectangle.
+
 /// Marks a table entry as present (a space has a form: no segments).
 const PRESENT: u8 = 128;
 
@@ -268,43 +263,55 @@ impl Seven {
         u16::try_from((pixels + scale - 1) / scale).unwrap_or(u16::MAX)
     }
 
-    /// How many pixels of `glyph` (upright, its cell starting at column 0)
-    /// row `row` lights inside columns `low..high`.
-    fn lit_in_row(&self, glyph: Glyph, row: i32, low: i32, high: i32) -> i32 {
+    /// The rows and columns `(top, bottom, left, right)` of segment number
+    /// `index` (0 to 6 for a to g), in a cell starting at column 0.
+    const fn segment(&self, index: u32) -> (i32, i32, i32, i32) {
         let (t, w, h, mid) = (self.thick, self.wide, self.drawn, self.middle);
-        let within = |top: i32, bottom: i32| row >= top && row < bottom;
+        match index {
+            0 => (0, t, t, w - t),           // a: top
+            1 => (t, mid, w - t, w),         // b: top right
+            2 => (mid + t, h - t, w - t, w), // c: bottom right
+            3 => (h - t, h, t, w - t),       // d: bottom
+            4 => (mid + t, h - t, 0, t),     // e: bottom left
+            5 => (t, mid, 0, t),             // f: top left
+            _ => (mid, mid + t, t, w - t),   // g: middle
+        }
+    }
+
+    /// How many pixels of `glyph` (upright, its cell starting at column 0)
+    /// are lit in rows `top..bottom` and columns `low..high`.
+    fn lit_in_block(&self, glyph: Glyph, (top, bottom): (i32, i32), low: i32, high: i32) -> i32 {
+        let t = self.thick;
         match glyph {
             Glyph::Colon => {
-                let lit = within(self.upper_dot, self.upper_dot + t)
-                    || within(self.lower_dot, self.lower_dot + t);
-                if lit {
-                    overlap(self.gap, self.gap + t, low, high)
-                } else {
-                    0
+                let columns = overlap(self.gap, self.gap + t, low, high);
+                if columns == 0 {
+                    return 0;
                 }
+                // Rows inside either dot (the dots never meet, but count
+                // their common rows once anyway).
+                let (upper, lower) = (self.upper_dot, self.lower_dot);
+                let rows = overlap(upper, upper + t, top, bottom)
+                    + overlap(lower, lower + t, top, bottom)
+                    - overlap(max(upper, lower), upper.min(lower) + t, top, bottom);
+                rows * columns
             }
             Glyph::Dot => {
-                if within(h - t, h) {
-                    overlap(self.gap, self.gap + t, low, high)
-                } else {
-                    0
-                }
+                overlap(self.drawn - t, self.drawn, top, bottom)
+                    * overlap(self.gap, self.gap + t, low, high)
             }
             Glyph::Segments(form) => {
-                // The segments never overlap, so their counts add up.
+                // The segments never overlap, so their counts add up. Only
+                // the lit segments are visited.
                 let mut lit = 0;
-                let mut segment = |bit: u8, top: i32, bottom: i32, left: i32, right: i32| {
-                    if form & bit != 0 && within(top, bottom) {
-                        lit += overlap(left, right, low, high);
-                    }
-                };
-                segment(A, 0, t, t, w - t);
-                segment(G, mid, mid + t, t, w - t);
-                segment(D, h - t, h, t, w - t);
-                segment(F, t, mid, 0, t);
-                segment(B, t, mid, w - t, w);
-                segment(E, mid + t, h - t, 0, t);
-                segment(C, mid + t, h - t, w - t, w);
+                let mut segments = form;
+                while segments != 0 {
+                    let index = segments.trailing_zeros();
+                    segments &= segments - 1;
+                    let (row_top, row_bottom, left, right) = self.segment(index);
+                    lit +=
+                        overlap(row_top, row_bottom, top, bottom) * overlap(left, right, low, high);
+                }
                 lit
             }
         }
@@ -316,7 +323,14 @@ impl Seven {
     /// remainder so [`Seven::lean_down`] can step to the next row without
     /// dividing.
     const fn lean_at(&self, row: i32) -> (i32, i64) {
-        let last = (self.drawn - 1) as i64;
+        let last = self.drawn - 1;
+        // Up to 46340 pixels tall (5792 LEDs anti-aliased) the numerator,
+        // about 0.36 * drawn^2, fits an i32, which divides faster than an i64.
+        if self.drawn <= 46_340 {
+            let numerator = 2 * self.skew * (last - row) + last;
+            return ((numerator / (2 * last)), (numerator % (2 * last)) as i64);
+        }
+        let last = last as i64;
         let numerator = 2 * self.skew as i64 * (last - row as i64) + last;
         ((numerator / (2 * last)) as i32, numerator % (2 * last))
     }
@@ -334,10 +348,16 @@ impl Seven {
 
     /// The shift of pixel row `row`, whose [`Seven::lean_at`] state is `lean`.
     ///
-    /// `lean.0` rounds an exact half up. The preview works in floating
-    /// point, where an exact half (only possible hard-edged, at odd heights)
-    /// can come out a hair under and round down; [`float_lean_rounds_up`]
-    /// settles those rows the way the preview does.
+    /// `lean.0` rounds an exact half up, as `Math.round` does. The preview
+    /// works in floating point instead, and only an exact half can make the
+    /// two disagree: any other value `skew * (last - row) / last` is at least
+    /// `1 / (2 * last)` (more than 2^-18) away from a half, while the
+    /// preview's three float operations are off by about 2^-50 at most.
+    /// An exact half needs `2 * skew * (last - row) = odd * last`, so `last`
+    /// must be even: never anti-aliased (`last = 8 * height - 1` is odd), only
+    /// hard-edged at odd heights. There the float result can land a hair under
+    /// the half and round down; [`float_lean_rounds_up`] settles those rows
+    /// exactly as the preview does.
     fn shift(&self, lean: (i32, i64), row: i32) -> i32 {
         if lean.1 == 0 && !float_lean_rounds_up(self.skew, row, self.drawn - 1) {
             lean.0 - 1
@@ -350,21 +370,41 @@ impl Seven {
     /// anti-aliased, 0 or 64 hard-edged. (0, 0) is the top left of `text`.
     #[allow(clippy::cast_sign_loss)] // `lit` is never negative.
     pub(crate) fn coverage(&self, text: &[u8], spacing: u8, x: i32, y: i32) -> u16 {
-        if x < 0 || y < 0 || y >= i32::from(self.height) {
+        // Past `i32::MAX / 8 - 1` LEDs is far beyond any text's width (at most
+        // `u16::MAX`), and keeps `x * scale + scale` from overflowing.
+        if x < 0 || y < 0 || y >= i32::from(self.height) || x >= i32::MAX / 8 - 1 {
             return 0;
         }
         let scale = self.scale;
         let (left, top) = (x * scale, y * scale);
         let right = left + scale;
-        let first = self.lean_at(top);
-        // The LED's bottom row shifts least, so this window (in upright
-        // columns) holds every pixel the LED can see.
-        let mut bottom = first;
-        for _ in 1..scale {
-            bottom = self.lean_down(bottom);
+
+        // The LED's pixel rows, grouped into runs that the slant shifts by the
+        // same amount: one run upright, two or three slanted.
+        // Each run is (first row, row after the last, shift).
+        let mut runs = [(0, 0, 0); 8];
+        let mut count = 0;
+        if self.skew == 0 {
+            runs[0] = (top, top + scale, 0);
+            count = 1;
+        } else {
+            let mut lean = self.lean_at(top);
+            for row in top..top + scale {
+                let shift = self.shift(lean, row);
+                if count > 0 && runs[count - 1].2 == shift {
+                    runs[count - 1].1 = row + 1;
+                } else {
+                    runs[count] = (row, row + 1, shift);
+                    count += 1;
+                }
+                lean = self.lean_down(lean);
+            }
         }
-        let window_low = left - self.shift(first, top);
-        let window_high = right - self.shift(bottom, top + scale - 1);
+        let runs = &runs[..count];
+        // The top row shifts most and the bottom row least, so this window
+        // (in upright columns) holds every pixel the LED can see.
+        let window_low = left - runs[0].2;
+        let window_high = right - runs[count - 1].2;
 
         let padding = self.padding(spacing);
         let mut lit = 0;
@@ -376,12 +416,9 @@ impl Seven {
             let glyph = Glyph::of(byte);
             let cell = self.cell(glyph);
             if start + cell > window_low {
-                let mut lean = first;
-                for row in top..top + scale {
-                    let shift = self.shift(lean, row);
+                for &(first, after, shift) in runs {
                     let (low, high) = (left - shift - start, right - shift - start);
-                    lit += self.lit_in_row(glyph, row, low, high);
-                    lean = self.lean_down(lean);
+                    lit += self.lit_in_block(glyph, (first, after), low, high);
                 }
             }
             start += cell + padding;
@@ -552,6 +589,28 @@ mod tests {
                     let lean = js_round(f64::from(skew) * (1.0 - f64::from(row) / (h - 1.0)));
                     assert_eq!(face.lean_at(row), step, "stepping at {h}, row {row}");
                     assert_eq!(face.shift(step, row), lean, "lean at {h}, row {row}");
+                    step = face.lean_down(step);
+                }
+            }
+        }
+    }
+
+    /// Tall faces (over 46340 drawing pixels) work out the lean in i64; the
+    /// small ones in i32. Both agree with the float maths.
+    #[test]
+    fn tall_faces_lean_like_the_float_maths() {
+        for height in [5792u16, 5793, 6000, 8191, 65_535] {
+            for hard in [false, true] {
+                let face = Seven::new(height, true, hard);
+                let h = f64::from(face.drawn);
+                let skew = f64::from(face.skew);
+                let mut step = face.lean_at(0);
+                for row in 0..face.drawn {
+                    if row % 97 == 0 || row + 3 > face.drawn {
+                        let lean = js_round(skew * (1.0 - f64::from(row) / (h - 1.0)));
+                        assert_eq!(face.lean_at(row), step, "stepping at {h}, row {row}");
+                        assert_eq!(face.shift(step, row), lean, "lean at {h}, row {row}");
+                    }
                     step = face.lean_down(step);
                 }
             }

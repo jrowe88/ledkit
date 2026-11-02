@@ -130,10 +130,11 @@ impl Font {
     /// (at least 5; anything smaller is drawn 5 tall).
     ///
     /// It shows the digits, `-`, `_`, `=`, `:`, `.`, a space and the letters a
-    /// seven-segment display can make. Most letters have one form whatever
-    /// the case (`b`, `d`, `n`, `r` and `t` look lower case; `A`, `C`, `E`
-    /// and `F` look like capitals unless you write them in lower case). `K`,
-    /// `M`, `V`, `W`, `X` and anything else it can't draw show as a blank.
+    /// seven-segment display can make. Some letters change shape with case
+    /// (A/a, C/c, E/e, G/g, H/h, I/i, J/j, L/l, O/o, U/u); the rest have one
+    /// form. `K`, `M`, `V`, `W`, `X` and anything else it can't draw show as
+    /// a blank. Text is ASCII only: a degree sign (`°`) or any other
+    /// non-ASCII character shows as blanks.
     ///
     /// The letters are drawn finely and shrunk onto your LEDs, so their
     /// [`Edges`] work as for other fonts. For fully-on-or-off LEDs, use

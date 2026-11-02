@@ -290,3 +290,14 @@ jobs:
         working-directory: examples/esp32c6-esp-idf
       - run: cargo clippy --locked -- -D warnings
         working-directory: examples/esp32c6-esp-idf
+
+  # The text preview page is built from a template and the fonts in assets/fonts;
+  # this fails if someone changed one without rebuilding the page.
+  site:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python site/text-preview/build.py --check

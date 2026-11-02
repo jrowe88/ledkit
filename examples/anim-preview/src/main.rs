@@ -4,13 +4,14 @@
 //! cargo run -- swirl            # one effect on an 8x8 matrix
 //! cargo run -- comet --strip 30 # one effect on a 30-LED strip
 //! cargo run -- demo --size 64x32 # a bigger matrix, width x height
-//! cargo run -- demo --char 219  # draw each LED with a character (here █)
-//! cargo run -- demo --dots      # round LEDs, unlit ones dark grey, like a real panel
+//! cargo run -- demo --char 254  # square LEDs (■) instead of round ones
+//! cargo run -- demo --blocks    # solid blocks with no gaps, unlit LEDs black
 //! cargo run -- demo             # the playlist from the ESP32 example
 //! cargo run -- list             # the names you can use
 //! ```
 //!
-//! Each LED is drawn as a colored block. Your terminal needs "true color"
+//! Each LED is drawn as a colored dot, and unlit LEDs as dark grey dots, the way
+//! a real panel looks. Your terminal needs "true color"
 //! (24-bit) support; Windows Terminal, macOS Terminal, iTerm2 and most Linux
 //! terminals have it.
 
@@ -34,7 +35,7 @@ const CP437_HIGH: &str = "ÇüéâäàåçêëèïîìÄÅÉæÆôöòûùÿÖÜ
     ░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀\
     αßΓπΣσµτΦΘΩδ∞φε∩≡±≥≤⌠⌡÷≈°∙·√ⁿ²■\u{a0}";
 
-/// The color of an unlit LED with `--dots`: dark grey, as a real panel's
+/// The color of an unlit LED (unless `--blocks`): dark grey, as a real panel's
 /// LEDs look when they're off.
 const UNLIT: Rgb = Rgb::new(40, 40, 40);
 
@@ -46,12 +47,12 @@ const FRAME: Duration = Duration::from_millis(33);
 
 fn main() {
     // The arguments: an effect name (or `list` or `demo`), `--size WxH`,
-    // `--strip N`, `--char C` and `--dots`.
+    // `--strip N`, `--char C` and `--blocks`.
     let mut name = String::from("demo");
     let mut strip_len = None;
     let mut size = None;
     let mut glyph = None;
-    let mut dots = false;
+    let mut dots = true;
     let mut args = std::env::args().skip(1);
     while let Some(arg) = args.next() {
         if arg == "--strip" {
@@ -80,8 +81,8 @@ fn main() {
                 );
                 std::process::exit(1);
             }
-        } else if arg == "--dots" {
-            dots = true;
+        } else if arg == "--blocks" {
+            dots = false;
         } else {
             name = arg;
         }
@@ -172,19 +173,19 @@ fn parse_char(text: &str) -> Option<char> {
     (!c.is_control()).then_some(c)
 }
 
-/// Prints the LEDs as colored blocks, from the top-left corner of the terminal.
+/// Prints the LEDs, from the top-left corner of the terminal.
 ///
-/// Up to 32x32, each LED is two spaces wide and one line tall. Bigger matrices
+/// Normally each LED is a `●` (or the `--char` character) followed by a
+/// space, so the LEDs sit on a square grid with gaps between them, and LEDs
+/// that are off or nearly off show dark grey instead of disappearing.
+///
+/// With `--blocks`, up to 32x32, each LED is two spaces wide and one line tall. Bigger matrices
 /// use half blocks (`▀`, its top in one LED's color and its bottom in the next
 /// row's), so each LED is one column wide and half a line tall, and a 64x64
 /// panel fits in 64 columns and 32 lines.
 ///
-/// With `--char`, each LED is that character in the LED's color on black:
-/// twice up to 32x32, once for bigger matrices, one line per row.
-///
-/// With `--dots`, each LED is a `●` (or the `--char` character) followed by a
-/// space, so the LEDs sit on a square grid with gaps between them, and LEDs
-/// that are off or nearly off show dark grey instead of disappearing.
+/// With `--blocks` and `--char`, each LED is that character in the LED's
+/// color on black: twice up to 32x32, once for bigger matrices, one line per row.
 fn draw(pixels: &[Rgb], width: u16, height: u16, name: &str, glyph: Option<char>, dots: bool) {
     let mut out = String::from("\x1b[H"); // cursor to the top-left
     let _ = write!(out, "ledkit-anim: {name} ({width}x{height})\x1b[K\n\n");

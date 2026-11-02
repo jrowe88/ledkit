@@ -39,7 +39,7 @@ function renderSeg(text, H, slant, aa, k) {
       if (s.includes('a')) rect(x + t, 0, W - 2 * t, t);
       if (s.includes('g')) rect(x + t, mid, W - 2 * t, t);
       if (s.includes('d')) rect(x + t, H - t, W - 2 * t, t);
-      if (s.includes('f')) rect(x, t, t, v + (t > 1 ? 0 : 0));
+      if (s.includes('f')) rect(x, t, t, v);
       if (s.includes('b')) rect(x + W - t, t, t, v);
       if (s.includes('e')) rect(x, mid + t, t, v2);
       if (s.includes('c')) rect(x + W - t, mid + t, t, v2);

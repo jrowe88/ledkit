@@ -18,7 +18,7 @@ HERE = pathlib.Path(__file__).resolve().parent
 def build():
     faces = (HERE / "faces.json").read_text(encoding="utf-8").strip()
     glyphs = (HERE / "glyphs.js").read_text(encoding="utf-8")
-    data = f"const FACES_DATA = {faces};" + chr(10) + chr(10) + glyphs
+    data = f"const FACES_DATA = {faces};\n\n" + glyphs
     template = (HERE / "template.html").read_text(encoding="utf-8")
     return template.replace("/*FONTS*/", data)
 

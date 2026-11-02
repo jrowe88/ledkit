@@ -3,6 +3,7 @@
 use crate::edges::{sharpen, Edges};
 use crate::faces::bitmap::{BakedSize, BitmapFace};
 use crate::faces::data;
+use crate::faces::fourteen::Fourteen;
 use crate::faces::seven::Seven;
 
 /// How big to draw a font. `X1` is the font's own size; the others are bigger
@@ -47,6 +48,7 @@ impl Size {
 enum Face {
     Bitmap(&'static BitmapFace),
     Seven(Seven),
+    Fourteen(Fourteen),
 }
 
 /// A font: the shape of the letters, plus a [`Size`], the sharpness of their
@@ -165,10 +167,39 @@ impl Font {
         Font::seven(Seven::new(height, true, false))
     }
 
-    /// A segment font with medium edges and no extra gap between letters.
+    /// A fourteen-segment ("starburst") display font: `height` LEDs tall (at
+    /// least 7; anything smaller is drawn 7 tall).
+    ///
+    /// Unlike [`Font::seven_segment`] it has every capital letter, as well as
+    /// the digits and basic punctuation (`- + / * ' " _ = < > ? ! $ % : . ,`
+    /// and a space). Lower case shows as capitals. Anything else shows as a
+    /// blank. Text is ASCII only: any non-ASCII character shows as blanks.
+    ///
+    /// The letters are drawn finely and shrunk onto your LEDs, so their
+    /// [`Edges`] work as for other fonts. For fully-on-or-off LEDs, use
+    /// [`Font::hard_edges`]. [`Font::size`] has no effect: pick the height.
+    ///
+    /// ```
+    /// use ledkit_text::prelude::*;
+    ///
+    /// const SIGN: Font = Font::fourteen_segment(8);
+    /// assert_eq!(SIGN.height(), 8);
+    /// assert_eq!(SIGN.text_width(b"HELLO"), 34);
+    /// assert_eq!(SIGN.text_width(b"12:34"), 32);
+    /// ```
+    pub const fn fourteen_segment(height: u16) -> Font {
+        Font::segments(Face::Fourteen(Fourteen::new(height, false)))
+    }
+
+    /// A seven-segment font with medium edges and no extra gap between letters.
     const fn seven(face: Seven) -> Font {
+        Font::segments(Face::Seven(face))
+    }
+
+    /// A segment font with medium edges and no extra gap between letters.
+    const fn segments(face: Face) -> Font {
         Font {
-            face: Face::Seven(face),
+            face,
             size: Size::X1,
             edges: Edges::Medium,
             spacing: 0,
@@ -176,10 +207,11 @@ impl Font {
     }
 
     /// The same segment font with hard edges: each LED is either fully on or
-    /// off, never in between, like a real segment display. The segments are
-    /// drawn straight onto your LEDs instead of finely and shrunk, so they
-    /// can come out a little narrower or wider; [`Font::edges`] then has no
-    /// effect.
+    /// off, never in between, like a real segment display; [`Font::edges`]
+    /// then has no effect. Seven-segment letters are drawn straight onto your
+    /// LEDs instead of finely and shrunk, so they can come out a little
+    /// narrower or wider. Fourteen-segment letters are drawn finely as usual,
+    /// and an LED is on when at least half of it is covered.
     ///
     /// This has no effect on bitmap fonts (such as [`Font::X11_5X8`]): use
     /// [`Edges::VeryCrisp`] for those.
@@ -193,15 +225,17 @@ impl Font {
     /// ```
     #[must_use]
     pub const fn hard_edges(mut self) -> Font {
-        if let Face::Seven(face) = self.face {
-            self.face = Face::Seven(face.hardened());
+        match self.face {
+            Face::Seven(face) => self.face = Face::Seven(face.hardened()),
+            Face::Fourteen(face) => self.face = Face::Fourteen(face.hardened()),
+            Face::Bitmap(_) => {}
         }
         self
     }
 
     /// The same font at another [`Size`].
     ///
-    /// Segment fonts ([`Font::seven_segment`]) are sized by their height
+    /// Segment fonts ([`Font::seven_segment`], [`Font::fourteen_segment`]) are sized by their height
     /// instead, so this has no effect on them.
     ///
     /// ```
@@ -261,6 +295,7 @@ impl Font {
         match self.face {
             Face::Bitmap(face) => self.baked(face).height as u16,
             Face::Seven(face) => face.height(),
+            Face::Fourteen(face) => face.height(),
         }
     }
 
@@ -286,6 +321,7 @@ impl Font {
                 u16::try_from(width).unwrap_or(u16::MAX)
             }
             Face::Seven(face) => face.width(text, self.spacing),
+            Face::Fourteen(face) => face.width(text, self.spacing),
         }
     }
 
@@ -300,6 +336,19 @@ impl Font {
                 let covered = face.coverage(text, self.spacing, x, y);
                 if face.hard() {
                     if covered > 0 {
+                        255
+                    } else {
+                        0
+                    }
+                } else {
+                    sharpen(covered, 64, self.edges)
+                }
+            }
+            Face::Fourteen(face) => {
+                let covered = face.coverage(text, self.spacing, x, y);
+                if face.hard() {
+                    // As the preview: on when at least half covered.
+                    if covered >= 32 {
                         255
                     } else {
                         0
@@ -344,6 +393,7 @@ impl Font {
     ///
     /// assert_eq!(Font::X11_5X8.name(), "5x8");
     /// assert_eq!(Font::seven_segment(8).name(), "7-segment");
+    /// assert_eq!(Font::fourteen_segment(8).name(), "14-segment");
     /// ```
     pub const fn name(&self) -> &'static str {
         match self.face {
@@ -355,6 +405,7 @@ impl Font {
                     "7-segment"
                 }
             }
+            Face::Fourteen(_) => "14-segment",
         }
     }
 }
@@ -468,6 +519,50 @@ mod tests {
             );
         }
         assert_eq!(Font::seven_segment_slanted(8).name(), "7-segment slanted");
+    }
+
+    #[test]
+    fn fourteen_segment_through_the_font() {
+        let soft = Font::fourteen_segment(10);
+        let face = Fourteen::new(10, false);
+        let text = b"Hi 12:34";
+        for edges in [Edges::Soft, Edges::Medium, Edges::Crisp, Edges::VeryCrisp] {
+            let font = soft.edges(edges);
+            for y in -1..11 {
+                for x in -1..=i32::from(font.text_width(text)) {
+                    let expected = sharpen(face.coverage(text, 0, x, y), 64, edges);
+                    assert_eq!(font.coverage(text, x, y), expected);
+                }
+            }
+        }
+        // Hard edges: the same drawing, on where at least half covered.
+        let hard = soft.hard_edges();
+        assert_eq!(hard.text_width(text), soft.text_width(text));
+        let mut on = 0;
+        for y in 0..10 {
+            for x in 0..i32::from(hard.text_width(text)) {
+                let expected = if face.coverage(text, 0, x, y) >= 32 {
+                    on += 1;
+                    255
+                } else {
+                    0
+                };
+                assert_eq!(hard.edges(Edges::Soft).coverage(text, x, y), expected);
+            }
+        }
+        assert!(on > 0);
+        // Too short is raised to 7; size has no effect; spacing adds blank
+        // LEDs after each letter.
+        assert_eq!(Font::fourteen_segment(3).height(), 7);
+        assert_eq!(
+            soft.size(Size::X2).text_width(b"88"),
+            soft.text_width(b"88")
+        );
+        assert_eq!(
+            soft.spacing(2).text_width(b"88"),
+            soft.text_width(b"88") + 4
+        );
+        assert_eq!(soft.name(), "14-segment");
     }
 
     #[test]

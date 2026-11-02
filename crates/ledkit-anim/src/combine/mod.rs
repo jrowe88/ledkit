@@ -49,6 +49,9 @@ pub trait AnimationExt: Animation + Sized {
 
     /// The animation sped up or slowed down: 200 is twice as fast, 50 is half
     /// speed, 0 freezes it at its first frame.
+    ///
+    /// Sped up, its clock runs out sooner: at 200 it starts again from 0 after
+    /// about 24 days instead of 49, at 1000 after about 5.
     fn at_speed(self, percent: u16) -> AtSpeed<Self> {
         AtSpeed {
             inner: self,

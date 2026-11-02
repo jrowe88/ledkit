@@ -134,12 +134,20 @@ impl Animation for Playlist<'_> {
         }
         let t = u64::from(frame.millis);
         if !self.looping && t >= total {
-            let end = last.duration.saturating_sub(1);
-            return last.animation.color_at(at, &frame.at_millis(end));
+            // Hold the last entry that was actually shown.
+            let shown = self
+                .entries
+                .iter()
+                .rev()
+                .find(|e| e.duration > 0)
+                .unwrap_or(last);
+            let end = shown.duration.saturating_sub(1);
+            return shown.animation.color_at(at, &frame.at_millis(end));
         }
         let (lap, mut into) = (t / total, t % total);
         // Find the entry playing now, and the one before it.
-        let mut previous = (lap > 0).then_some(last);
+        let shown_last = self.entries.iter().rev().find(|e| e.duration > 0);
+        let mut previous = if lap > 0 { shown_last } else { None };
         for entry in self.entries {
             let duration = u64::from(entry.duration);
             if into < duration {
@@ -159,7 +167,10 @@ impl Animation for Playlist<'_> {
                 };
             }
             into -= duration;
-            previous = Some(entry);
+            // An entry with no time is never shown, so nothing fades out of it.
+            if duration > 0 {
+                previous = Some(entry);
+            }
         }
         Rgb::BLACK
     }
@@ -206,6 +217,24 @@ mod tests {
         assert_eq!(strip_at(&show, 0, 5, 50), Rgb::RED);
         let second_lap = strip_at(&show, 0, 5, 2100);
         assert!(second_lap.r > 50 && second_lap.b > 50, "{second_lap:?}");
+    }
+
+    #[test]
+    fn zero_length_entries_are_skipped() {
+        let green = Solid::new().color(Rgb::GREEN);
+        let fade = Transition::fade(Duration::from_millis(500)).easing(crate::Easing::Linear);
+        let entries = [
+            Entry::new(&RED, SECOND),
+            Entry::new(&green, Duration::ZERO),
+            Entry::new(&BLUE, SECOND).transition(fade),
+            Entry::new(&green, Duration::ZERO),
+        ];
+        let middle = strip_at(&Playlist::new(&entries), 0, 5, 1250);
+        assert_eq!(middle.g, 0, "{middle:?}");
+        assert_eq!(
+            strip_at(&Playlist::new(&entries).play_once(), 0, 5, 9000),
+            Rgb::BLUE
+        );
     }
 
     #[test]

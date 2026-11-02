@@ -261,3 +261,22 @@ roadmap row 7 marked done with notes, `NOTICE` lines for anything ported.
 Exact defaults; field names of `Frame`/`Position`; easing set; final palette list beyond the
 required ones; noise and hash functions (ported from FastLED or written fresh); the
 example's exact show order.
+
+## As built (2026-11-01)
+
+Differences from the design above, decided while building:
+
+- `Pinwheel` takes `color` and `background` (crisp arms read better than a palette on
+  8x8); `Breathe`, `Chase`, `Blink` take single colors; `ColorCycle` has no "hard"
+  mode (a `Blink` or a playlist of `Solid`s covers it).
+- Transitions are a `Transition` struct (style, length, easing) with constructors
+  (`fade`, `wipe(Edge, ..)`, ...) and a `Style` enum; wipes take an `Edge`, not a
+  `Direction`.
+- The two-step shortcut is `a.then(b, at, transition)` and `a.crossfade_to(b, at,
+  over)`; there is no `for_time`.
+- `render` on a `&dyn Animation` is written `(&animation).render(..)` (a provided
+  generic method can't be called on a trait object).
+- `Mirrored` on a matrix numbers the half-width surface row by row, so chain-order
+  effects mirror too. `at_speed` above 100% wraps its clock sooner than 49 days.
+- `Rain` on a strip shows as random flashes (each LED is a one-LED column).
+- The scanner aliases (scanner, Larson, Cylon) give a `Comet` that bounces.

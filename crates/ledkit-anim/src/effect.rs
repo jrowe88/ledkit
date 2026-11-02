@@ -67,35 +67,39 @@ pub enum Effect {
     Rain(Rain),
 }
 
-/// Other names people use for the effects, and the effect each one means.
-const ALIASES: [(&str, &str); 27] = [
-    ("static", "solid"),
-    ("strobe", "blink"),
-    ("flash", "blink"),
-    ("pulse", "breathe"),
-    ("colorloop", "rainbow"),
-    ("fade", "color cycle"),
-    ("palettescroll", "gradient scroll"),
-    ("wipe", "color wipe"),
-    ("fill", "color wipe"),
-    ("loading", "color wipe"),
-    ("theaterchase", "chase"),
-    ("marquee", "chase"),
-    ("runninglights", "chase"),
-    ("meteor", "comet"),
-    ("scanner", "comet"),
-    ("larson", "comet"),
-    ("cylon", "comet"),
-    ("glitter", "sparkle"),
-    ("twinkle", "sparkle"),
-    ("fire", "flames"),
-    ("candle", "flames"),
-    ("spiral", "swirl"),
-    ("concentric", "rings"),
-    ("rotatingarms", "pinwheel"),
-    ("rotatingx", "pinwheel"),
-    ("matrixrain", "rain"),
-    ("digitalrain", "rain"),
+/// Other names people use for the effects, and the effect each one gives.
+/// The scanner names give a comet that bounces.
+const ALIASES: [(&str, Effect); 27] = [
+    ("static", Effect::Solid(Solid::new())),
+    ("strobe", Effect::Blink(Blink::new())),
+    ("flash", Effect::Blink(Blink::new())),
+    ("pulse", Effect::Breathe(Breathe::new())),
+    ("colorloop", Effect::Rainbow(Rainbow::new())),
+    ("fade", Effect::ColorCycle(ColorCycle::new())),
+    (
+        "palettescroll",
+        Effect::GradientScroll(GradientScroll::new()),
+    ),
+    ("wipe", Effect::ColorWipe(ColorWipe::new())),
+    ("fill", Effect::ColorWipe(ColorWipe::new())),
+    ("loading", Effect::ColorWipe(ColorWipe::new())),
+    ("theaterchase", Effect::Chase(Chase::new())),
+    ("marquee", Effect::Chase(Chase::new())),
+    ("runninglights", Effect::Chase(Chase::new())),
+    ("meteor", Effect::Comet(Comet::new())),
+    ("scanner", Effect::Comet(Comet::new().bounce(true))),
+    ("larson", Effect::Comet(Comet::new().bounce(true))),
+    ("cylon", Effect::Comet(Comet::new().bounce(true))),
+    ("glitter", Effect::Sparkle(Sparkle::new())),
+    ("twinkle", Effect::Sparkle(Sparkle::new())),
+    ("fire", Effect::Flames(Flames::new())),
+    ("candle", Effect::Flames(Flames::new())),
+    ("spiral", Effect::Swirl(Swirl::new())),
+    ("concentric", Effect::Rings(Rings::new())),
+    ("rotatingarms", Effect::Pinwheel(Pinwheel::new())),
+    ("rotatingx", Effect::Pinwheel(Pinwheel::new())),
+    ("matrixrain", Effect::Rain(Rain::new())),
+    ("digitalrain", Effect::Rain(Rain::new())),
 ];
 
 impl Effect {
@@ -153,7 +157,7 @@ impl Effect {
     /// Capitals, spaces, `-` and `_` don't matter, and common other names
     /// work too: "marquee" and "theater chase" give a [`Chase`], "fire" gives
     /// [`Flames`], "concentric" gives [`Rings`], "rotating X" gives a
-    /// [`Pinwheel`], "scanner" gives a [`Comet`] and so on.
+    /// [`Pinwheel`], "scanner" gives a [`Comet`] that bounces, and so on.
     ///
     /// ```
     /// use ledkit_anim::prelude::*;
@@ -162,14 +166,15 @@ impl Effect {
     /// assert!(Effect::from_name("no such thing").is_none());
     /// ```
     pub fn from_name(name: &str) -> Option<Effect> {
-        let wanted = |candidate: &str| same_name(name, candidate);
-        let name = ALIASES
-            .iter()
-            .find(|(alias, _)| wanted(alias))
-            .map_or(name, |(_, effect)| *effect);
         Self::ALL
             .into_iter()
             .find(|effect| same_name(name, effect.name()))
+            .or_else(|| {
+                ALIASES
+                    .iter()
+                    .find(|(alias, _)| same_name(name, alias))
+                    .map(|(_, effect)| *effect)
+            })
     }
 
     /// The effect inside, as an [`Animation`].
@@ -271,10 +276,15 @@ mod tests {
                 assert_ne!(effect.name(), other.name());
             }
         }
-        for (alias, target) in ALIASES {
-            assert!(Effect::from_name(alias).is_some(), "{alias}");
-            assert!(Effect::from_name(target).is_some(), "{target}");
+        for (alias, effect) in ALIASES {
+            assert_eq!(
+                Effect::from_name(alias).unwrap().name(),
+                effect.name(),
+                "{alias}"
+            );
         }
+        let scanner = Effect::from_name("Cylon").unwrap();
+        assert!(matches!(scanner, Effect::Comet(c) if c == Comet::new().bounce(true)));
     }
 
     #[test]

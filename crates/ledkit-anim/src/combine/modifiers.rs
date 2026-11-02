@@ -40,8 +40,9 @@ impl<A: Animation> Animation for Mirrored<A> {
         } else {
             frame.width.saturating_sub(1).saturating_sub(at.x)
         };
-        // On a strip the index is the same as x; on a matrix, rows are mirrored.
-        let index = if frame.height <= 1 { x } else { at.index };
+        // The animation sees a surface half as wide, numbered row by row, so
+        // effects that follow the chain (like Chase) are mirrored too.
+        let index = at.y.saturating_mul(half).saturating_add(x);
         let inner_frame = Frame {
             width: half,
             ..*frame
@@ -102,8 +103,8 @@ impl<A: Animation> Animation for Dimmed<A> {
 mod tests {
     use core::time::Duration;
 
-    use crate::effects::test_support::{exercise, strip_at};
-    use crate::{AnimationExt, Rainbow};
+    use crate::effects::test_support::{exercise, grid_at, strip_at};
+    use crate::{AnimationExt, Chase, Rainbow, Sparkle};
 
     use super::*;
 
@@ -125,6 +126,19 @@ mod tests {
         assert_eq!(strip_at(&mirrored, 4, 9, 0), strip_at(&mirrored, 4, 9, 0));
         assert_eq!(strip_at(&mirrored, 3, 9, 0), strip_at(&mirrored, 5, 9, 0));
         exercise(&mirrored);
+        // On a matrix too, including effects that follow the chain.
+        let chase = Chase::new().mirrored();
+        let sparkle = Sparkle::new().density(50).mirrored();
+        for y in 0..8 {
+            for x in 0..4 {
+                let (a, b) = ((x, y), (7 - x, y));
+                assert_eq!(grid_at(&chase, a, (8, 8), 0), grid_at(&chase, b, (8, 8), 0));
+                assert_eq!(
+                    grid_at(&sparkle, a, (8, 8), 0),
+                    grid_at(&sparkle, b, (8, 8), 0)
+                );
+            }
+        }
     }
 
     #[test]

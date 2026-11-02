@@ -66,7 +66,7 @@ impl Animation for Plasma {
         let (x, y) = (u32::from(at.x) * step, u32::from(at.y) * step);
         let distance = polar(at, *frame, None).distance * step / 16;
         // Each wave moves at its own speed, so the pattern never quite repeats.
-        let t = |speed: u32| u32::from(math::phase(frame.millis.wrapping_mul(speed), self.cycle));
+        let t = |speed: u32| u32::from(math::phase(frame.millis, self.cycle / speed));
         let waves = [
             math::sine((x + t(1)) as u8),
             math::sine((y + 256 - t(2)) as u8),

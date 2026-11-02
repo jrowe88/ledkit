@@ -28,13 +28,24 @@ const RUN_FOR: Duration = Duration::from_secs(20);
 const FRAME: Duration = Duration::from_millis(33);
 
 fn main() {
-    let args: Vec<String> = std::env::args().skip(1).collect();
-    let name = args.first().map_or("demo", String::as_str);
-    let strip_len = args
-        .iter()
-        .position(|a| a == "--strip")
-        .and_then(|i| args.get(i + 1))
-        .and_then(|n| n.parse::<u16>().ok());
+    // The arguments: an effect name (or `list` or `demo`), and `--strip N`.
+    let mut name = String::from("demo");
+    let mut strip_len = None;
+    let mut args = std::env::args().skip(1);
+    while let Some(arg) = args.next() {
+        if arg == "--strip" {
+            match args.next().and_then(|n| n.parse::<u16>().ok()) {
+                Some(len) if len > 0 => strip_len = Some(len),
+                _ => {
+                    eprintln!("`--strip` needs a number of LEDs, from 1 to 65535.");
+                    std::process::exit(1);
+                }
+            }
+        } else {
+            name = arg;
+        }
+    }
+    let name = name.as_str();
 
     if name == "list" {
         println!("Effects (other common names work too, like \"marquee\" or \"fire\"):");

@@ -114,6 +114,8 @@ and wiring, setup and troubleshooting in its README.
 | Raspberry Pi (Linux) | `ledkit-spi` | [linux-spidev](examples/linux-spidev) | ✅ on hardware |
 | Teensy 4 | `ledkit-spi` | [teensy4-spi](examples/teensy4-spi) | ✅ on hardware |
 | LED matrix on the ESP32-C6 | `ledkit-layout` + `ledkit-esp` | [esp32c6-matrix](examples/esp32c6-matrix) | ✅ on hardware |
+| Animations on a matrix or strip, ESP32-C6 | `ledkit-anim` + `ledkit-esp` | [esp32c6-anim](examples/esp32c6-anim) | ⏳ builds; hardware check pending |
+| Animations in your terminal (no LEDs) | `ledkit-anim` | [anim-preview](examples/anim-preview) | ✅ |
 | DotStar HD vs plain dimming on the ESP32-C6 | `ledkit-core` | [esp32c6-dotstar-hd](examples/esp32c6-dotstar-hd) | ✅ on hardware |
 | NeoPixels from a serial port, ESP32-C6 | `ledkit-uart` | [esp32c6-uart](examples/esp32c6-uart) | ✅ on hardware |
 | NeoPixels from a serial port, Teensy 4 (with DMA) | `ledkit-uart` | [teensy4-uart](examples/teensy4-uart) | ✅ on hardware |
@@ -153,7 +155,7 @@ checkout, as the examples do.
 | `ledkit-esp` | ESP32 RMT driver for esp-hal (`no_std`, blocking or async) | ✅ available |
 | `ledkit-esp-idf` | ESP32 RMT driver for ESP-IDF (`std`) | ✅ available |
 | `ledkit-layout` | Segments, matrices, text and shapes | ✅ available |
-| `ledkit-anim` | Effects (rainbow, breathe, fire, …) and ways to combine them | 🔜 planned |
+| `ledkit-anim` | Effects (rainbow, comet, flames, swirl, …) and ways to combine them | ✅ available |
 | `ledkit-rp` | Raspberry Pi Pico (RP2040/RP2350) PIO driver | 🔜 planned |
 | `ledkit` | One crate to add, with everything re-exported | 🔜 planned |
 | `ledkit-sim` | A desktop simulator, to try effects without hardware | 🔜 planned |
@@ -164,12 +166,12 @@ checkout, as the examples do.
 
 ledkit is young. The core, the SPI driver, both ESP32 drivers and the matrix
 layer (`ledkit-layout`: matrices, text and shapes) work and are tested on real
-hardware.
-Next up: effects, then the Raspberry Pi Pico. See the [roadmap](docs/superpowers/plans/2026-10-25-ledkit-roadmap.md)
+hardware. Effects (`ledkit-anim`) are written and tested on the host.
+Next up: the Raspberry Pi Pico and the `ledkit` facade. See the [roadmap](docs/superpowers/plans/2026-10-25-ledkit-roadmap.md)
 for the details.
 
 Want to help? [CONTRIBUTING.md](CONTRIBUTING.md) has short guides to adding an
-LED type, a new board or a panel preset.
+LED type, a new board, a panel preset or an effect.
 
 ## License
 

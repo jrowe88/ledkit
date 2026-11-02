@@ -70,4 +70,28 @@ A backend turns a `Strip`'s finished frame into signals on a real peripheral. `c
 
 ## Add an effect
 
-Coming in a later milestone.
+Effects live in `crates/ledkit-anim/src/effects/`, one file each. `rainbow.rs`
+and `comet.rs` are good models.
+
+1. **Make the struct** with its settings as private fields, `#[derive(Copy, Clone, Debug)]`
+   and `#[must_use]`, a `pub const fn new()` with defaults that look good on an 8x8
+   and a 100-LED strip, and `const fn` setters with plain names (`tail_length`, not
+   `len`). Times are `core::time::Duration` (store milliseconds with `time::millis`),
+   speeds are LEDs per second, and colors use a `colors: Colors` field plus the
+   `color_setters!()` macro.
+2. **Implement `Animation`.** `color_at` gets the LED's `Position` and the `Frame`
+   (time and size) and returns its color. Keep it a pure function of those: no state
+   between frames, integer math only, and no panics for any size (including 0 and
+   1 LED) or time (including `u32::MAX`). For randomness, use `math::hash` of the LED
+   and a time slot. Strip-like effects use `at.x` and `frame.width`; round ones use
+   `effects::geometry::polar`.
+3. **Register it**: `effects/mod.rs`, the prelude in `lib.rs`, a variant, name and
+   aliases in `effect.rs` (and `Effect::ALL`), and the table in the README.
+4. **Test it** in the same file: a few exact pixels at chosen times, how it moves,
+   and `test_support::exercise` with the defaults and with every setting at 0.
+5. **Look at it**: `cargo run -- <name>` in `examples/anim-preview` shows it in the
+   terminal.
+
+If you port an effect from an MIT-licensed project (FastLED, Adafruit's
+CircuitPython LED_Animation, WS2812FX), add a line to `NOTICE`. Ideas from
+copyleft projects (WLED, blinksy) are fine; their code is not.

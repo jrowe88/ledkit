@@ -16,18 +16,28 @@ replacing it. The design lives in `docs/superpowers/specs/`.
 | `ledkit-color` | Color types and utilities | nothing (optional `rgb`) |
 | `ledkit-core` | Chip catalogue, color orders, encoders, `Strip`, output traits | `ledkit-color` |
 | `ledkit-layout` | Segments, matrices, coordinate mapping, `embedded-graphics` | `ledkit-core` |
-| `ledkit-anim` | `Animation` trait, effects, combinators | `ledkit-color`, `ledkit-layout` |
+| `ledkit-anim` | `Animation` trait, effects, combinators | `ledkit-color`, `ledkit-layout`, `ledkit-core` |
 | `ledkit-spi` | Backend over `embedded-hal` 1.0 SPI | `ledkit-core` |
 | `ledkit-esp` | ESP32 RMT backend (esp-hal, `no_std`) | `ledkit-core`, `esp-hal` |
 | `ledkit-esp-idf` | ESP32 RMT backend (esp-idf-hal, `std`) | `ledkit-core`, `esp-idf-hal` |
 | `ledkit-rp` | RP2040/RP2350 PIO backend | `ledkit-core`, an RP HAL |
 | `ledkit-sim` | Desktop simulator (`std`) | `ledkit-anim` |
 
-Exist so far: `ledkit-color`, `ledkit-core`, `ledkit-layout`, `ledkit-spi`, `ledkit-esp` and `ledkit-esp-idf`. The rest are planned.
+Exist so far: `ledkit-color`, `ledkit-core`, `ledkit-layout`, `ledkit-anim`, `ledkit-spi`, `ledkit-uart`, `ledkit-esp` and `ledkit-esp-idf`. The rest are planned.
 
 `ledkit-esp` and `ledkit-esp-idf` live outside the root workspace (they only build for an ESP32 target, with their own toolchains), so `cargo test --workspace` doesn't touch them. They are built and linted through their examples (`examples/esp32c6-rmt`, `examples/esp32c6-esp-idf`, `examples/esp32c6-matrix`) and in CI. The ESP-IDF example sets `target-dir = "C:/t/ledkit"` in its `.cargo/config.toml`, because `esp-idf-sys` rejects output paths over 88 characters on Windows; on macOS/Linux (and in CI) set `CARGO_TARGET_DIR=target`. Hardware status is recorded in each crate's README.
 
 Writing a new backend? Follow the "Add a backend" guide in `CONTRIBUTING.md`; `ledkit-spi` is the model for a bus backend, and `ledkit-esp` / `ledkit-esp-idf` for a pulse (RMT) backend that times the reset gap itself.
+
+## ledkit-anim modules
+
+- `animation`: the `Animation` trait (`color_at(Position, &Frame) -> Rgb`, plus `render`), `Position`, `Frame`, `Direction`. `surface`: `Surface`, implemented for `Strip`, `Canvas`, `SegmentMut`, arrays and slices. `time`: `Time` (milliseconds, `u32`).
+- `colors`: `Colors` (one color, two to blend, or a `&'static dyn ColorMap`). The `ColorMap` trait and the named `palettes` live in `ledkit-color`.
+- `effects/`: one file per effect, each a `Copy` struct with `const fn new()` and `const fn` setters; `geometry` (distance and angle from the center) is shared. `effect`: the `Effect` enum, by name, with aliases.
+- `combine/`: `AnimationExt` (modifiers, `layer`, `then`, `crossfade_to`), `Blend`, `Transition` / `Style` / `Easing` / `Edge`, `Playlist` / `Entry`, `Segments`.
+- `math`: public integer helpers (`sine`, `triangle`, `phase`, `atan2`, `isqrt`, `hash`, `noise`, ...).
+
+Rule: an animation is a pure function of position and time. It keeps no state between frames, so combinators need no buffers; an effect that needs memory of past frames (Game of Life, Fire2012's heat) doesn't fit this trait. Integer math per pixel.
 
 ## ledkit-core modules
 

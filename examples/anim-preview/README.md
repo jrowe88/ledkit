@@ -36,11 +36,10 @@ cargo run -- demo --size 64x64
   way a real panel looks.
 - `--char C` draws each LED as another character instead of `⬤`. If your font
   draws `⬤` badly, `--char 9679` gives a smaller dot, `●`, that nearly every font
-  has. Give the
-  character itself (`--char "#"`, `--char ●`) or its code: 32 to 126 for ASCII,
-  128 to 255 for the DOS character set (code page 437, so `--char 219` is `█` and
-  `--char 254` is `■`), or any Unicode code point (`--char 9679` or
-  `--char U+25CF` for `●`).
+  has. Give the character itself (`--char "#"`, `--char ●`) or its code: 32 to
+  126 for ASCII, 128 to 255 for the DOS character set (code page 437, so
+  `--char 219` is `█` and `--char 254` is `■`), or any Unicode code point
+  (`--char 9679` or `--char U+25CF` for `●`).
 - `--blocks` draws solid squares with no gaps, and unlit LEDs black. Matrices
   bigger than 32x32 are then drawn at half height (one character per two rows) so
   they fit in a smaller window. With `--char`, the character fills the square.

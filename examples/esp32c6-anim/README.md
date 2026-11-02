@@ -5,10 +5,9 @@ Runs `ledkit-anim` effects on a WS2812-style 8x8 matrix or strip, with
 the chip's RMT peripheral, which makes the precisely timed pulses the LEDs need, in
 hardware.
 
-> **Tested on hardware (2026-11-02):** the strip build (`--features strip`) on an
-> ESP32-C6 DevKit with a 100-LED WS2812 strip through a 74AHCT125: every part of
-> the show looks right. The 8x8 build hasn't been tried on this board yet (the
-> same effects were checked on an 8x8 with the `teensy4-anim` example).
+> **Tested on hardware (2026-11-02):** an ESP32-C6 DevKit through a 74AHCT125,
+> with an Adafruit NeoPixel 8x8 and, with `--features strip`, a 100-LED WS2812
+> strip: every part of both shows looks right.
 
 ## What you'll see
 

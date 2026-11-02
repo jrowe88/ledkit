@@ -9,3 +9,5 @@ Attributions
 - FastLED (MIT, Copyright (c) 2013 FastLED): the TypicalLEDStrip correction value.
 - Tanner Helland's blackbody color curve fit (algorithm only, no code copied):
   `Rgb::from_kelvin`.
+- X11 misc-fixed bitmap fonts (public domain, X.Org misc-misc, Markus Kuhn and others):
+  the fonts in `assets/fonts/x11-misc-fixed`, used by the text preview page.

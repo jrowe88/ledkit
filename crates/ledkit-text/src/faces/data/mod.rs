@@ -10,7 +10,7 @@ const fn part(all: &'static [u8], start: usize, len: usize) -> &'static [u8] {
 
 const X11_4X6_BIN: &[u8] = include_bytes!("4x6.bin");
 
-pub(crate) static X11_4X6: BitmapFace = BitmapFace {
+pub(crate) const X11_4X6: BitmapFace = BitmapFace {
     name: "4x6",
     sizes: [
         BakedSize {
@@ -38,7 +38,7 @@ pub(crate) static X11_4X6: BitmapFace = BitmapFace {
 
 const X11_5X7_BIN: &[u8] = include_bytes!("5x7.bin");
 
-pub(crate) static X11_5X7: BitmapFace = BitmapFace {
+pub(crate) const X11_5X7: BitmapFace = BitmapFace {
     name: "5x7",
     sizes: [
         BakedSize {
@@ -66,7 +66,7 @@ pub(crate) static X11_5X7: BitmapFace = BitmapFace {
 
 const X11_5X8_BIN: &[u8] = include_bytes!("5x8.bin");
 
-pub(crate) static X11_5X8: BitmapFace = BitmapFace {
+pub(crate) const X11_5X8: BitmapFace = BitmapFace {
     name: "5x8",
     sizes: [
         BakedSize {
@@ -94,7 +94,7 @@ pub(crate) static X11_5X8: BitmapFace = BitmapFace {
 
 const X11_6X10_BIN: &[u8] = include_bytes!("6x10.bin");
 
-pub(crate) static X11_6X10: BitmapFace = BitmapFace {
+pub(crate) const X11_6X10: BitmapFace = BitmapFace {
     name: "6x10",
     sizes: [
         BakedSize {
@@ -122,7 +122,7 @@ pub(crate) static X11_6X10: BitmapFace = BitmapFace {
 
 const X11_6X13_BOLD_BIN: &[u8] = include_bytes!("6x13B.bin");
 
-pub(crate) static X11_6X13_BOLD: BitmapFace = BitmapFace {
+pub(crate) const X11_6X13_BOLD: BitmapFace = BitmapFace {
     name: "6x13B",
     sizes: [
         BakedSize {
@@ -150,7 +150,7 @@ pub(crate) static X11_6X13_BOLD: BitmapFace = BitmapFace {
 
 const X11_7X13_BOLD_BIN: &[u8] = include_bytes!("7x13B.bin");
 
-pub(crate) static X11_7X13_BOLD: BitmapFace = BitmapFace {
+pub(crate) const X11_7X13_BOLD: BitmapFace = BitmapFace {
     name: "7x13B",
     sizes: [
         BakedSize {
@@ -178,7 +178,7 @@ pub(crate) static X11_7X13_BOLD: BitmapFace = BitmapFace {
 
 const X11_7X14_BOLD_BIN: &[u8] = include_bytes!("7x14B.bin");
 
-pub(crate) static X11_7X14_BOLD: BitmapFace = BitmapFace {
+pub(crate) const X11_7X14_BOLD: BitmapFace = BitmapFace {
     name: "7x14B",
     sizes: [
         BakedSize {
@@ -206,7 +206,7 @@ pub(crate) static X11_7X14_BOLD: BitmapFace = BitmapFace {
 
 const X11_8X13_BOLD_BIN: &[u8] = include_bytes!("8x13B.bin");
 
-pub(crate) static X11_8X13_BOLD: BitmapFace = BitmapFace {
+pub(crate) const X11_8X13_BOLD: BitmapFace = BitmapFace {
     name: "8x13B",
     sizes: [
         BakedSize {
@@ -234,7 +234,7 @@ pub(crate) static X11_8X13_BOLD: BitmapFace = BitmapFace {
 
 const X11_9X15_BOLD_BIN: &[u8] = include_bytes!("9x15B.bin");
 
-pub(crate) static X11_9X15_BOLD: BitmapFace = BitmapFace {
+pub(crate) const X11_9X15_BOLD: BitmapFace = BitmapFace {
     name: "9x15B",
     sizes: [
         BakedSize {
@@ -262,7 +262,7 @@ pub(crate) static X11_9X15_BOLD: BitmapFace = BitmapFace {
 
 const X11_9X18_BOLD_BIN: &[u8] = include_bytes!("9x18B.bin");
 
-pub(crate) static X11_9X18_BOLD: BitmapFace = BitmapFace {
+pub(crate) const X11_9X18_BOLD: BitmapFace = BitmapFace {
     name: "9x18B",
     sizes: [
         BakedSize {
@@ -290,7 +290,7 @@ pub(crate) static X11_9X18_BOLD: BitmapFace = BitmapFace {
 
 const X11_10X20_BIN: &[u8] = include_bytes!("10x20.bin");
 
-pub(crate) static X11_10X20: BitmapFace = BitmapFace {
+pub(crate) const X11_10X20: BitmapFace = BitmapFace {
     name: "10x20",
     sizes: [
         BakedSize {
@@ -318,7 +318,7 @@ pub(crate) static X11_10X20: BitmapFace = BitmapFace {
 
 const TINY_3X5_BIN: &[u8] = include_bytes!("tiny.bin");
 
-pub(crate) static TINY_3X5: BitmapFace = BitmapFace {
+pub(crate) const TINY_3X5: BitmapFace = BitmapFace {
     name: "tiny",
     sizes: [
         BakedSize {

@@ -181,7 +181,7 @@ def mod_rs(baked):
     for name, sizes in baked.items():
         rust = RUST_NAMES[name]
         lines += ["", f'const {rust}_BIN: &[u8] = include_bytes!("{name}.bin");', ""]
-        lines += [f"pub(crate) static {rust}: BitmapFace = BitmapFace {{"]
+        lines += [f"pub(crate) const {rust}: BitmapFace = BitmapFace {{"]
         lines += [f'    name: "{name}",', "    sizes: ["]
         start = 0
         for size in sizes:

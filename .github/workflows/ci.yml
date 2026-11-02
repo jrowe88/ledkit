@@ -145,6 +145,40 @@ jobs:
       - run: cargo clippy --release --locked -- -D warnings
         working-directory: examples/esp32c6-matrix
 
+  example-esp32c6-anim:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+          targets: riscv32imac-unknown-none-elf
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            examples/esp32c6-anim
+      - run: cargo build --release --locked
+        working-directory: examples/esp32c6-anim
+      - run: cargo clippy --release --locked -- -D warnings
+        working-directory: examples/esp32c6-anim
+
+  example-anim-preview:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: examples/anim-preview
+      - run: cargo build --locked
+        working-directory: examples/anim-preview
+      - run: cargo clippy --locked -- -D warnings
+        working-directory: examples/anim-preview
+      - run: cargo run --locked -- list
+        working-directory: examples/anim-preview
+
   example-esp32c6-dotstar-hd:
     runs-on: ubuntu-latest
     steps:

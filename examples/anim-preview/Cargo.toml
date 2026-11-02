@@ -1,0 +1,15 @@
+[package]
+name = "anim-preview"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.82"
+publish = false
+
+# This example is its own little project. The empty [workspace] table keeps
+# Cargo from treating it as part of the ledkit workspace one folder up.
+[workspace]
+
+[dependencies]
+ledkit-anim = { path = "../../crates/ledkit-anim" }
+ledkit-color = { path = "../../crates/ledkit-color" }
+ledkit-layout = { path = "../../crates/ledkit-layout" }

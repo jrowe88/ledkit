@@ -60,6 +60,58 @@ impl Segment {
         }
     }
 
+    /// The strip position of the segment's first LED.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use ledkit_layout::Segment;
+    ///
+    /// assert_eq!(Segment::new(8, 4).start(), 8);
+    /// ```
+    pub const fn start(&self) -> usize {
+        self.start
+    }
+
+    /// How many LEDs the segment covers.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use ledkit_layout::Segment;
+    ///
+    /// assert_eq!(Segment::new(8, 4).len(), 4);
+    /// ```
+    pub const fn len(&self) -> usize {
+        self.len
+    }
+
+    /// True if the segment covers no LEDs.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use ledkit_layout::Segment;
+    ///
+    /// assert!(Segment::new(3, 0).is_empty());
+    /// ```
+    pub const fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+
+    /// True if the segment counts from its far end (see [`reversed`](Segment::reversed)).
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use ledkit_layout::Segment;
+    ///
+    /// assert!(Segment::new(0, 4).reversed().is_reversed());
+    /// ```
+    pub const fn is_reversed(&self) -> bool {
+        self.reversed
+    }
+
     /// Borrows this segment's LEDs out of `pixels`.
     ///
     /// # Errors

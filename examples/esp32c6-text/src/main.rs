@@ -149,8 +149,10 @@ fn time_frames(
 fn benchmark() {
     const WIDTH: u16 = 192;
     const HEIGHT: u16 = 64;
-    // 192 x 64 LEDs of 3 bytes each is about 37 KB, which fits in the
-    // ESP32-C6's memory. It is only a picture in RAM, not real LEDs.
+    // 192 x 64 LEDs of 3 bytes each is about 37 KB. There is no heap here, so
+    // it lives on the stack, and the stack is most of the chip's RAM (the
+    // ESP32-C6 has about 512 KB), so it fits. It is only a picture in RAM, not
+    // real LEDs.
     let mut pixels = [Rgb::BLACK; WIDTH as usize * HEIGHT as usize];
     let layout = MatrixLayout::new(WIDTH, HEIGHT);
     println!(

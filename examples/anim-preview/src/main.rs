@@ -18,6 +18,9 @@
 //! one frame, which is a good guide to how fast a microcontroller would be (a
 //! lot slower than a computer).
 //!
+//! The clock shows UTC, and its time digits shrink to fit the width (128 wide
+//! gives the full 30 rows).
+//!
 //! Each LED is drawn as a colored dot, and unlit LEDs as dark grey dots, the way
 //! a real panel looks. Your terminal needs "true color"
 //! (24-bit) support; Windows Terminal, macOS Terminal, iTerm2 and most Linux
@@ -380,7 +383,8 @@ fn format_clock(seconds: u64) -> (String, String) {
 }
 
 /// Turns a number of days since 1 January 1970 into (year, month, day).
-/// This is Howard Hinnant's `civil_from_days` algorithm.
+/// This is Howard Hinnant's `civil_from_days` algorithm. You can skip this
+/// part: it is only calendar arithmetic, there to avoid another crate.
 fn civil_from_days(days: i64) -> (i64, u32, u32) {
     let z = days + 719_468;
     let era = z.div_euclid(146_097);

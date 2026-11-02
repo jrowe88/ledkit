@@ -3,6 +3,7 @@
 use crate::edges::{sharpen, Edges};
 use crate::faces::bitmap::{BakedSize, BitmapFace};
 use crate::faces::data;
+use crate::faces::seven::Seven;
 
 /// How big to draw a font. `X1` is the font's own size; the others are bigger
 /// and are drawn fresh (not stretched), so letters stay as clean as the LEDs
@@ -40,11 +41,12 @@ impl Size {
     }
 }
 
-/// Which kind of letters. Only bitmap faces for now; more kinds (segment
-/// displays) join this list.
+/// Which kind of letters: a baked bitmap font, or a segment display drawn at
+/// any height.
 #[derive(Copy, Clone)]
 enum Face {
     Bitmap(&'static BitmapFace),
+    Seven(Seven),
 }
 
 /// A font: the shape of the letters, plus a [`Size`], the sharpness of their
@@ -124,7 +126,82 @@ impl Font {
         }
     }
 
+    /// A seven-segment display font, like a digital clock: `height` LEDs tall
+    /// (at least 5; anything smaller is drawn 5 tall).
+    ///
+    /// It shows the digits, `-`, `_`, `=`, `:`, `.`, a space and the letters a
+    /// seven-segment display can make. Most letters have one form whatever
+    /// the case (`b`, `d`, `n`, `r` and `t` look lower case; `A`, `C`, `E`
+    /// and `F` look like capitals unless you write them in lower case). `K`,
+    /// `M`, `V`, `W`, `X` and anything else it can't draw show as a blank.
+    ///
+    /// The letters are drawn finely and shrunk onto your LEDs, so their
+    /// [`Edges`] work as for other fonts. For fully-on-or-off LEDs, use
+    /// [`Font::hard_edges`]. [`Font::size`] has no effect: pick the height.
+    ///
+    /// ```
+    /// use ledkit_text::prelude::*;
+    ///
+    /// const CLOCK: Font = Font::seven_segment(8);
+    /// assert_eq!(CLOCK.height(), 8);
+    /// assert_eq!(CLOCK.text_width(b"12:34"), 30);
+    /// ```
+    pub const fn seven_segment(height: u16) -> Font {
+        Font::seven(Seven::new(height, false, false))
+    }
+
+    /// A seven-segment font like [`Font::seven_segment`], leaning to the right
+    /// like many real displays. The lean makes the text a little wider.
+    ///
+    /// ```
+    /// use ledkit_text::prelude::*;
+    ///
+    /// let font = Font::seven_segment_slanted(8);
+    /// assert_eq!(font.height(), 8);
+    /// assert_eq!(font.text_width(b"12:34"), 31);
+    /// ```
+    pub const fn seven_segment_slanted(height: u16) -> Font {
+        Font::seven(Seven::new(height, true, false))
+    }
+
+    /// A segment font with medium edges and no extra gap between letters.
+    const fn seven(face: Seven) -> Font {
+        Font {
+            face: Face::Seven(face),
+            size: Size::X1,
+            edges: Edges::Medium,
+            spacing: 0,
+        }
+    }
+
+    /// The same segment font with hard edges: each LED is either fully on or
+    /// off, never in between, like a real segment display. The segments are
+    /// drawn straight onto your LEDs instead of finely and shrunk, so they
+    /// can come out a little narrower or wider; [`Font::edges`] then has no
+    /// effect.
+    ///
+    /// This has no effect on bitmap fonts (such as [`Font::X11_5X8`]): use
+    /// [`Edges::VeryCrisp`] for those.
+    ///
+    /// ```
+    /// use ledkit_text::prelude::*;
+    ///
+    /// const CLOCK: Font = Font::seven_segment(8).hard_edges();
+    /// assert_eq!(CLOCK.height(), 8);
+    /// assert_eq!(CLOCK.text_width(b"12:34"), 29);
+    /// ```
+    #[must_use]
+    pub const fn hard_edges(mut self) -> Font {
+        if let Face::Seven(face) = self.face {
+            self.face = Face::Seven(face.hardened());
+        }
+        self
+    }
+
     /// The same font at another [`Size`].
+    ///
+    /// Segment fonts ([`Font::seven_segment`]) are sized by their height
+    /// instead, so this has no effect on them.
     ///
     /// ```
     /// use ledkit_text::prelude::*;
@@ -152,6 +229,7 @@ impl Font {
 
     /// The same font with `leds` extra empty LEDs between letters (0 to start
     /// with, since the letters already leave a little room; 0 to 3 is typical).
+    /// Each letter gets the extra LEDs after it, for segment fonts too.
     ///
     /// ```
     /// use ledkit_text::prelude::*;
@@ -165,11 +243,9 @@ impl Font {
         self
     }
 
-    /// The baked size of this font's letters.
-    const fn baked(&self) -> &'static BakedSize {
-        match self.face {
-            Face::Bitmap(face) => &face.sizes[self.size.index()],
-        }
+    /// The baked size of a bitmap face's letters.
+    const fn baked(&self, face: &'static BitmapFace) -> &'static BakedSize {
+        &face.sizes[self.size.index()]
     }
 
     /// How many LEDs tall the letters are.
@@ -178,9 +254,13 @@ impl Font {
     /// use ledkit_text::prelude::*;
     ///
     /// assert_eq!(Font::X11_5X8.height(), 8);
+    /// assert_eq!(Font::seven_segment(12).height(), 12);
     /// ```
     pub const fn height(&self) -> u16 {
-        self.baked().height as u16
+        match self.face {
+            Face::Bitmap(face) => self.baked(face).height as u16,
+            Face::Seven(face) => face.height(),
+        }
     }
 
     /// How many LEDs wide `text` is. Each letter takes its width plus the
@@ -193,11 +273,19 @@ impl Font {
     /// assert_eq!(Font::X11_5X8.text_width(b"AB"), 10);
     /// // With a 1 LED gap after each: 2 * (5 + 1).
     /// assert_eq!(Font::X11_5X8.spacing(1).text_width(b"AB"), 12);
+    /// // Segment fonts: each extra LED of spacing adds one per letter.
+    /// let clock = Font::seven_segment(8);
+    /// assert_eq!(clock.spacing(1).text_width(b"12:34"), clock.text_width(b"12:34") + 5);
     /// ```
     pub fn text_width(&self, text: &[u8]) -> u16 {
-        let advance = u32::from(self.baked().width) + u32::from(self.spacing);
-        let width = text.len() as u32 * advance;
-        u16::try_from(width).unwrap_or(u16::MAX)
+        match self.face {
+            Face::Bitmap(face) => {
+                let advance = u32::from(self.baked(face).width) + u32::from(self.spacing);
+                let width = text.len() as u32 * advance;
+                u16::try_from(width).unwrap_or(u16::MAX)
+            }
+            Face::Seven(face) => face.width(text, self.spacing),
+        }
     }
 
     /// How much of the LED at (`x`, `y`) the letters cover, 0 to 255, where
@@ -205,7 +293,26 @@ impl Font {
     // Used by `TextArea` and `Ticker`, which arrive in the next tasks.
     #[allow(dead_code)]
     pub(crate) fn coverage(&self, text: &[u8], x: i32, y: i32) -> u8 {
-        let baked = self.baked();
+        match self.face {
+            Face::Bitmap(face) => self.bitmap_coverage(face, text, x, y),
+            Face::Seven(face) => {
+                let covered = face.coverage(text, self.spacing, x, y);
+                if face.hard() {
+                    if covered > 0 {
+                        255
+                    } else {
+                        0
+                    }
+                } else {
+                    sharpen(covered, 64, self.edges)
+                }
+            }
+        }
+    }
+
+    /// [`Font::coverage`] for a bitmap face.
+    fn bitmap_coverage(&self, face: &'static BitmapFace, text: &[u8], x: i32, y: i32) -> u8 {
+        let baked = self.baked(face);
         let width = usize::from(baked.width);
         let height = usize::from(baked.height);
         let (Ok(x), Ok(y)) = (usize::try_from(x), usize::try_from(y)) else {
@@ -235,10 +342,18 @@ impl Font {
     /// use ledkit_text::prelude::*;
     ///
     /// assert_eq!(Font::X11_5X8.name(), "5x8");
+    /// assert_eq!(Font::seven_segment(8).name(), "7-segment");
     /// ```
     pub const fn name(&self) -> &'static str {
         match self.face {
             Face::Bitmap(face) => face.name,
+            Face::Seven(face) => {
+                if face.slanted() {
+                    "7-segment slanted"
+                } else {
+                    "7-segment"
+                }
+            }
         }
     }
 }
@@ -290,6 +405,68 @@ mod tests {
         assert_eq!(font.coverage(b"AA", 5, 4), 255);
         assert_eq!(font.spacing(1).coverage(b"AA", 6, 4), 255);
         assert_eq!(font.spacing(1).coverage(b"AA", 5, 4), 0);
+    }
+
+    #[test]
+    fn seven_segment_through_the_font() {
+        let soft = Font::seven_segment(10);
+        let face = Seven::new(10, false, false);
+        let text = b"12:34";
+        for edges in [Edges::Soft, Edges::Medium, Edges::Crisp, Edges::VeryCrisp] {
+            let font = soft.edges(edges);
+            for y in -1..11 {
+                for x in -1..=i32::from(font.text_width(text)) {
+                    let expected = sharpen(face.coverage(text, 0, x, y), 64, edges);
+                    assert_eq!(font.coverage(text, x, y), expected);
+                }
+            }
+        }
+        // Hard edges: fully on or off, and the same LEDs as the plain drawing.
+        let hard = Font::seven_segment_slanted(10).hard_edges();
+        let face = Seven::new(10, true, true);
+        assert_eq!(hard.text_width(text), face.width(text, 0));
+        for y in 0..10 {
+            for x in 0..i32::from(hard.text_width(text)) {
+                let expected = if face.coverage(text, 0, x, y) == 64 {
+                    255
+                } else {
+                    0
+                };
+                assert_eq!(hard.edges(Edges::Soft).coverage(text, x, y), expected);
+            }
+        }
+    }
+
+    #[test]
+    fn segment_options() {
+        // Too short is raised to 5.
+        assert_eq!(Font::seven_segment(3).height(), 5);
+        assert_eq!(Font::seven_segment_slanted(0).height(), 5);
+        // Size has no effect on segment fonts.
+        let font = Font::seven_segment(8);
+        assert_eq!(font.size(Size::X2).height(), 8);
+        assert_eq!(
+            font.size(Size::X2).text_width(b"88"),
+            font.text_width(b"88")
+        );
+        // Spacing adds blank LEDs after each letter.
+        assert_eq!(
+            font.spacing(2).text_width(b"88"),
+            font.text_width(b"88") + 4
+        );
+        assert_eq!(
+            font.hard_edges().spacing(1).text_width(b"88"),
+            font.hard_edges().text_width(b"88") + 2
+        );
+        // Hard edges leave bitmap fonts alone.
+        let bitmap = Font::X11_5X8.edges(Edges::Soft);
+        for (x, y) in [(0, 3), (1, 2), (2, 5)] {
+            assert_eq!(
+                bitmap.hard_edges().coverage(b"A", x, y),
+                bitmap.coverage(b"A", x, y)
+            );
+        }
+        assert_eq!(Font::seven_segment_slanted(8).name(), "7-segment slanted");
     }
 
     #[test]

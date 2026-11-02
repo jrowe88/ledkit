@@ -72,14 +72,17 @@ mod tests {
             (Edges::VeryCrisp, 6.0),
         ];
         for (edges, k) in cases {
-            for covered in 0..=16u16 {
-                let v = f32::from(covered) / 16.0;
-                let expected = (((v - 0.5) * k + 0.5).clamp(0.0, 1.0) * 255.0).round() as u8;
-                assert_eq!(
-                    sharpen(covered, 16, edges),
-                    expected,
-                    "covered {covered}, {edges:?}"
-                );
+            // Bitmap faces count 16 samples; segment faces count 64.
+            for out_of in [16u16, 64] {
+                for covered in 0..=out_of {
+                    let v = f32::from(covered) / f32::from(out_of);
+                    let expected = (((v - 0.5) * k + 0.5).clamp(0.0, 1.0) * 255.0).round() as u8;
+                    assert_eq!(
+                        sharpen(covered, out_of, edges),
+                        expected,
+                        "covered {covered} of {out_of}, {edges:?}"
+                    );
+                }
             }
         }
     }

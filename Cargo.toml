@@ -1,7 +1,7 @@
 [workspace]
 resolver = "2"
 members = ["crates/*"]
-exclude = ["examples", "crates/ledkit-esp", "crates/ledkit-esp-idf"]
+exclude = ["examples", "crates/ledkit-esp", "crates/ledkit-esp-idf", "crates/ledkit-rp"]
 
 [workspace.package]
 version = "0.1.0"

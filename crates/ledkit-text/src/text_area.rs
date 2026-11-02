@@ -46,6 +46,18 @@ pub enum UpDown {
     Bottom,
 }
 
+impl UpDown {
+    /// How far down the box the text starts, given how many rows are spare
+    /// (rounded down, so text taller than the box still sits in the middle).
+    pub(crate) const fn offset(self, spare_height: i32) -> i32 {
+        match self {
+            UpDown::Top => 0,
+            UpDown::Middle => spare_height.div_euclid(2),
+            UpDown::Bottom => spare_height,
+        }
+    }
+}
+
 /// Text that stays still, drawn in a box on your panel: a clock, a score, a
 /// label.
 ///
@@ -283,11 +295,7 @@ impl<const LEN: usize> TextArea<LEN> {
             Across::Centre => spare_width.div_euclid(2),
             Across::Right => spare_width,
         };
-        let text_top = match self.up_down {
-            UpDown::Top => 0,
-            UpDown::Middle => spare_height.div_euclid(2),
-            UpDown::Bottom => spare_height,
-        };
+        let text_top = self.up_down.offset(spare_height);
         style.draw(surface, now.into(), text, text_left, text_top);
     }
 

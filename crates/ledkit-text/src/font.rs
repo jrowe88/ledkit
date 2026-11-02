@@ -325,6 +325,16 @@ impl Font {
         }
     }
 
+    /// For fonts whose letters are all the same width (the bitmap faces),
+    /// how far apart the letters start: letter `n` begins `n * advance` LEDs
+    /// in. `None` for the segment faces, whose letters differ in width.
+    pub(crate) fn fixed_advance(&self) -> Option<u16> {
+        match self.face {
+            Face::Bitmap(face) => Some(u16::from(self.baked(face).width) + u16::from(self.spacing)),
+            Face::Seven(_) | Face::Fourteen(_) => None,
+        }
+    }
+
     /// How much of the LED at (`x`, `y`) the letters cover, 0 to 255, where
     /// (0, 0) is the top left of `text`. 0 outside the text.
     pub(crate) fn coverage(&self, text: &[u8], x: i32, y: i32) -> u8 {

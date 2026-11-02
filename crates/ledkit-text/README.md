@@ -49,3 +49,30 @@ time.render(&mut panel, now);
 Letters, the outline and what's behind can each be a plain colour or any
 effect. Effects are coloured by where each LED is on the whole panel, so a
 rainbow across two areas lines up.
+
+## A ticker
+
+A `Ticker` scrolls a list of messages through a box, one after another, and
+starts again from the first. Each one comes in from the right and leaves off
+the left; one short enough to fit stays still in the middle for 3 seconds.
+Give it the time each time round your loop and it does the rest.
+
+```rust
+use ledkit_layout::{Canvas, MatrixLayout};
+use ledkit_text::prelude::*;
+
+let mut pixels = [Rgb::BLACK; 8 * 8];
+let mut panel = Canvas::new(&mut pixels, MatrixLayout::new(8, 8)).unwrap();
+
+let mut ticker = Ticker::new(Font::X11_5X7).letters(Rainbow::new()).speed(12);
+ticker.set_messages(&["12:34", "Rain at 4pm", "Standup 9:30"]);
+
+// In your loop, with the milliseconds since your program started:
+for millis in (0..5000).step_by(33) {
+    ticker.render(&mut panel, Time::from_millis(millis));
+    // strip.show() here.
+}
+```
+
+Call `set_messages` again whenever the news changes: the message showing
+finishes first, then the new list starts.

@@ -48,8 +48,7 @@ pub enum Paint {
 
 impl Paint {
     /// The color for the LED at `at`.
-    // Used by `TextArea` and `Ticker`, which arrive in the next tasks.
-    #[allow(dead_code, clippy::trivially_copy_pass_by_ref)] // `&Frame` matches `Animation`.
+    #[allow(clippy::trivially_copy_pass_by_ref)] // `&Frame` matches `Animation`.
     pub(crate) fn color_at(&self, at: Position, frame: &Frame) -> Rgb {
         match self {
             Paint::Color(color) => *color,

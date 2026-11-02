@@ -327,8 +327,6 @@ impl Font {
 
     /// How much of the LED at (`x`, `y`) the letters cover, 0 to 255, where
     /// (0, 0) is the top left of `text`. 0 outside the text.
-    // Used by `TextArea` and `Ticker`, which arrive in the next tasks.
-    #[allow(dead_code)]
     pub(crate) fn coverage(&self, text: &[u8], x: i32, y: i32) -> u8 {
         match self.face {
             Face::Bitmap(face) => self.bitmap_coverage(face, text, x, y),

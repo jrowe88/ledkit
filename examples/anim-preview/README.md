@@ -20,10 +20,24 @@ cargo run -- comet --strip 30
 cargo run -- demo
 ```
 
+```bash
+cargo run -- demo --size 64x64
+```
+
 - `list` prints the effect names. Common other names work too, such as `marquee`,
   `fire`, `concentric` or `rotating-x`.
 - A name shows that effect, with its default settings, on an 8x8 matrix.
+- `--size WxH` shows it on a bigger (or smaller) matrix, width first: for example
+  `--size 32x16`, `32x32`, `64x32` or `64x64`, the common HUB75 panel sizes. Up to
+  32x32 each LED is a square block; bigger matrices are drawn at half height (one
+  character per two rows) so they fit in the window. A 64x64 panel needs a window
+  at least 64 columns wide and 34 lines tall.
 - `--strip N` shows it on a strip of N LEDs instead.
+- `--char C` draws each LED as a character in the LED's color, instead of a
+  solid block. Give the character itself (`--char "#"`, `--char ●`) or its code:
+  32 to 126 for ASCII, 128 to 255 for the DOS character set (code page 437, so
+  `--char 219` is `█` and `--char 254` is `■`), or any Unicode code point
+  (`--char 9679` or `--char U+25CF` for `●`).
 - `demo` (also what you get with no name) plays the matrix show from the
   `esp32c6-anim` example.
 

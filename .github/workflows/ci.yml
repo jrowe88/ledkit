@@ -301,3 +301,5 @@ jobs:
         with:
           python-version: "3.12"
       - run: python site/text-preview/build.py --check
+      - run: python tools/test_fontgen.py
+      - run: python tools/fontgen.py --check

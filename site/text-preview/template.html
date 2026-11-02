@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Built by build.py from this template and the fonts in assets/fonts/. Edit this file, not index.html. -->
+<title>ledkit text preview</title>
+<style>
+  body { background:#111; color:#ddd; font:14px system-ui, sans-serif; margin:0; padding:16px 20px 60px; }
+  h2 { margin:4px 0 2px; } .sub { color:#999; margin:0 0 14px; }
+  .controls { display:grid; grid-template-columns:repeat(auto-fit, minmax(min(230px, 100%), 1fr)); gap:12px; position:sticky; top:0; z-index:2; background:#111; padding:6px 0 8px; }
+  @media (max-width: 900px) { .controls { position:static; } }
+  .group { background:#1b1b1b; border:1px solid #2a2a2a; border-radius:8px; padding:10px 12px; display:flex; flex-direction:column; gap:8px; }
+  .group h3 { margin:0; font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:#888; font-weight:600; }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .row > span { font-size:12px; color:#aaa; min-width:64px; }
+  select, input[type=text] { background:#222; color:#eee; border:1px solid #444; border-radius:4px; padding:4px 6px; font-size:13px; }
+  select { flex:1; min-width:0; }
+  input[type=text] { width:100%; box-sizing:border-box; }
+  input[type=color] { width:34px; height:26px; padding:0; border:1px solid #444; border-radius:4px; background:#222; }
+  label.chk { display:flex; align-items:center; gap:6px; font-size:12px; color:#bbb; }
+  .presets { display:flex; flex-wrap:wrap; gap:4px; }
+  .presets button { background:#2a2a2a; color:#ddd; border:1px solid #444; border-radius:4px; padding:3px 7px; cursor:pointer; font-size:12px; }
+  .hide { display:none !important; }
+  .note { font-size:12px; color:#c9a35b; margin:4px 2px 0; max-width:1000px; }
+  .panels { display:flex; flex-wrap:wrap; gap:22px; margin-top:18px; align-items:flex-end; }
+  .panel { display:flex; flex-direction:column; gap:6px; }
+  .panel .cap { font-size:12px; color:#999; }
+  a { color:#e8a25c; }
+  .foot { font-size:12px; color:#777; margin-top:28px; }
+  .panel { max-width:100%; }
+  canvas { max-width:100%; height:auto; background:#050505; border-radius:4px; image-rendering:pixelated; }
+</style></head><body>
+<h2>ledkit text preview</h2>
+<p class="sub">Every dot is one LED. Text wider than a panel scrolls; otherwise it sits centred.<br>
+A design preview of the text support planned for <a href="https://github.com/jrowe88/ledkit">ledkit</a>: the fonts are the ones ledkit will ship, and the colour effects follow ledkit-anim's Rainbow, Plasma and Flames.</p>
+
+<div class="controls">
+  <div class="group"><h3>Text</h3>
+    <input type="text" id="text" value="Hello 12:34">
+    <div class="presets">
+      <button data-t="12:34">clock</button><button data-t="12:34:56">clock+s</button><button data-t="0042">counter</button>
+      <button data-t="Standup 9:30 - Room B">calendar</button><button data-t="AAPL 231.40 +1.2%   MSFT 418.02 -0.3%">ticker</button>
+      <button data-t="The quick brown fox jumps over the lazy dog 0123456789">pangram</button>
+    </div>
+  </div>
+  <div class="group"><h3>Font</h3>
+    <div class="row"><span>Face</span><select id="font"></select></div>
+    <div class="row" id="r-size"><span>Size</span><select id="size"><option value="1">1x (as drawn)</option><option value="1.25">1.25x</option><option value="1.5">1.5x</option><option value="2">2x</option></select></div>
+    <div class="row" id="r-height"><span>Height</span><select id="height"></select></div>
+    <label class="chk" id="r-aa7"><input type="checkbox" id="aa7"> Anti-aliased</label>
+    <div class="row" id="r-sharp"><span>Edges</span><select id="sharp"><option value="1">soft</option><option value="2" selected>medium</option><option value="3.5">crisp</option><option value="6">very crisp</option></select></div>
+    <div class="row" id="r-gap"><span>Spacing</span><select id="gap"><option value="0">normal</option><option value="1">+1</option><option value="2">+2</option><option value="3">+3</option></select></div>
+  </div>
+  <div class="group"><h3>Colour</h3>
+    <div class="row"><span>Letters</span><select id="fill"><option value="solid">Colour</option><option value="rainbow">Rainbow</option><option value="plasma">Plasma</option><option value="flames">Flames</option></select><input type="color" id="color" value="#ff7a1a"></div>
+    <div class="row"><span>Behind</span><select id="bg"><option value="off">Off</option><option value="solid">Colour (half bright)</option><option value="rainbow">Rainbow (dim)</option><option value="plasma">Plasma (dim)</option><option value="flames">Flames (dim)</option></select><input type="color" id="bcolor" value="#1a3cff"></div>
+    <div class="row"><label class="chk"><input type="checkbox" id="outline"> Outline</label><input type="color" id="ocolor" value="#000000"></div>
+    <label class="chk"><input type="checkbox" id="reverse"> Reverse (letters become holes)</label>
+  </div>
+  <div class="group"><h3>Motion</h3>
+    <label class="chk"><input type="checkbox" id="scroll" checked> Scroll when wider than the panel</label>
+    <label class="chk"><input type="checkbox" id="always"> Always scroll</label>
+    <div class="row"><span>Speed</span><select id="speed"><option value="10">slow</option><option value="20" selected>medium</option><option value="40">fast</option></select></div>
+  </div>
+</div>
+<p class="note" id="note"></p>
+<div class="panels" id="panels"></div>
+
+<script>
+/*FONTS*/
+
+// ---- Original 3x5 face (drawn for ledkit; capitals, digits, a little punctuation) ----
+const TINY = {
+  '0':'111101101101111','1':'010110010010111','2':'111001111100111','3':'111001011001111','4':'101101111001001',
+  '5':'111100111001111','6':'111100111101111','7':'111001010010010','8':'111101111101111','9':'111101111001111',
+  'A':'010101111101101','B':'110101110101110','C':'011100100100011','D':'110101101101110','E':'111100110100111',
+  'F':'111100110100100','G':'011100101101011','H':'101101111101101','I':'111010010010111','J':'001001001101010',
+  'K':'101101110101101','L':'100100100100111','M':'101111111101101','N':'110101101101101','O':'010101101101010',
+  'P':'110101110100100','Q':'010101101110011','R':'110101110101101','S':'011100010001110','T':'111010010010010',
+  'U':'101101101101111','V':'101101101101010','W':'101101111111101','X':'101101010101101','Y':'101101010010010',
+  'Z':'111001010100111',' ':'000000000000000',':':'000010000010000','.':'000000000000010','-':'000000111000000',
+  '!':'010010010000010','?':'110001010000010',"'":'010010000000000','/':'001001010100100','+':'000010111010000',
+  ',':'000000000010100','%':'101001010100101'
+};
+
+
+const FACES = [
+  ['Pixel fonts (X11 misc-fixed, public domain)', Object.keys(BDF_FONTS).map(k => ['bdf:'+k, k.replace('B',' bold') + '  (' + BDF_FONTS[k].h + ' rows)'])],
+  ['Original to ledkit', [['tiny', '3x5 tiny (caps + digits)'], ['seg7', '7-segment digits (any height)'], ['seg7r', '7-segment, slanted (any height)'], ['seg14', '14-segment, all letters (any height)']]],
+
+];
+
+const PANELS = [[8,8],[32,8],[32,16],[64,32],[64,64],[192,64]];
+
+const $ = id => document.getElementById(id);
+for (const [group, items] of FACES) {
+  const og = document.createElement('optgroup'); og.label = group;
+  for (const [v, t] of items) { const o = document.createElement('option'); o.value = v; o.textContent = t; og.appendChild(o); }
+  $('font').appendChild(og);
+}
+$('font').value = 'bdf:5x8';
+for (let h = 5; h <= 64; h++) { const o = document.createElement('option'); o.value = h; o.textContent = h; $('height').appendChild(o); }
+$('height').value = '16';
+
+// A bitmap is {w, h, px: Float32Array} with values 0..1 (brightness of text there).
+function bitmap(w, h) { return { w, h, px: new Float32Array(w * h) }; }
+
+function renderBdf(name, text) {
+  const f = BDF_FONTS[name], cw = f.w + +$('gap').value;
+  const b = bitmap(cw * text.length, f.h);
+  [...text].forEach((ch, i) => {
+    const g = f.glyphs[ch.charCodeAt(0)] || f.glyphs[63];
+    g.forEach((row, y) => [...row].forEach((c, x) => { if (c === '1') b.px[y * b.w + i * cw + x] = 1; }));
+  });
+  return b;
+}
+
+function renderTiny(text) {
+  const chars = [...text.toUpperCase()];
+  const cw = 4 + +$('gap').value, b = bitmap(chars.length * cw, 5);
+  chars.forEach((ch, i) => {
+    const g = TINY[ch] || TINY['?'];
+    for (let y = 0; y < 5; y++) for (let x = 0; x < 3; x++) if (g[y * 3 + x] === '1') b.px[y * b.w + i * cw + x] = 1;
+  });
+  return b;
+}
+
+// 7-segment digits: segments a..g as rectangles, scaled to height H.
+// The usual 7-segment alphabet. Some letters only exist as lower case (b, d, n, r, t ...);
+// K, M, V, W and X have no readable 7-segment form and show blank.
+const SEGS = { '0':'abcdef','1':'bc','2':'abdeg','3':'abcdg','4':'bcfg','5':'acdfg','6':'acdefg','7':'abc','8':'abcdefg','9':'abcdfg',
+  '-':'g','_':'d','=':'dg',' ':'','°':'abfg',
+  'A':'abcefg','B':'cdefg','C':'adef','D':'bcdeg','E':'adefg','F':'aefg','G':'acdef','H':'bcefg','I':'ef','J':'bcde','L':'def',
+  'N':'ceg','O':'abcdef','P':'abefg','Q':'abcfg','R':'eg','S':'acdfg','T':'defg','U':'bcdef','Y':'bcdfg','Z':'abdeg',
+  'a':'abcdeg','b':'cdefg','c':'deg','d':'bcdeg','e':'abdefg','f':'aefg','g':'abcdfg','h':'cefg','i':'c','j':'bcd','l':'ef',
+  'n':'ceg','o':'cdeg','p':'abefg','q':'abcfg','r':'eg','s':'acdfg','t':'defg','u':'cde','y':'bcdfg','z':'abdeg' };
+function renderSeg(text, H, slant, aa) {
+  if (aa) { const k = 8, o = downsample(renderSeg(text, H * k, slant, false), k); o.px = o.px.map(sharpen); return o; }
+  H = Math.max(5, H);
+  const t = Math.max(1, Math.round(H / 7));            // stroke thickness
+  const W = Math.max(3, Math.round(H * 0.55));
+  const gap = Math.max(1, Math.round(t * 0.8));
+  const chars = [...text].map(c => SEGS[c] !== undefined || c === ':' || c === '.' ? c : c.toUpperCase());
+  const widths = chars.map(c => (c === ':' || c === '.') ? t + 2 * gap : W);
+  const skew = slant ? Math.round(H * 0.18) : 0;
+  const total = widths.reduce((a, w) => a + w + gap * 2, 0) + skew;
+  const b = bitmap(Math.max(1, total), H);
+  const mid = Math.floor((H - t) / 2);
+  const put = (x, y) => { const sx = x + (slant ? Math.round(skew * (1 - y / (H - 1))) : 0); if (sx >= 0 && sx < b.w && y >= 0 && y < b.h) b.px[y * b.w + sx] = 1; };
+  const rect = (x0, y0, w, h) => { for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) put(x, y); };
+  let x = 0;
+  chars.forEach((c, i) => {
+    if (c === ':') { rect(x + gap, Math.round(H * 0.28) - (t >> 1), t, t); rect(x + gap, Math.round(H * 0.72) - (t >> 1), t, t); }
+    else if (c === '.') rect(x + gap, H - t, t, t);
+    else {
+      const s = SEGS[c] || '';
+      const v = mid - t;            // length of the upper verticals
+      const v2 = H - mid - 2 * t;   // lower verticals
+      if (s.includes('a')) rect(x + t, 0, W - 2 * t, t);
+      if (s.includes('g')) rect(x + t, mid, W - 2 * t, t);
+      if (s.includes('d')) rect(x + t, H - t, W - 2 * t, t);
+      if (s.includes('f')) rect(x, t, t, v + (t > 1 ? 0 : 0));
+      if (s.includes('b')) rect(x + W - t, t, t, v);
+      if (s.includes('e')) rect(x, mid + t, t, v2);
+      if (s.includes('c')) rect(x + W - t, mid + t, t, v2);
+    }
+    x += widths[i] + gap * 2;
+  });
+  return b;
+}
+
+// 14-segment ("starburst") display: every capital letter has a shape.
+// Segments: a top, b/c right, d bottom, e/f left, g1/g2 middle halves, i/l centre verticals,
+// h/j upper diagonals, k/m lower diagonals.
+const SEG14 = {
+  'A':'a b c e f g1 g2','B':'a b c d i l g2','C':'a d e f','D':'a b c d i l','E':'a d e f g1','F':'a e f g1',
+  'G':'a c d e f g2','H':'b c e f g1 g2','I':'a d i l','J':'b c d e','K':'e f g1 j m','L':'d e f','M':'b c e f h j',
+  'N':'b c e f h m','O':'a b c d e f','P':'a b e f g1 g2','Q':'a b c d e f m','R':'a b e f g1 g2 m','S':'a c d f g1 g2',
+  'T':'a i l','U':'b c d e f','V':'e f k j','W':'b c e f k m','X':'h j k m','Y':'h j l','Z':'a d j k',
+  '0':'a b c d e f j k','1':'b c j','2':'a b d e g1 g2','3':'a b c d g2','4':'b c f g1 g2','5':'a c d f g1 g2',
+  '6':'a c d e f g1 g2','7':'a b c','8':'a b c d e f g1 g2','9':'a b c d f g1 g2',
+  '-':'g1 g2','+':'g1 g2 i l','/':'j k','*':'g1 g2 h i j k l m','\'':'i','"':'f i','_':'d','=':'d g1 g2',
+  '<':'j m','>':'h k','?':'a b g2 l','!':'b c','$':'a c d f g1 g2 i l','%':'c f j k g1 g2',' ':''
+};
+function renderSeg14(text, H, aa) {
+  H = Math.max(7, H);
+  const k = 8, HH = H * k;                       // draw big, then shrink
+  const t = Math.max(1, Math.round(H / 8)) * k;  // stroke thickness
+  const W = Math.round(H * 0.62) * k, gapc = Math.round(t * 0.9);
+  const chars = [...text.toUpperCase()];
+  const widths = chars.map(c => (c === ':' || c === '.' || c === ',') ? t + 2 * gapc : W);
+  const total = widths.reduce((s, w) => s + w + 2 * gapc, 0);
+  const big = bitmap(Math.ceil(total / k) * k, HH);
+  const h = t / 2;
+  const caps = [];
+  const P = (x0, w) => ({ L: x0 + h, R: x0 + w - h, C: x0 + w / 2, T: h, M: HH / 2, B: HH - h });
+  let x0 = 0;
+  chars.forEach((c, n) => {
+    const p = P(x0, widths[n]);
+    const add = (ax, ay, bx, by, shrink) => {  // capsule, pulled back from its ends so segments don't touch
+      const dx = bx - ax, dy = by - ay, len = Math.hypot(dx, dy), s = shrink / len;
+      caps.push([ax + dx * s, ay + dy * s, bx - dx * s, by - dy * s]);
+    };
+    if (c === ':') { caps.push([p.C, HH * 0.3, p.C, HH * 0.3]); caps.push([p.C, HH * 0.7, p.C, HH * 0.7]); }
+    else if (c === '.' || c === ',') caps.push([p.C, p.B, p.C, p.B]);
+    else for (const s of (SEG14[c] ?? '').split(' ').filter(Boolean)) {
+      const g = gapc, d = gapc * 1.6;
+      ({
+        a: () => add(p.L, p.T, p.R, p.T, g), d: () => add(p.L, p.B, p.R, p.B, g),
+        f: () => add(p.L, p.T, p.L, p.M, g), e: () => add(p.L, p.M, p.L, p.B, g),
+        b: () => add(p.R, p.T, p.R, p.M, g), c: () => add(p.R, p.M, p.R, p.B, g),
+        g1: () => add(p.L, p.M, p.C, p.M, g), g2: () => add(p.C, p.M, p.R, p.M, g),
+        i: () => add(p.C, p.T, p.C, p.M, g), l: () => add(p.C, p.M, p.C, p.B, g),
+        h: () => add(p.L, p.T, p.C, p.M, d), j: () => add(p.R, p.T, p.C, p.M, d),
+        k: () => add(p.L, p.B, p.C, p.M, d), m: () => add(p.R, p.B, p.C, p.M, d),
+      })[s]();
+    }
+    x0 += widths[n] + 2 * gapc;
+  });
+  for (const [ax, ay, bx, by] of caps) {
+    const minx = Math.max(0, Math.floor(Math.min(ax, bx) - h)), maxx = Math.min(big.w - 1, Math.ceil(Math.max(ax, bx) + h));
+    const miny = Math.max(0, Math.floor(Math.min(ay, by) - h)), maxy = Math.min(big.h - 1, Math.ceil(Math.max(ay, by) + h));
+    const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy || 1;
+    for (let y = miny; y <= maxy; y++) for (let x = minx; x <= maxx; x++) {
+      const u = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / l2));
+      if (Math.hypot(x - ax - u * dx, y - ay - u * dy) <= h) big.px[y * big.w + x] = 1;
+    }
+  }
+  const o = downsample(big, k);
+  o.px = o.px.map(v => aa ? sharpen(v) : (v >= 0.5 ? 1 : 0));
+  return o;
+}
+
+function scaleBlock(b, s) {
+  const o = bitmap(b.w * s, b.h * s);
+  for (let y = 0; y < o.h; y++) for (let x = 0; x < o.w; x++) o.px[y * o.w + x] = b.px[((y / s) | 0) * b.w + ((x / s) | 0)];
+  return o;
+}
+function scale2x(b) {   // EPX / Scale2x: doubles size and rounds off diagonal stair-steps
+  const o = bitmap(b.w * 2, b.h * 2);
+  const at = (x, y) => (x < 0 || y < 0 || x >= b.w || y >= b.h) ? 0 : b.px[y * b.w + x];
+  for (let y = 0; y < b.h; y++) for (let x = 0; x < b.w; x++) {
+    const P = at(x, y), A = at(x, y - 1), B = at(x + 1, y), C = at(x - 1, y), D = at(x, y + 1);
+    let e0 = P, e1 = P, e2 = P, e3 = P;
+    if (C === A && C !== D && A !== B) e0 = A;
+    if (A === B && A !== C && B !== D) e1 = B;
+    if (D === C && D !== B && C !== A) e2 = C;
+    if (B === D && B !== A && D !== C) e3 = D;
+    o.px[(2 * y) * o.w + 2 * x] = e0; o.px[(2 * y) * o.w + 2 * x + 1] = e1;
+    o.px[(2 * y + 1) * o.w + 2 * x] = e2; o.px[(2 * y + 1) * o.w + 2 * x + 1] = e3;
+  }
+  return o;
+}
+// Average each k x k block down to one LED: edge LEDs get partial brightness.
+function downsample(b, k) {
+  const o = bitmap(Math.ceil(b.w / k), Math.ceil(b.h / k));
+  for (let y = 0; y < b.h; y++) for (let x = 0; x < b.w; x++) o.px[((y / k) | 0) * o.w + ((x / k) | 0)] += b.px[y * b.w + x] / (k * k);
+  return o;
+}
+// Anti-aliased resize to any height: smooth the stair-steps at high resolution (Scale2x three
+// times = 8x), then area-average down to the LED grid at the exact size wanted.
+function antialias(b, H) {
+  let hi = b; for (let i = 0; i < 3; i++) hi = scale2x(hi);
+  const s = H / b.h, ow = Math.max(1, Math.round(b.w * s)), oh = H;
+  const o = bitmap(ow, oh), n = 4;               // 4x4 samples per LED
+  for (let y = 0; y < oh; y++) for (let x = 0; x < ow; x++) {
+    let sum = 0;
+    for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+      const hx = Math.floor(((x + (i + 0.5) / n) / s) * 8), hy = Math.floor(((y + (j + 0.5) / n) / s) * 8);
+      if (hx < hi.w && hy < hi.h) sum += hi.px[hy * hi.w + hx];
+    }
+    o.px[y * ow + x] = sharpen(sum / (n * n));
+  }
+  return o;
+}
+// Push part-covered LEDs toward fully on or off, leaving a thinner soft rim.
+function sharpen(v) { const k = +$('sharp').value; return Math.min(1, Math.max(0, (v - 0.5) * k + 0.5)); }
+// 1x shows the font exactly as drawn; bigger sizes are anti-aliased.
+function sized(b, s) { return s === 1 ? b : antialias(b, Math.round(b.h * s)); }
+
+let textBmp = null;
+function build() {
+  const face = $('font').value, text = $('text').value || ' ';
+  const s = +$('size').value, H = +$('height').value;
+  let b, note = '';
+  if (face.startsWith('bdf:')) { b = sized(renderBdf(face.slice(4), text), s);
+    note = 'Pixel font: public domain (the classic X11 "fixed" fonts). 1x is exactly as drawn; bigger sizes are smoothed (anti-aliased).'; }
+  else if (face === 'tiny') { b = sized(renderTiny(text), s); note = '3x5: drawn fresh for ledkit. Capitals and digits only (lower case shows as capitals).'; }
+  else if (face === 'seg14') { b = renderSeg14(text, H, $('aa7').checked); note = '14-segment: like an alarm-clock display but with diagonal and centre bars, so every capital letter and digit has a shape (lower case shows as capitals). Drawn by code at any height; needs about 12+ LEDs tall to read well.'; }
+  else if (face.startsWith('seg7')) { b = renderSeg(text, H, face === 'seg7r', $('aa7').checked); note = '7-segment: drawn by code at any height, no font data. Digits plus the usual 7-segment letters (some only as lower case: b d h n o r t u); K M V W X have no 7-segment form.'; }
+  textBmp = b;
+  // Only show the controls that matter for this face and mode.
+  const pixelFace = face.startsWith('bdf:') || face === 'tiny', seg = face.startsWith('seg');
+  const show = (id, on) => $(id).classList.toggle('hide', !on);
+  show('r-size', pixelFace); show('r-height', seg); show('r-aa7', seg); show('r-gap', pixelFace);
+  show('r-sharp', (pixelFace && s > 1) || (seg && $('aa7').checked));
+  $('note').textContent = note + `  Text is ${b.w} x ${b.h} LEDs.`;
+}
+
+const views = [];
+function layout() {
+  const host = $('panels'); host.innerHTML = '';
+  views.length = 0;
+  for (const [w, h] of PANELS) {
+    const pitch = Math.max(3, Math.min(14, Math.floor(Math.min(780 / w, 300 / h))));
+    const div = document.createElement('div'); div.className = 'panel';
+    const cap = document.createElement('div'); cap.className = 'cap'; cap.textContent = `${w} x ${h}` + (w === 192 ? '  (three 64x64 panels side by side)' : w === 8 ? '  (Adafruit NeoPixel 8x8)' : '');
+    const cv = document.createElement('canvas'); cv.width = w * pitch; cv.height = h * pitch;
+    div.appendChild(cap); div.appendChild(cv); host.appendChild(div);
+    views.push({ w, h, pitch, ctx: cv.getContext('2d') });
+  }
+}
+
+function mix(p, q, t) { return [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t, p[2] + (q[2] - p[2]) * t]; }
+function hsv(hh, s, v) { const f = n => { const k = (n + hh * 6) % 6; return v * (1 - s * Math.max(0, Math.min(k, 4 - k, 1))); }; return [f(5) * 255, f(3) * 255, f(1) * 255]; }
+// Ports of ledkit-anim's Rainbow, Plasma and Flames at their default settings.
+const sine8 = v => 128 + 127 * Math.sin(2 * Math.PI * (v & 255) / 256);
+const phase = (ms, cycle) => Math.floor((ms % cycle) / cycle * 256);
+function noise(x, y) {   // smooth value noise, standing in for ledkit's math::noise
+  const h = (i, j) => { let n = (i * 374761393 + j * 668265263) | 0; n = Math.imul(n ^ (n >>> 13), 1274126177); return ((n ^ (n >>> 16)) & 255) / 255; };
+  const xi = Math.floor(x / 256), yi = Math.floor(y / 256), fx = (x / 256) - xi, fy = (y / 256) - yi;
+  const sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy);
+  const top = h(xi, yi) + (h(xi + 1, yi) - h(xi, yi)) * sx, bot = h(xi, yi + 1) + (h(xi + 1, yi + 1) - h(xi, yi + 1)) * sx;
+  return 255 * (top + (bot - top) * sy);
+}
+function fire(heat) {   // black, red, orange, yellow, white
+  const stops = [[0, 0, 0], [160, 0, 0], [255, 70, 0], [255, 190, 20], [255, 255, 200]];
+  const p = heat / 255 * 4, i = Math.min(3, Math.floor(p));
+  return mix(stops[i], stops[i + 1], p - i);
+}
+function source(kind, x, y, w, h, ms, solid, isBg) {
+  const dim = isBg ? 0.35 : 1, scale = c => c.map(v => v * dim);
+  switch (kind) {
+    case 'off': return [0, 0, 0];
+    case 'solid': return solid.map(v => v * (isBg ? 0.5 : 1));
+    case 'rainbow': return scale(hsv(((x / Math.max(1, w)) - phase(ms, 5000) / 256 + 1) % 1, 1, 1));
+    case 'plasma': {
+      const step = 32, px = x * step, py = y * step;
+      const dist = Math.hypot(x - (w - 1) / 2, y - (h - 1) / 2) * step;
+      const tt = sp => phase(ms, 6000 / sp);
+      const sum = sine8(px + tt(1)) + sine8(py + 256 - tt(2)) + sine8((px + py) / 2 + tt(3)) + sine8(dist + 256 - tt(1));
+      return scale(hsv(((sum / 2) & 255) / 256, 1, 1));
+    }
+    case 'flames': {
+      const up = h - 1 - y, reach = h * 80;
+      if (up * 100 >= reach) return [0, 0, 0];
+      const falloff = 255 - up * 100 * 255 / reach;
+      const rise = ms * 8 * 85 / 1000;
+      const flicker = noise(x * 85 * 2, up * 85 - rise);
+      const heat = falloff * (96 + flicker * 159 / 255) / 255;
+      return scale(fire(heat).map(v => v * Math.min(1, heat * 2 / 255)));
+    }
+  }
+  return solid;
+}
+function hex(c) { return [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16)); }
+function draw(ms) {
+  const b = textBmp; if (!b) return;
+  const [r, g, bl] = hex($('color').value), rev = $('reverse').checked;
+  const speed = +$('speed').value;
+  for (const v of views) {
+    const { w, h, pitch, ctx } = v;
+    ctx.fillStyle = '#050505'; ctx.fillRect(0, 0, w * pitch, h * pitch);
+    const scrolls = $('scroll').checked && (b.w > w || $('always').checked);
+    let ox, oy = Math.floor((h - b.h) / 2);
+    if (scrolls) { const span = b.w + w; ox = w - Math.floor(ms / 1000 * speed) % span; }
+    else ox = Math.floor((w - b.w) / 2);
+    const rad = pitch * 0.42;
+    const cov = (tx, ty) => { const c = (tx >= 0 && ty >= 0 && tx < b.w && ty < b.h) ? b.px[ty * b.w + tx] : 0; return rev ? 1 - c : c; };
+    const fillSrc = $('fill').value, bgSrc = $('bg').value, outlineOn = $('outline').checked;
+    const oc = hex($('ocolor').value), bc = hex($('bcolor').value);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const tx = x - ox, ty = y - oy;
+      const a = cov(tx, ty);
+      // Outline: how much a neighbouring LED is letter, minus how much this one is.
+      let o = 0;
+      if (outlineOn) { for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) o = Math.max(o, cov(tx + i, ty + j)); o = Math.max(0, o - a); }
+      let c = source(bgSrc, x, y, w, h, ms, bc, true);
+      c = mix(c, oc, o);
+      c = mix(c, source(fillSrc, x, y, w, h, ms, [r, g, bl], false), a);
+      const lit = c[0] + c[1] + c[2] > 12;
+      ctx.fillStyle = lit ? `rgb(${c[0] | 0},${c[1] | 0},${c[2] | 0})` : '#161616';
+      ctx.beginPath(); ctx.arc(x * pitch + pitch / 2, y * pitch + pitch / 2, rad, 0, 6.283); ctx.fill();
+    }
+  }
+}
+function loop(ms) { draw(ms); requestAnimationFrame(loop); }
+
+for (const id of ['font', 'size', 'height', 'text', 'aa7', 'sharp', 'gap']) $(id).addEventListener('input', build);
+document.querySelectorAll('.presets button').forEach(btn => btn.onclick = () => { $('text').value = btn.dataset.t; build(); });
+layout(); build(); requestAnimationFrame(loop);
+</script>
+<p class="foot">Fonts: the X11 "misc-fixed" bitmap fonts (public domain); the 3x5, 7-segment and 14-segment faces are drawn for ledkit.
+Source: <a href="https://github.com/jrowe88/ledkit/tree/main/site/text-preview">site/text-preview</a>.</p>
+</body></html>

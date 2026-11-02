@@ -165,6 +165,8 @@ checkout, as the examples do.
 ledkit is young. The core, the SPI driver, both ESP32 drivers and the matrix
 layer (`ledkit-layout`: matrices, text and shapes) work and are tested on real
 hardware.
+Text support (fonts, digits in several sizes, scrolling text) is being designed: try
+the fonts in the [text preview](https://jrowe88.github.io/ledkit/text-preview/).
 Next up: effects, then the Raspberry Pi Pico. See the [roadmap](docs/superpowers/plans/2026-10-25-ledkit-roadmap.md)
 for the details.
 

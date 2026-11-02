@@ -38,6 +38,10 @@ cargo run -- demo --size 64x64
   32 to 126 for ASCII, 128 to 255 for the DOS character set (code page 437, so
   `--char 219` is `█` and `--char 254` is `■`), or any Unicode code point
   (`--char 9679` or `--char U+25CF` for `●`).
+- `--dots` draws round LEDs with gaps between them, and shows unlit LEDs as dark
+  grey dots, the way a real panel looks. Add `--char` to use another shape, such
+  as `--dots --char 254` for square LEDs. A 64-wide panel needs 128 columns and
+  one line per row.
 - `demo` (also what you get with no name) plays the matrix show from the
   `esp32c6-anim` example.
 

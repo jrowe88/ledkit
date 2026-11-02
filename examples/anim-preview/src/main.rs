@@ -5,6 +5,7 @@
 //! cargo run -- comet --strip 30 # one effect on a 30-LED strip
 //! cargo run -- demo --size 64x32 # a bigger matrix, width x height
 //! cargo run -- demo --char 219  # draw each LED with a character (here █)
+//! cargo run -- demo --dots      # round LEDs, unlit ones dark grey, like a real panel
 //! cargo run -- demo             # the playlist from the ESP32 example
 //! cargo run -- list             # the names you can use
 //! ```
@@ -33,6 +34,10 @@ const CP437_HIGH: &str = "ÇüéâäàåçêëèïîìÄÅÉæÆôöòûùÿÖÜ
     ░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀\
     αßΓπΣσµτΦΘΩδ∞φε∩≡±≥≤⌠⌡÷≈°∙·√ⁿ²■\u{a0}";
 
+/// The color of an unlit LED with `--dots`: dark grey, as a real panel's
+/// LEDs look when they're off.
+const UNLIT: Rgb = Rgb::new(40, 40, 40);
+
 /// How long to run before stopping (press Ctrl-C to stop sooner).
 const RUN_FOR: Duration = Duration::from_secs(20);
 
@@ -41,11 +46,12 @@ const FRAME: Duration = Duration::from_millis(33);
 
 fn main() {
     // The arguments: an effect name (or `list` or `demo`), `--size WxH`,
-    // `--strip N` and `--char C`.
+    // `--strip N`, `--char C` and `--dots`.
     let mut name = String::from("demo");
     let mut strip_len = None;
     let mut size = None;
     let mut glyph = None;
+    let mut dots = false;
     let mut args = std::env::args().skip(1);
     while let Some(arg) = args.next() {
         if arg == "--strip" {
@@ -74,6 +80,8 @@ fn main() {
                 );
                 std::process::exit(1);
             }
+        } else if arg == "--dots" {
+            dots = true;
         } else {
             name = arg;
         }
@@ -130,7 +138,7 @@ fn main() {
     while start.elapsed() < RUN_FOR {
         let now = Time::from(start.elapsed());
         (&animation).render(&mut Canvas::new(&mut pixels, layout).unwrap(), now);
-        draw(&pixels, width, height, name, glyph);
+        draw(&pixels, width, height, name, glyph, dots);
         std::thread::sleep(FRAME);
     }
     println!("\x1b[0m");
@@ -173,7 +181,11 @@ fn parse_char(text: &str) -> Option<char> {
 ///
 /// With `--char`, each LED is that character in the LED's color on black:
 /// twice up to 32x32, once for bigger matrices, one line per row.
-fn draw(pixels: &[Rgb], width: u16, height: u16, name: &str, glyph: Option<char>) {
+///
+/// With `--dots`, each LED is a `●` (or the `--char` character) followed by a
+/// space, so the LEDs sit on a square grid with gaps between them, and LEDs
+/// that are off or nearly off show dark grey instead of disappearing.
+fn draw(pixels: &[Rgb], width: u16, height: u16, name: &str, glyph: Option<char>, dots: bool) {
     let mut out = String::from("\x1b[H"); // cursor to the top-left
     let _ = write!(out, "ledkit-anim: {name} ({width}x{height})\x1b[K\n\n");
     let rows: Vec<&[Rgb]> = pixels
@@ -181,7 +193,21 @@ fn draw(pixels: &[Rgb], width: u16, height: u16, name: &str, glyph: Option<char>
         .take(usize::from(height))
         .collect();
     let small = width <= 32 && height <= 32;
-    if let Some(glyph) = glyph {
+    if dots {
+        let glyph = glyph.unwrap_or('●');
+        for row in rows {
+            out.push_str("[48;2;0;0;0m");
+            for &color in row {
+                let lit = color.r.max(color.g).max(color.b) > UNLIT.r;
+                let shown = if lit { color } else { UNLIT };
+                let _ = write!(out, "[38;2;{};{};{}m{glyph} ", shown.r, shown.g, shown.b);
+            }
+            out.push_str(
+                "[0m
+",
+            );
+        }
+    } else if let Some(glyph) = glyph {
         let repeat = if small { 2 } else { 1 };
         for row in rows {
             out.push_str("\x1b[48;2;0;0;0m");

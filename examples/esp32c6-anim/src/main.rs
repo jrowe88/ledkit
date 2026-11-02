@@ -1,10 +1,11 @@
 //! Animations on an LED matrix or strip with ledkit, on the ESP32-C6, through the RMT.
 //!
-//! Set `MATRIX` below to pick what is plugged in:
+//! Built normally it drives an 8x8 matrix; built with `--features strip`, a
+//! strip:
 //!
-//! - `true`, an 8x8 matrix: swirl, rings, pinwheel, plasma, flames and rain,
+//! - the 8x8 matrix: swirl, rings, pinwheel, plasma, flames and rain,
 //!   8 seconds each, with fades, an iris, a dissolve and a wipe between them.
-//! - `false`, a strip: rainbow, a comet flying over a slow gradient, chase,
+//! - the strip: rainbow, a comet flying over a slow gradient, chase,
 //!   sparkle, flames, and then the strip split in three (a comet, sparkle
 //!   and a breathing glow), 8 seconds each, fading from one to the next.
 //!
@@ -38,8 +39,8 @@ esp_bootloader_esp_idf::esp_app_desc!();
 // Settings you may want to change
 // ---------------------------------------------------------------------------
 
-/// `true` for an 8x8 matrix, `false` for a strip.
-const MATRIX: bool = true;
+/// `true` for the 8x8 matrix, `false` for a strip. Set by the `strip` feature.
+const MATRIX: bool = !cfg!(feature = "strip");
 
 /// How the matrix is wired. This is an Adafruit NeoPixel 8x8 held with its
 /// data-in pin at the bottom left. For another panel, find its wiring with the
@@ -48,7 +49,7 @@ const LAYOUT: MatrixLayout = MatrixLayout::new(8, 8)
     .columns_first()
     .starting_at(Corner::BottomLeft);
 
-/// How many LEDs the strip has (used when `MATRIX` is `false`).
+/// How many LEDs the strip has (used with the `strip` feature).
 const STRIP_LEDS: usize = 100;
 
 /// Which kind of LED it is. This decides the timing and the color order.

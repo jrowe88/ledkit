@@ -9,6 +9,10 @@ publish = false
 # Cargo from treating it as part of the ledkit workspace one folder up.
 [workspace]
 
+[features]
+# Build for a strip instead of the 8x8 matrix.
+strip = []
+
 [dependencies]
 ledkit-core = { path = "../../crates/ledkit-core" }
 ledkit-layout = { path = "../../crates/ledkit-layout" }

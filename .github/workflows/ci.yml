@@ -159,7 +159,11 @@ jobs:
             examples/esp32c6-anim
       - run: cargo build --release --locked
         working-directory: examples/esp32c6-anim
+      - run: cargo build --release --locked --features strip
+        working-directory: examples/esp32c6-anim
       - run: cargo clippy --release --locked -- -D warnings
+        working-directory: examples/esp32c6-anim
+      - run: cargo clippy --release --locked --features strip -- -D warnings
         working-directory: examples/esp32c6-anim
 
   example-anim-preview:

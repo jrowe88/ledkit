@@ -114,7 +114,7 @@ and wiring, setup and troubleshooting in its README.
 | Raspberry Pi (Linux) | `ledkit-spi` | [linux-spidev](examples/linux-spidev) | ✅ on hardware |
 | Teensy 4 | `ledkit-spi` | [teensy4-spi](examples/teensy4-spi) | ✅ on hardware |
 | LED matrix on the ESP32-C6 | `ledkit-layout` + `ledkit-esp` | [esp32c6-matrix](examples/esp32c6-matrix) | ✅ on hardware |
-| Animations on a matrix or strip, ESP32-C6 | `ledkit-anim` + `ledkit-esp` | [esp32c6-anim](examples/esp32c6-anim) | ⏳ builds; hardware check pending |
+| Animations on a matrix or strip, ESP32-C6 | `ledkit-anim` + `ledkit-esp` | [esp32c6-anim](examples/esp32c6-anim) | ✅ on hardware (100-LED strip) |
 | Every animation on a matrix or strip, Teensy 4 | `ledkit-anim` + `ledkit-spi` | [teensy4-anim](examples/teensy4-anim) | ✅ on hardware (8x8 matrix and 100-LED strip) |
 | Animations in your terminal (no LEDs) | `ledkit-anim` | [anim-preview](examples/anim-preview) | ✅ |
 | DotStar HD vs plain dimming on the ESP32-C6 | `ledkit-core` | [esp32c6-dotstar-hd](examples/esp32c6-dotstar-hd) | ✅ on hardware |

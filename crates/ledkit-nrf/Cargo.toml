@@ -1,0 +1,47 @@
+[package]
+name = "ledkit-nrf"
+description = "ledkit backend that drives NeoPixels with the nRF52840's PWM sequencer and EasyDMA, through embassy-nrf (no_std, blocking and async)."
+keywords = ["led", "neopixel", "ws2812", "nrf52840", "pwm"]
+categories = ["embedded", "no-std", "hardware-support"]
+readme = "README.md"
+version = "0.1.0"
+edition = "2021"
+# embassy-nrf 0.11 is a 2024-edition crate.
+rust-version = "1.85"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/jrowe88/ledkit"
+authors = ["Jim Rowe"]
+
+[dependencies]
+ledkit-core = { path = "../ledkit-core", version = "0.1.0" }
+# `rt` and the time driver belong to the application, not to a library.
+embassy-nrf = { version = "0.11", default-features = false }
+embassy-time = { version = "0.5", optional = true }
+embassy-futures = { version = "0.1", optional = true }
+smart-leds-trait = { version = "0.3", default-features = false, optional = true }
+
+[features]
+default = ["async"]
+# The chip. Only the nRF52840 is built and tested so far.
+nrf52840 = ["embassy-nrf/nrf52840"]
+# `OutputAsync` (and `SmartLedsWriteAsync`). Needs an embassy-time driver in the
+# application, for example embassy-nrf's `time-driver-rtc1` feature.
+async = ["dep:embassy-time", "dep:embassy-futures"]
+smart-leds = ["dep:smart-leds-trait", "ledkit-core/smart-leds"]
+
+[package.metadata.docs.rs]
+features = ["nrf52840", "smart-leds"]
+targets = ["thumbv7em-none-eabihf"]
+
+# This crate is outside the ledkit workspace (see the root Cargo.toml), so the
+# workspace lint table is copied here.
+[lints.rust]
+missing_docs = "warn"
+unsafe_code = "forbid"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+module_name_repetitions = "allow"
+cast_possible_truncation = "allow"
+cast_lossless = "allow"
+must_use_candidate = "allow"

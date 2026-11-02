@@ -428,3 +428,73 @@ jobs:
         with:
           python-version: "3.12"
       - run: python site/text-preview/build.py --check
+
+  # ledkit-nrf (nRF52840 PWM + EasyDMA) and the XIAO nRF52840 examples.
+  example-nrf52840-pwm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+          targets: thumbv7em-none-eabihf
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            examples/nrf52840-pwm
+            crates/ledkit-nrf
+      - run: cargo build --release --locked
+        working-directory: examples/nrf52840-pwm
+      - run: cargo clippy --release --locked -- -D warnings
+        working-directory: examples/nrf52840-pwm
+      - run: cargo fmt --check
+        working-directory: examples/nrf52840-pwm
+      # ledkit-nrf is outside the workspace and only builds for an nRF target.
+      - run: cargo fmt --check
+        working-directory: crates/ledkit-nrf
+      - run: cargo clippy --features nrf52840 --target thumbv7em-none-eabihf -- -D warnings
+        working-directory: crates/ledkit-nrf
+      - run: cargo clippy --features nrf52840,smart-leds --target thumbv7em-none-eabihf -- -D warnings
+        working-directory: crates/ledkit-nrf
+      - run: cargo clippy --no-default-features --features nrf52840,smart-leds --target thumbv7em-none-eabihf -- -D warnings
+        working-directory: crates/ledkit-nrf
+      - run: cargo doc --target thumbv7em-none-eabihf --features nrf52840,smart-leds --no-deps
+        working-directory: crates/ledkit-nrf
+        env:
+          RUSTDOCFLAGS: -D warnings
+
+  example-nrf52840-spi:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+          targets: thumbv7em-none-eabihf
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: examples/nrf52840-spi
+      - run: cargo build --release --locked
+        working-directory: examples/nrf52840-spi
+      - run: cargo clippy --release --locked -- -D warnings
+        working-directory: examples/nrf52840-spi
+      - run: cargo fmt --check
+        working-directory: examples/nrf52840-spi
+
+  example-nrf52840-dotstar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+          targets: thumbv7em-none-eabihf
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: examples/nrf52840-dotstar
+      - run: cargo build --release --locked
+        working-directory: examples/nrf52840-dotstar
+      - run: cargo clippy --release --locked -- -D warnings
+        working-directory: examples/nrf52840-dotstar
+      - run: cargo fmt --check
+        working-directory: examples/nrf52840-dotstar

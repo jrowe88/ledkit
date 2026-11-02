@@ -1,11 +1,15 @@
 //! Turning pixels and timings into signals.
 
+mod equal_period;
 mod pulse;
+mod pwm;
 mod rmt;
 mod spi;
 mod uart;
 
+pub use equal_period::EqualPeriodTicks;
 pub use pulse::{BitPulse, PulseTicks};
+pub use pwm::{fill_pwm_words, pwm_bit_word, pwm_reset_words, pwm_word_count, PWM_RESET_WORD};
 pub use rmt::{fill_rmt_words, rmt_bit_word, rmt_clock_divider, rmt_reset_word, rmt_word_count};
 pub use spi::SpiEncoding;
 pub use uart::UartEncoding;

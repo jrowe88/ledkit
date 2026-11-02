@@ -15,7 +15,7 @@ ends with something that works and is tested on its own.
 | **4** | **ESP32 backends** | Delivered: `ledkit-esp-idf` (ESP-IDF, `std`; the pulse project's RMT `Output` grown into a crate, with the reset gap enforced) and `ledkit-esp` (esp-hal RMT, `no_std`, blocking + async); core additions `BitPulse`, `ResetGap` and the RMT word helpers in `ledkit_core::encode`; examples `esp32c6-esp-idf` and `esp32c6-rmt` built in CI; pulse switched to `ledkit-esp-idf` and passed on hardware (pulse commit awaiting the owner) | Both ESP32 worlds on the C6 DevKit. `ledkit-esp-idf` passed on hardware 2026-10-30 (colors, back-to-back frames; the rainbow needed dithering off); `ledkit-esp` passed on the onboard LED 2026-10-30 (long strips untested); S3 (Xtensa) still to do | ESP32-C6 (done for both), ESP32-S3, strips |
 | **5** | **`ledkit-rp`** | RP2040/RP2350 PIO backend | Pico 2 | Pico 2, strips |
 | **6** | **`ledkit-layout`** | Delivered: `Layout`, `MatrixLayout` (serpentine, columns first, any starting corner), `Rotated` and `Tiled`, `Canvas`, `Segment`, and `embedded-graphics` support (a `Canvas` is a `DrawTarget`, with `rgb_from_rgb888` / `rgb888_from_rgb`); example `esp32c6-matrix` (wiring finder, shapes, scrolling text) builds in CI. No panel presets (see follow-ups) | Text and shapes on a matrix: tested on an Adafruit NeoPixel 8×8 on the ESP32-C6 (2026-10-31) | Adafruit NeoPixel 8×8 |
-| **7** | **`ledkit-anim`** | The `Animation` trait, the phase 1 effects, and the combinators (sequence, crossfade, layer, per-segment) | Combined effects running on strips and matrices | Strips, matrix |
+| **7** | **`ledkit-anim`** | Delivered: the `Animation` trait (a pure function of position and time) and `Surface`; 16 effects (the phase 1 list plus swirl, rings, pinwheel, plasma and rain for matrices) and `Effect` by name; modifiers, layers with blend modes, transitions (fade, fade through black, wipe, dissolve, iris), `then`/crossfade, playlists and segments; `ColorMap` and named palettes in `ledkit-color`; examples `esp32c6-anim` and `anim-preview`, built in CI | Combined effects on strips and matrices: host-tested; hardware check on the 8x8 and a strip pending | Strips, matrix |
 | **8** | **"Just works" packaging** | The `ledkit` facade + prelude, `cargo generate` board templates, the numbered example ladder, the mdBook guide with photos, `AGENTS.md` + `llms.txt` | A hobbyist going from nothing to a lit strip by following the guide | All first-class boards |
 | **9** | **Release 0.1** | Publish all phase 1 crates to crates.io in dependency order, docs.rs config, guide on GitHub Pages, announcement | Others can depend on it | No |
 | 10 | Phase 1.5 | `ledkit-sim` desktop simulator, Claude Code plugin, remaining effects | | No |
@@ -168,3 +168,14 @@ the owner until `ledkit-core` has a multi-strip output. These notes are backgrou
 - Shipped: `ledkit-core`'s `UartEncoding` (2 LED bits per inverted 8N1 serial byte, computed from the chip's windows at the real baud, with nearest-baud errors) and the `ledkit-uart` crate (`ClocklessUart`, blocking over `embedded-io`, async over `embedded-io-async`, a reset pause after each frame). Design: `docs/superpowers/specs/2026-11-01-ledkit-uart-design.md`.
 - Hardware 2026-11-01, 100-LED WS2812-type strip: ESP32-C6 (UART1, GPIO4 inverted in the GPIO matrix, blocking and async) pass; Teensy 4 (LPUART6 on pin 1, blocking and DMA) pass. The Teensy BSP clocks its UARTs at 8 MHz (max 2 Mbaud), so the example raises the UART clock to 24 MHz for 4 Mbaud.
 - Still paused: parallel strips (OctoWS2811-style GPIO + DMA, or FlexIO). They need a multi-strip output in `ledkit-core` first. `ws2812-flexio` 0.3 is on `imxrt-ral` 0.5 / `imxrt-dma` 0.1, so it can't take the peripherals from `teensy4-bsp` 0.6 without a port.
+
+## Milestone 7 (`ledkit-anim`, 2026-11-01)
+
+- Design: `docs/superpowers/specs/2026-11-01-ledkit-anim-design.md`; plan: `docs/superpowers/plans/2026-11-01-ledkit-anim.md`.
+- Hardware check still to do (by eye): `esp32c6-anim` on the Adafruit NeoPixel 8x8 (`MATRIX = true`) and the 100-LED WS2812 strip (`MATRIX = false`).
+- Follow-ups:
+  - text and fonts (the owner asked): a couple of small fonts, digit sets in several sizes (3x5 up), and a scrolling-text effect
+  - effects that need memory between frames (Game of Life, flocking, particles, FastLED's Fire2012): needs a second, stateful trait with a caller-sized buffer
+  - a border marquee (lights running round the edge of a matrix), rectangular regions as segments, and mirroring by chain order on matrices
+  - a generic (non-`'static`) palette option for effects, if palettes built at run time are wanted
+  - pulse's `status_led.rs` can now use `Breathe` and `Rainbow` (the acceptance test noted under "first consumer")

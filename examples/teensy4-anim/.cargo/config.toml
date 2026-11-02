@@ -1,0 +1,7 @@
+[build]
+target = "thumbv7em-none-eabihf"
+
+[target.thumbv7em-none-eabihf]
+# `t4link.x` is the linker script the Teensy 4 BSP generates. Without it the
+# program has no memory layout and won't link.
+rustflags = ["-C", "link-arg=-Tt4link.x"]

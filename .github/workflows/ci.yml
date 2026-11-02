@@ -61,6 +61,8 @@ jobs:
       - run: cargo build -p ledkit-uart --all-features --target riscv32imc-unknown-none-elf
       - run: cargo build -p ledkit-layout --all-features --target thumbv6m-none-eabi
       - run: cargo build -p ledkit-layout --all-features --target riscv32imc-unknown-none-elf
+      - run: cargo build -p ledkit-anim --all-features --target thumbv6m-none-eabi
+      - run: cargo build -p ledkit-anim --all-features --target riscv32imc-unknown-none-elf
 
   msrv:
     runs-on: ubuntu-latest
@@ -143,6 +145,44 @@ jobs:
       - run: cargo clippy --release --locked -- -D warnings
         working-directory: examples/esp32c6-matrix
 
+  example-esp32c6-anim:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+          targets: riscv32imac-unknown-none-elf
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            examples/esp32c6-anim
+      - run: cargo build --release --locked
+        working-directory: examples/esp32c6-anim
+      - run: cargo build --release --locked --features strip
+        working-directory: examples/esp32c6-anim
+      - run: cargo clippy --release --locked -- -D warnings
+        working-directory: examples/esp32c6-anim
+      - run: cargo clippy --release --locked --features strip -- -D warnings
+        working-directory: examples/esp32c6-anim
+
+  example-anim-preview:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: examples/anim-preview
+      - run: cargo build --locked
+        working-directory: examples/anim-preview
+      - run: cargo clippy --locked -- -D warnings
+        working-directory: examples/anim-preview
+      - run: cargo run --locked -- list
+        working-directory: examples/anim-preview
+
   example-esp32c6-dotstar-hd:
     runs-on: ubuntu-latest
     steps:
@@ -182,6 +222,26 @@ jobs:
           workspaces: examples/teensy4-spi
       - run: cargo build --release --locked
         working-directory: examples/teensy4-spi
+
+  example-teensy4-anim:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+          targets: thumbv7em-none-eabihf
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: examples/teensy4-anim
+      - run: cargo build --release --locked
+        working-directory: examples/teensy4-anim
+      - run: cargo build --release --locked --features strip
+        working-directory: examples/teensy4-anim
+      - run: cargo clippy --release --locked -- -D warnings
+        working-directory: examples/teensy4-anim
+      - run: cargo clippy --release --locked --features strip -- -D warnings
+        working-directory: examples/teensy4-anim
 
   example-teensy4-uart:
     runs-on: ubuntu-latest

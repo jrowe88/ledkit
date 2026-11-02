@@ -1,0 +1,23 @@
+[package]
+name = "ledkit-anim"
+description = "ledkit animations: effects for LED strips and matrices (rainbow, comet, flames, swirl ...) and ways to combine them. no_std, no heap."
+keywords = ["led", "neopixel", "animation", "ws2812", "embedded"]
+categories = ["embedded", "no-std", "graphics"]
+readme = "README.md"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+ledkit-color = { path = "../ledkit-color", version = "0.1.0" }
+ledkit-core = { path = "../ledkit-core", version = "0.1.0" }
+ledkit-layout = { path = "../ledkit-layout", version = "0.1.0" }
+
+[package.metadata.docs.rs]
+all-features = true
+
+[lints]
+workspace = true

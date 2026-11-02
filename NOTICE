@@ -6,8 +6,12 @@ Attributions
 
 - Adafruit CircuitPython LED_Animation (MIT, Copyright (c) Adafruit Industries):
   named color values.
-- FastLED (MIT, Copyright (c) 2013 FastLED): the TypicalLEDStrip correction value.
+- FastLED (MIT, Copyright (c) 2013 FastLED): the TypicalLEDStrip correction value,
+  and the colors of the LAVA, OCEAN, FOREST, CLOUD, PARTY and HEAT palettes
+  (most reduced from 16 colors to 8).
 - Tanner Helland's blackbody color curve fit (algorithm only, no code copied):
   `Rgb::from_kelvin`.
+- viridis color map (CC0, Stéfan van der Walt and Nathaniel Smith): the
+  VIRIDIS palette's color stops.
 - X11 misc-fixed bitmap fonts (public domain, X.Org misc-misc, Markus Kuhn and others):
   the fonts in `assets/fonts/x11-misc-fixed`, used by the text preview page.

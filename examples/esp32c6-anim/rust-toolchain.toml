@@ -1,0 +1,4 @@
+# The ESP32-C6 is a RISC-V chip, so plain stable Rust works. No espup needed.
+[toolchain]
+channel = "stable"
+targets = ["riscv32imac-unknown-none-elf"]

@@ -42,13 +42,14 @@ Rule: an animation is a pure function of position and time. It keeps no state be
 
 ## Text fonts
 
-The files in `crates/ledkit-text/src/faces/data` and
-`crates/ledkit-text/src/faces/segments.fixtures` are generated and never hand-edited.
-`tools/fontgen.py` makes the bitmap data (from `assets/fonts/x11-misc-fixed` and the Tiny 3x5
+The files in `crates/ledkit-text/src/faces/data`,
+`crates/ledkit-text/src/faces/segments.fixtures`, `site/text-preview/faces.json` and
+`site/text-preview/index.html` are generated and never hand-edited.
+`tools/fontgen.py` makes the bitmap data and `faces.json` (from `assets/fonts/x11-misc-fixed` and the Tiny 3x5
 face); `python tools/fontgen.py --check` fails if it is out of date. `site/text-preview/reference.mjs`
 makes the segment fixtures the Rust tests compare against; `node site/text-preview/reference.mjs --check`
-fails if they are out of date. Also run `python tools/test_fontgen.py` and
-`python site/text-preview/build.py --check`. Change the generator or the sources, then
+fails if they are out of date. `site/text-preview/build.py` generates `index.html` (checked by
+`python site/text-preview/build.py --check`). Also run `python tools/test_fontgen.py`. Change the generator or the sources, then
 regenerate.
 
 ## ledkit-core modules

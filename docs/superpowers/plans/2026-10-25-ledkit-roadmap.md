@@ -137,7 +137,7 @@ and a ticker for matrices from the 8x8 up to three 64x64 HUB75 panels (192x64).
 Still to come:
 
 - The preview running the real crate compiled to WebAssembly, so it can't drift from the
-  library (today it is a separate JavaScript copy, checked against the crate's results).
+  library (today the bitmap faces use the crate's own generated tables, but the 7- and 14-segment faces are a JavaScript copy, checked against the crate's results).
 - A hardware check by the owner: the 8x8 ticker example has been built, not flashed.
 - On-target timing for 192x64: how long one frame takes on a real chip.
 

@@ -61,11 +61,12 @@ mod hue;
 #[cfg(feature = "rgb")]
 mod interop;
 mod named;
+pub mod palettes;
 mod temperature;
 
 pub use channels::{Rgb, Rgbw};
 pub use gamma::{GammaTable, GAMMA_2_2, GAMMA_2_6};
-pub use gradient::{Gradient, Palette};
+pub use gradient::{ColorMap, Gradient, Palette};
 pub use hue::{Hsv, Hue};
 pub use temperature::correction;
 

@@ -139,6 +139,54 @@ impl Palette<6> {
     };
 }
 
+/// Anything that gives a color for a position from 0 to 255: a [`Gradient`],
+/// a [`Palette`], or one of the ready-made [`palettes`](crate::palettes).
+///
+/// Animations take a color map so you can swap the colors of an effect without
+/// changing the effect. `wraps` says whether the end joins back to the start
+/// smoothly (a [`Palette`] does, a [`Gradient`] does not), so an effect that
+/// scrolls through the colors knows whether it can go round and round or should
+/// go back and forth instead.
+///
+/// # Example
+///
+/// ```
+/// use ledkit_color::{palettes, ColorMap, Rgb};
+///
+/// fn first_color(map: &dyn ColorMap) -> Rgb {
+///     map.color_at(0)
+/// }
+///
+/// assert_eq!(first_color(&palettes::FIRE), Rgb::BLACK);
+/// assert!(palettes::RAINBOW.wraps());
+/// assert!(!palettes::JET.wraps());
+/// ```
+pub trait ColorMap {
+    /// The color at `position`, from 0 (the start) to 255 (the end).
+    fn color_at(&self, position: u8) -> Rgb;
+
+    /// True if position 255 blends smoothly back into position 0.
+    fn wraps(&self) -> bool {
+        false
+    }
+}
+
+impl<const N: usize> ColorMap for Gradient<N> {
+    fn color_at(&self, position: u8) -> Rgb {
+        Gradient::color_at(self, position)
+    }
+}
+
+impl<const N: usize> ColorMap for Palette<N> {
+    fn color_at(&self, position: u8) -> Rgb {
+        Palette::color_at(self, position)
+    }
+
+    fn wraps(&self) -> bool {
+        true
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -189,6 +237,17 @@ mod tests {
             near_end.r > 200 && near_end.b < 10,
             "should be almost back to red: {near_end:?}"
         );
+    }
+    #[test]
+    fn color_map_matches_inherent() {
+        let g = Gradient::new([(0, Rgb::RED), (255, Rgb::BLUE)]);
+        let p = Palette::new([Rgb::RED, Rgb::GREEN]);
+        for i in [0u8, 1, 77, 128, 254, 255] {
+            assert_eq!(ColorMap::color_at(&g, i), g.color_at(i));
+            assert_eq!(ColorMap::color_at(&p, i), p.color_at(i));
+        }
+        assert!(!ColorMap::wraps(&g));
+        assert!(ColorMap::wraps(&p));
     }
     #[test]
     fn rainbow_palette_starts_red() {

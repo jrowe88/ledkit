@@ -35,6 +35,23 @@ for (index, pixel) in strip.iter_mut().enumerate() {
 assert_eq!(strip[0], Palette::RAINBOW.color_at(0));
 ```
 
+## Ready-made palettes
+
+The `palettes` module has named color maps: `RAINBOW`, `RED_ORANGE`, `JET`
+(MATLAB's), `FIRE`, `HEAT`, `LAVA`, `OCEAN`, `FOREST`, `CLOUD`, `PARTY`,
+`SUNSET`, `ICE` and `VIRIDIS`. They all implement `ColorMap`, the trait that
+`ledkit-anim` effects take, and you can make your own with `Gradient::new` or
+`Palette::new`.
+
+```rust
+use ledkit_color::{palettes, ColorMap};
+
+let hot = palettes::FIRE.color_at(230);
+let cool = palettes::OCEAN.color_at(40);
+// A palette wraps (its end blends back into its start); a gradient doesn't.
+assert!(palettes::OCEAN.wraps() && !palettes::FIRE.wraps());
+```
+
 ## Why integer math?
 
 Small chips such as the Cortex-M0+ and many RISC-V parts have no floating-point

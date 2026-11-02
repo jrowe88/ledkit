@@ -260,6 +260,7 @@ where
 
     /// Packs the wire bytes into the buffer. Returns the channel, FIFO and buffer
     /// ready to start, or `None` for an empty frame (nothing to send).
+    #[allow(clippy::type_complexity)] // the three parts a transfer starts from
     fn prepare(
         &mut self,
         wire: impl Iterator<Item = u8>,

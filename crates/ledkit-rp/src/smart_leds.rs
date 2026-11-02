@@ -119,6 +119,6 @@ where
     iterator.into_iter().flat_map(|color| {
         let color: <C::Pixel as SmartLedsColor>::Color = color.into();
         let pixel: C::Pixel = color.into();
-        wire::clockless_bytes::<C, _>([pixel].into_iter())
+        wire::clockless_bytes::<C, _>([pixel])
     })
 }

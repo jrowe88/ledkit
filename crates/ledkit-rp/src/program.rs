@@ -89,6 +89,7 @@ pub(crate) struct Machine<P: PIOExt, SM: StateMachineIndex, I: AnyPin> {
 
 /// Installs the program for chip `C` on `pio`, sets up `sm` to send it on `pin`
 /// and starts it. Returns the machine, its FIFO and the frame clock.
+#[allow(clippy::type_complexity)] // the machine, its FIFO and its frame clock
 pub(crate) fn start<C, P, SM, I, T>(
     pio: &mut PIO<P>,
     sm: UninitStateMachine<(P, SM)>,

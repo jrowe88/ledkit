@@ -22,7 +22,7 @@ TINY_FILE = FONTS / "ledkit-tiny-3x5.txt"
 DATA_DIR = ROOT / "crates" / "ledkit-text" / "src" / "faces" / "data"
 FACES_JSON = ROOT / "site" / "text-preview" / "faces.json"
 
-NAMES = ["4x6", "5x7", "5x8", "6x10", "6x13B", "7x13B", "7x14B", "8x13B", "9x15B", "9x18B", "10x20"]
+NAMES = ["4x6", "5x7", "5x8", "6x10", "6x13", "6x13B", "7x13B", "7x14B", "8x13B", "9x15B", "9x18B", "10x20"]
 RUST_NAMES = {name: "X11_" + name.upper().replace("B", "_BOLD") for name in NAMES}
 RUST_NAMES["tiny"] = "TINY_3X5"
 SIZES = [4, 5, 6, 8]  # 1x, 1.25x, 1.5x, 2x, in quarters

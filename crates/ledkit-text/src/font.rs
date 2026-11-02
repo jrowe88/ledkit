@@ -98,6 +98,8 @@ bitmap_fonts! {
     X11_5X8 => X11_5X8,
     /// X11 "6x10": 6 wide, 10 tall.
     X11_6X10 => X11_6X10,
+    /// X11 "6x13": 6 wide, 13 tall, with thin strokes.
+    X11_6X13 => X11_6X13,
     /// X11 "6x13" bold: 6 wide, 13 tall.
     X11_6X13_BOLD => X11_6X13_BOLD,
     /// X11 "7x13" bold: 7 wide, 13 tall.

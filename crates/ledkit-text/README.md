@@ -21,7 +21,7 @@ assert_eq!(font.text_width("Hi"), 10);
 
 | Font | What it is |
 |---|---|
-| `Font::X11_4X6`, `X11_5X7`, `X11_5X8`, `X11_6X10`, `X11_6X13_BOLD`, `X11_7X13_BOLD`, `X11_7X14_BOLD`, `X11_8X13_BOLD`, `X11_9X15_BOLD`, `X11_9X18_BOLD`, `X11_10X20` | The classic X11 "misc-fixed" bitmap fonts: the name is the letter width by height in LEDs. From the 8x8 up to big panels. |
+| `Font::X11_4X6`, `X11_5X7`, `X11_5X8`, `X11_6X10`, `X11_6X13`, `X11_6X13_BOLD`, `X11_7X13_BOLD`, `X11_7X14_BOLD`, `X11_8X13_BOLD`, `X11_9X15_BOLD`, `X11_9X18_BOLD`, `X11_10X20` | The classic X11 "misc-fixed" bitmap fonts: the name is the letter width by height in LEDs. From the 8x8 up to big panels. |
 | `Font::TINY_3X5` | A 3 by 5 font, capitals and digits only (lower case shows as capitals). Use `.spacing(1)` for a gap between letters. |
 | `Font::seven_segment(height)` | Like a digital clock: digits, `:` and the letters a seven-segment display can make. Any height from 5 up. |
 | `Font::seven_segment_slanted(height)` | The same, leaning to the right. |

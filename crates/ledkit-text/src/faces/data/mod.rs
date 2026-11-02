@@ -120,6 +120,34 @@ pub(crate) const X11_6X10: BitmapFace = BitmapFace {
     ],
 };
 
+const X11_6X13_BIN: &[u8] = include_bytes!("6x13.bin");
+
+pub(crate) const X11_6X13: BitmapFace = BitmapFace {
+    name: "6x13",
+    sizes: [
+        BakedSize {
+            width: 6,
+            height: 13,
+            data: part(X11_6X13_BIN, 0, 7410),
+        },
+        BakedSize {
+            width: 8,
+            height: 16,
+            data: part(X11_6X13_BIN, 7410, 12160),
+        },
+        BakedSize {
+            width: 9,
+            height: 20,
+            data: part(X11_6X13_BIN, 19570, 17100),
+        },
+        BakedSize {
+            width: 12,
+            height: 26,
+            data: part(X11_6X13_BIN, 36670, 29640),
+        },
+    ],
+};
+
 const X11_6X13_BOLD_BIN: &[u8] = include_bytes!("6x13B.bin");
 
 pub(crate) const X11_6X13_BOLD: BitmapFace = BitmapFace {

@@ -66,12 +66,13 @@ const CLOCK_SIZE: (u16, u16) = (64, 64);
 const TEXT_SIZE: (u16, u16) = (32, 8);
 
 /// The font names `--font` accepts, with what each one is.
-const FONTS: [(&str, &str); 15] = [
+const FONTS: [(&str, &str); 16] = [
     ("4x6", "bitmap, 4 wide, 6 tall"),
     ("5x7", "bitmap, 5 wide, 7 tall"),
     ("5x8", "bitmap, 5 wide, 8 tall"),
     ("6x10", "bitmap, 6 wide, 10 tall"),
-    ("6x13", "bitmap, bold, 13 tall"),
+    ("6x13", "bitmap, 13 tall"),
+    ("6x13b", "bitmap, bold, 13 tall"),
     ("7x13", "bitmap, bold, 13 tall"),
     ("7x14", "bitmap, bold, 14 tall"),
     ("8x13", "bitmap, bold, 13 tall"),
@@ -296,7 +297,8 @@ fn parse_font(name: &str, panel_height: u16) -> Option<Font> {
         "5x7" => Font::X11_5X7,
         "5x8" => Font::X11_5X8,
         "6x10" => Font::X11_6X10,
-        "6x13" => Font::X11_6X13_BOLD,
+        "6x13" => Font::X11_6X13,
+        "6x13b" => Font::X11_6X13_BOLD,
         "7x13" => Font::X11_7X13_BOLD,
         "7x14" => Font::X11_7X14_BOLD,
         "8x13" => Font::X11_8X13_BOLD,

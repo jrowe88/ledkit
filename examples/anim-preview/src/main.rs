@@ -32,7 +32,7 @@ use std::time::{Duration, Instant};
 
 use ledkit_anim::prelude::*;
 use ledkit_layout::{Canvas, MatrixLayout};
-use ledkit_text::{Font, TextArea, Ticker};
+use ledkit_text::{Across, Font, TextArea, Ticker, UpDown};
 
 /// The matrix size shown unless `--size` or `--strip` is given.
 const WIDTH: u16 = 8;
@@ -334,12 +334,21 @@ impl Clock {
         let below = height.saturating_sub(8);
         // As tall as 30 rows, but no taller than fits across the panel
         // (a 30-row "12:34" is 111 LEDs wide, wider than a 64-wide panel).
+        // The colon blinks: every other second it is a space, which is a
+        // different width, so measure the wider of the two.
+        let widest = |font: Font| font.text_width("88:88").max(font.text_width("88 88"));
         let mut rows = 30.min(below).max(5);
-        while rows > 5 && Font::seven_segment(rows).text_width(b"88:88") > width {
+        while rows > 5 && widest(Font::seven_segment(rows)) > width {
             rows -= 1;
         }
-        let time = TextArea::new(Font::seven_segment(rows))
-            .at(0, 8, width, below)
+        let font = Font::seven_segment(rows);
+        // A fixed left edge, where the wider of the two sits in the middle,
+        // so the digits stay put when the colon blinks. (Centred, they would
+        // jiggle by an LED or so.)
+        let left = width.saturating_sub(widest(font)) / 2;
+        let time = TextArea::new(font)
+            .at(i32::from(left), 8, width - left, below)
+            .align(Across::Left, UpDown::Middle)
             .letters(Plasma::new())
             .outline(Rgb::BLACK);
         Clock { date, time }
@@ -546,6 +555,37 @@ mod tests {
         let seconds = 19_723 * 86_400 + 12 * 3600 + 34 * 60 + 56;
         assert_eq!(format_clock(seconds), ("MON 01 JAN".into(), "12:34".into()));
         assert_eq!(format_clock(seconds + 1).1, "12 34");
+    }
+
+    #[test]
+    fn blinking_colon_keeps_the_digits_still() {
+        for width in [24u16, 32, 40, 47, 64, 65, 96, 128] {
+            let height = 40;
+            let mut clock = Clock::new(width, height);
+            let mut draw = |time: &str| {
+                let mut pixels = vec![Rgb::BLACK; usize::from(width) * usize::from(height)];
+                let mut canvas =
+                    Canvas::new(&mut pixels[..], MatrixLayout::new(width, height)).unwrap();
+                clock.time.set_text(time);
+                clock.time.render(&mut canvas, Time::from_millis(0));
+                pixels
+            };
+            let (colon, space) = (draw("12:34"), draw("12 34"));
+            // The hours, in the left third, are the same LEDs either way.
+            let third = usize::from(width) / 3;
+            for (row, (a, b)) in colon
+                .chunks(usize::from(width))
+                .zip(space.chunks(usize::from(width)))
+                .enumerate()
+            {
+                assert_eq!(a[..third], b[..third], "width {width}, row {row}");
+            }
+            // Nothing is cut off: the last column of the panel is dark.
+            for pixels in [&colon, &space] {
+                let edge = pixels.chunks(usize::from(width)).map(|row| row[row.len() - 1]);
+                assert!(edge.into_iter().all(|led| led == Rgb::BLACK), "width {width}");
+            }
+        }
     }
 
     #[test]

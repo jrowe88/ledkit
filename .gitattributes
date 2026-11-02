@@ -2,3 +2,4 @@ crates/ledkit-text/src/faces/data/*.rs text eol=lf
 crates/ledkit-text/src/faces/data/*.bin binary
 site/text-preview/faces.json text eol=lf
 site/text-preview/index.html text eol=lf
+crates/ledkit-text/src/faces/segments.fixtures text eol=lf

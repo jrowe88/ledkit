@@ -303,3 +303,7 @@ jobs:
       - run: python site/text-preview/build.py --check
       - run: python tools/test_fontgen.py
       - run: python tools/fontgen.py --check
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: node site/text-preview/reference.mjs --check

@@ -63,7 +63,7 @@ enum Face {
 /// const FONT: Font = Font::X11_5X8.size(Size::X1_25).edges(Edges::Crisp).spacing(2);
 /// assert_eq!(FONT.height(), 10);
 /// // Each letter takes its width (6) plus the gap (2).
-/// assert_eq!(FONT.text_width(b"AB"), 16);
+/// assert_eq!(FONT.text_width("AB"), 16);
 /// ```
 #[derive(Copy, Clone)]
 pub struct Font {
@@ -135,8 +135,9 @@ impl Font {
     /// seven-segment display can make. Some letters change shape with case
     /// (A/a, C/c, E/e, G/g, H/h, I/i, J/j, L/l, O/o, U/u); the rest have one
     /// form. `K`, `M`, `V`, `W`, `X` and anything else it can't draw show as
-    /// a blank. Text is ASCII only: a degree sign (`°`) or any other
-    /// non-ASCII character shows as blanks.
+    /// a blank. [`TextArea`](crate::TextArea) and [`Ticker`](crate::Ticker)
+    /// keep any character other than plain ASCII (such as `°`) as one `?`,
+    /// which this font can't draw, so it shows as one blank.
     ///
     /// The letters are drawn finely and shrunk onto your LEDs, so their
     /// [`Edges`] work as for other fonts. For fully-on-or-off LEDs, use
@@ -147,7 +148,7 @@ impl Font {
     ///
     /// const CLOCK: Font = Font::seven_segment(8);
     /// assert_eq!(CLOCK.height(), 8);
-    /// assert_eq!(CLOCK.text_width(b"12:34"), 30);
+    /// assert_eq!(CLOCK.text_width("12:34"), 30);
     /// ```
     pub const fn seven_segment(height: u16) -> Font {
         Font::seven(Seven::new(height, false, false))
@@ -161,7 +162,7 @@ impl Font {
     ///
     /// let font = Font::seven_segment_slanted(8);
     /// assert_eq!(font.height(), 8);
-    /// assert_eq!(font.text_width(b"12:34"), 31);
+    /// assert_eq!(font.text_width("12:34"), 31);
     /// ```
     pub const fn seven_segment_slanted(height: u16) -> Font {
         Font::seven(Seven::new(height, true, false))
@@ -173,7 +174,9 @@ impl Font {
     /// Unlike [`Font::seven_segment`] it has every capital letter, as well as
     /// the digits and basic punctuation (`- + / * ' " _ = < > ? ! $ % : . ,`
     /// and a space). Lower case shows as capitals. Anything else shows as a
-    /// blank. Text is ASCII only: any non-ASCII character shows as blanks.
+    /// blank. [`TextArea`](crate::TextArea) and [`Ticker`](crate::Ticker)
+    /// keep any character other than plain ASCII (such as `°`) as one `?`,
+    /// which this font draws as a `?`.
     ///
     /// The letters are drawn finely and shrunk onto your LEDs, so their
     /// [`Edges`] work as for other fonts. For fully-on-or-off LEDs, use
@@ -184,8 +187,8 @@ impl Font {
     ///
     /// const SIGN: Font = Font::fourteen_segment(8);
     /// assert_eq!(SIGN.height(), 8);
-    /// assert_eq!(SIGN.text_width(b"HELLO"), 34);
-    /// assert_eq!(SIGN.text_width(b"12:34"), 32);
+    /// assert_eq!(SIGN.text_width("HELLO"), 34);
+    /// assert_eq!(SIGN.text_width("12:34"), 32);
     /// ```
     pub const fn fourteen_segment(height: u16) -> Font {
         Font::segments(Face::Fourteen(Fourteen::new(height, false)))
@@ -221,7 +224,7 @@ impl Font {
     ///
     /// const CLOCK: Font = Font::seven_segment(8).hard_edges();
     /// assert_eq!(CLOCK.height(), 8);
-    /// assert_eq!(CLOCK.text_width(b"12:34"), 29);
+    /// assert_eq!(CLOCK.text_width("12:34"), 29);
     /// ```
     #[must_use]
     pub const fn hard_edges(mut self) -> Font {
@@ -270,7 +273,7 @@ impl Font {
     /// use ledkit_text::prelude::*;
     ///
     /// let font = Font::X11_5X8.spacing(2);
-    /// assert_eq!(font.text_width(b"AB"), 14);
+    /// assert_eq!(font.text_width("AB"), 14);
     /// ```
     #[must_use]
     pub const fn spacing(mut self, leds: u8) -> Font {
@@ -302,46 +305,139 @@ impl Font {
     /// How many LEDs wide `text` is. Each letter takes its width plus the
     /// gap after it, so the last letter's gap is counted too.
     ///
+    /// Characters are counted as [`TextArea::set_text`](crate::TextArea::set_text)
+    /// keeps them: each one other than plain ASCII (such as `é`) counts as
+    /// one `?`.
+    ///
     /// ```
     /// use ledkit_text::prelude::*;
     ///
     /// // Two letters, each 5 wide.
-    /// assert_eq!(Font::X11_5X8.text_width(b"AB"), 10);
+    /// assert_eq!(Font::X11_5X8.text_width("AB"), 10);
     /// // With a 1 LED gap after each: 2 * (5 + 1).
-    /// assert_eq!(Font::X11_5X8.spacing(1).text_width(b"AB"), 12);
+    /// assert_eq!(Font::X11_5X8.spacing(1).text_width("AB"), 12);
     /// // Segment fonts: each extra LED of spacing adds one per letter.
     /// let clock = Font::seven_segment(8);
-    /// assert_eq!(clock.spacing(1).text_width(b"12:34"), clock.text_width(b"12:34") + 5);
+    /// assert_eq!(clock.spacing(1).text_width("12:34"), clock.text_width("12:34") + 5);
     /// ```
-    pub fn text_width(&self, text: &[u8]) -> u16 {
+    pub fn text_width(&self, text: &str) -> u16 {
+        let bytes = text.chars().map(|character| {
+            if character.is_ascii() {
+                character as u8
+            } else {
+                b'?'
+            }
+        });
+        self.width_of(bytes)
+    }
+
+    /// [`Font::text_width`] of text already kept as bytes.
+    pub(crate) fn bytes_width(&self, text: &[u8]) -> u16 {
+        self.width_of(text.iter().copied())
+    }
+
+    /// How many LEDs wide the bytes `text` gives are.
+    fn width_of(&self, text: impl Iterator<Item = u8>) -> u16 {
         match self.face {
             Face::Bitmap(face) => {
-                let advance = u32::from(self.baked(face).width) + u32::from(self.spacing);
-                let width = text.len() as u32 * advance;
+                let advance = u64::from(self.baked(face).width) + u64::from(self.spacing);
+                let width = text.count() as u64 * advance;
                 u16::try_from(width).unwrap_or(u16::MAX)
             }
-            Face::Seven(face) => face.width(text, self.spacing),
-            Face::Fourteen(face) => face.width(text, self.spacing),
+            Face::Seven(face) => face.width_of(text, self.spacing),
+            Face::Fourteen(face) => face.width_of(text, self.spacing),
         }
     }
 
-    /// For fonts whose letters are all the same width (the bitmap faces),
-    /// how far apart the letters start: letter `n` begins `n * advance` LEDs
-    /// in. `None` for the segment faces, whose letters differ in width.
-    pub(crate) fn fixed_advance(&self) -> Option<u16> {
+    /// The part of `text` that can light LED columns `first..=last` (in the
+    /// text's own columns, where 0 is its left edge), so that drawing only
+    /// that part looks exactly like drawing the whole text there.
+    ///
+    /// Bitmap letters are all the same width, so the part is worked out
+    /// straight away. Segment letters differ in width and are laid out in
+    /// drawing pixels (8 per LED, or 1 for hard-edged seven-segment), so the
+    /// part's first letter may start part of the way into an LED: that is
+    /// [`Visible::origin`], which goes to [`Font::coverage_from`].
+    pub(crate) fn visible(&self, text: &[u8], first: i64, last: i64) -> Visible {
+        let scale = match self.face {
+            Face::Bitmap(face) => {
+                let advance = i64::from(self.baked(face).width) + i64::from(self.spacing);
+                let advance = advance.max(1);
+                let start = usize::try_from(first.max(0) / advance)
+                    .unwrap_or(usize::MAX)
+                    .min(text.len());
+                let end = usize::try_from(last.div_euclid(advance) + 1)
+                    .unwrap_or(0)
+                    .clamp(start, text.len());
+                // `start` letters are at most a u16 of LEDs wide, so this fits.
+                let skipped = i64::try_from(start).unwrap_or(0) * advance;
+                return Visible {
+                    start,
+                    end,
+                    shift: skipped,
+                    origin: 0,
+                };
+            }
+            Face::Seven(face) => face.scale(),
+            Face::Fourteen(_) => 8,
+        };
+        let scale = i64::from(scale);
+        // The drawing pixel columns the LEDs cover.
+        let (low, high) = (
+            first.saturating_mul(scale),
+            (last + 1).saturating_mul(scale),
+        );
+        let mut start = None;
+        let mut end = text.len();
+        let mut at = 0i64;
+        for (index, &byte) in text.iter().enumerate() {
+            // Letters only reach right of where they start.
+            if at >= high {
+                end = index;
+                break;
+            }
+            let (advance, reach) = self.segment_steps(byte);
+            if start.is_none() && at + i64::from(reach) > low {
+                start = Some((index, at));
+            }
+            at += i64::from(advance);
+        }
+        let (start, at) = start.unwrap_or((end, 0));
+        Visible {
+            start,
+            end,
+            // `at` is not negative.
+            shift: at / scale,
+            origin: i32::try_from(at % scale).unwrap_or(0),
+        }
+    }
+
+    /// A segment letter's advance (where the next letter starts) and reach
+    /// (how far right its lit pixels can go), in drawing pixels from where it
+    /// starts, as the face's coverage lays letters out.
+    fn segment_steps(&self, byte: u8) -> (i32, i32) {
         match self.face {
-            Face::Bitmap(face) => Some(u16::from(self.baked(face).width) + u16::from(self.spacing)),
-            Face::Seven(_) | Face::Fourteen(_) => None,
+            Face::Seven(face) => (face.advance(byte, self.spacing), face.reach(byte)),
+            Face::Fourteen(face) => (face.advance(byte, self.spacing), face.reach(byte)),
+            Face::Bitmap(_) => (1, 1),
         }
     }
 
     /// How much of the LED at (`x`, `y`) the letters cover, 0 to 255, where
     /// (0, 0) is the top left of `text`. 0 outside the text.
+    #[cfg(test)]
     pub(crate) fn coverage(&self, text: &[u8], x: i32, y: i32) -> u8 {
+        self.coverage_from(text, 0, x, y)
+    }
+
+    /// [`Font::coverage`] for part of a text, whose first letter starts
+    /// `origin` drawing pixels into LED column 0 (see [`Font::visible`]; 0
+    /// for a whole text).
+    pub(crate) fn coverage_from(&self, text: &[u8], origin: i32, x: i32, y: i32) -> u8 {
         match self.face {
             Face::Bitmap(face) => self.bitmap_coverage(face, text, x, y),
             Face::Seven(face) => {
-                let covered = face.coverage(text, self.spacing, x, y);
+                let covered = face.coverage_from(text, origin, self.spacing, x, y);
                 if face.hard() {
                     if covered > 0 {
                         255
@@ -353,7 +449,7 @@ impl Font {
                 }
             }
             Face::Fourteen(face) => {
-                let covered = face.coverage(text, self.spacing, x, y);
+                let covered = face.coverage_from(text, origin, self.spacing, x, y);
                 if face.hard() {
                     // As the preview: on when at least half covered.
                     if covered >= 32 {
@@ -418,6 +514,17 @@ impl Font {
     }
 }
 
+/// Which letters of a text to draw, from [`Font::visible`]: `text[start..end]`,
+/// drawn `shift` LEDs right of where the whole text starts, with its first
+/// letter `origin` drawing pixels into that LED.
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub(crate) struct Visible {
+    pub(crate) start: usize,
+    pub(crate) end: usize,
+    pub(crate) shift: i64,
+    pub(crate) origin: i32,
+}
+
 #[cfg(test)]
 #[allow(clippy::cast_possible_wrap)]
 mod tests {
@@ -439,8 +546,8 @@ mod tests {
     fn sizes() {
         let font = Font::X11_5X8.size(Size::X1_25);
         assert_eq!(font.height(), 10);
-        assert_eq!(font.text_width(b"AB"), 12);
-        assert_eq!(font.spacing(2).text_width(b"AB"), 16);
+        assert_eq!(font.text_width("AB"), 12);
+        assert_eq!(font.spacing(2).text_width("AB"), 16);
     }
 
     #[test]
@@ -475,7 +582,7 @@ mod tests {
         for edges in [Edges::Soft, Edges::Medium, Edges::Crisp, Edges::VeryCrisp] {
             let font = soft.edges(edges);
             for y in -1..11 {
-                for x in -1..=i32::from(font.text_width(text)) {
+                for x in -1..=i32::from(font.bytes_width(text)) {
                     let expected = sharpen(face.coverage(text, 0, x, y), 64, edges);
                     assert_eq!(font.coverage(text, x, y), expected);
                 }
@@ -484,9 +591,9 @@ mod tests {
         // Hard edges: fully on or off, and the same LEDs as the plain drawing.
         let hard = Font::seven_segment_slanted(10).hard_edges();
         let face = Seven::new(10, true, true);
-        assert_eq!(hard.text_width(text), face.width(text, 0));
+        assert_eq!(hard.bytes_width(text), face.width(text, 0));
         for y in 0..10 {
-            for x in 0..i32::from(hard.text_width(text)) {
+            for x in 0..i32::from(hard.bytes_width(text)) {
                 let expected = if face.coverage(text, 0, x, y) == 64 {
                     255
                 } else {
@@ -505,18 +612,12 @@ mod tests {
         // Size has no effect on segment fonts.
         let font = Font::seven_segment(8);
         assert_eq!(font.size(Size::X2).height(), 8);
-        assert_eq!(
-            font.size(Size::X2).text_width(b"88"),
-            font.text_width(b"88")
-        );
+        assert_eq!(font.size(Size::X2).text_width("88"), font.text_width("88"));
         // Spacing adds blank LEDs after each letter.
+        assert_eq!(font.spacing(2).text_width("88"), font.text_width("88") + 4);
         assert_eq!(
-            font.spacing(2).text_width(b"88"),
-            font.text_width(b"88") + 4
-        );
-        assert_eq!(
-            font.hard_edges().spacing(1).text_width(b"88"),
-            font.hard_edges().text_width(b"88") + 2
+            font.hard_edges().spacing(1).text_width("88"),
+            font.hard_edges().text_width("88") + 2
         );
         // Hard edges leave bitmap fonts alone.
         let bitmap = Font::X11_5X8.edges(Edges::Soft);
@@ -537,7 +638,7 @@ mod tests {
         for edges in [Edges::Soft, Edges::Medium, Edges::Crisp, Edges::VeryCrisp] {
             let font = soft.edges(edges);
             for y in -1..11 {
-                for x in -1..=i32::from(font.text_width(text)) {
+                for x in -1..=i32::from(font.bytes_width(text)) {
                     let expected = sharpen(face.coverage(text, 0, x, y), 64, edges);
                     assert_eq!(font.coverage(text, x, y), expected);
                 }
@@ -545,10 +646,10 @@ mod tests {
         }
         // Hard edges: the same drawing, on where at least half covered.
         let hard = soft.hard_edges();
-        assert_eq!(hard.text_width(text), soft.text_width(text));
+        assert_eq!(hard.bytes_width(text), soft.bytes_width(text));
         let mut on = 0;
         for y in 0..10 {
-            for x in 0..i32::from(hard.text_width(text)) {
+            for x in 0..i32::from(hard.bytes_width(text)) {
                 let expected = if face.coverage(text, 0, x, y) >= 32 {
                     on += 1;
                     255
@@ -562,14 +663,8 @@ mod tests {
         // Too short is raised to 7; size has no effect; spacing adds blank
         // LEDs after each letter.
         assert_eq!(Font::fourteen_segment(3).height(), 7);
-        assert_eq!(
-            soft.size(Size::X2).text_width(b"88"),
-            soft.text_width(b"88")
-        );
-        assert_eq!(
-            soft.spacing(2).text_width(b"88"),
-            soft.text_width(b"88") + 4
-        );
+        assert_eq!(soft.size(Size::X2).text_width("88"), soft.text_width("88"));
+        assert_eq!(soft.spacing(2).text_width("88"), soft.text_width("88") + 4);
         assert_eq!(soft.name(), "14-segment");
     }
 

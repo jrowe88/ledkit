@@ -230,7 +230,8 @@ impl<const LEN: usize> TextArea<LEN> {
     /// second for a clock.
     ///
     /// Only the first `LEN` characters are kept (32 unless you chose
-    /// otherwise). Letters other than plain ASCII (such as `é`) show as `?`.
+    /// otherwise). Each letter other than plain ASCII (such as `é`) is kept
+    /// as one `?`: a `?` in most fonts, a blank in the seven-segment ones.
     ///
     /// ```
     /// use ledkit_text::prelude::*;
@@ -260,7 +261,7 @@ impl<const LEN: usize> TextArea<LEN> {
     /// assert_eq!(area.text_width(), 10);
     /// ```
     pub fn text_width(&self) -> u16 {
-        self.style.font.text_width(self.text())
+        self.style.font.bytes_width(self.text())
     }
 
     /// Draws the text onto `surface` (a matrix `Canvas`, a strip, ...) at the
@@ -287,7 +288,7 @@ impl<const LEN: usize> TextArea<LEN> {
             style.height = surface.height();
         }
         let text = self.text();
-        let spare_width = i32::from(style.width) - i32::from(style.font.text_width(text));
+        let spare_width = i32::from(style.width) - i32::from(style.font.bytes_width(text));
         let spare_height = i32::from(style.height) - i32::from(style.font.height());
         // Rounded down, so text wider than the box still sits in the middle.
         let text_left = match self.across {
@@ -296,7 +297,7 @@ impl<const LEN: usize> TextArea<LEN> {
             Across::Right => spare_width,
         };
         let text_top = self.up_down.offset(spare_height);
-        style.draw(surface, now.into(), text, text_left, text_top);
+        style.draw(surface, now.into(), text, 0, text_left, text_top);
     }
 
     /// The text as it is kept.
@@ -462,7 +463,7 @@ mod tests {
     #[test]
     fn overflow_centres() {
         let font = Font::X11_5X8;
-        assert_eq!(font.text_width(b"88888"), 25);
+        assert_eq!(font.text_width("88888"), 25);
         panel::<64>(8, 8, |canvas| {
             let mut area = TextArea::new(font).at(0, 0, 8, 8);
             area.set_text("88888");
@@ -546,7 +547,7 @@ mod tests {
                     .reverse(reverse);
                 area.set_text("12:4");
                 area.render(canvas, Time::from_millis(0));
-                let left = 1 + (18 - i32::from(font.text_width(b"12:4"))).div_euclid(2);
+                let left = 1 + (18 - i32::from(font.text_width("12:4"))).div_euclid(2);
                 let top = -1; // (9 - 8) / 2 rounds down to 0.
                 let cover = |x: i32, y: i32| {
                     let a = font.coverage(b"12:4", x - left, y - top);

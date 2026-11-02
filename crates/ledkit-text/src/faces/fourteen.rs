@@ -438,13 +438,31 @@ impl Fourteen {
 
     /// How many LEDs wide `text` is: each glyph's cell, its two gaps and
     /// `spacing` blank LEDs. 0 for no text.
+    #[cfg(test)]
     pub(crate) fn width(&self, text: &[u8], spacing: u8) -> u16 {
-        let padding = i64::from(self.padding(spacing));
+        self.width_of(text.iter().copied(), spacing)
+    }
+
+    /// [`Fourteen::width`] of the bytes `text` gives.
+    pub(crate) fn width_of(&self, text: impl Iterator<Item = u8>, spacing: u8) -> u16 {
         let pixels: i64 = text
-            .iter()
-            .map(|&byte| i64::from(self.cell(Glyph::of(byte))) + padding)
+            .map(|byte| i64::from(self.advance(byte, spacing)))
             .sum();
         u16::try_from((pixels + 7) / 8).unwrap_or(u16::MAX)
+    }
+
+    /// How far the glyph after `byte` starts from `byte`'s own start, in
+    /// drawing pixels (8 per LED): its cell, its two gaps and `spacing`
+    /// blank LEDs. This is the step [`Fourteen::coverage`] takes from one
+    /// glyph to the next.
+    pub(crate) const fn advance(&self, byte: u8, spacing: u8) -> i32 {
+        self.cell(Glyph::of(byte)) + self.padding(spacing)
+    }
+
+    /// How far right of its start `byte`'s lit pixels can reach, in drawing
+    /// pixels: its cell's last column, which the capsules can touch.
+    pub(crate) const fn reach(&self, byte: u8) -> i32 {
+        self.cell(Glyph::of(byte)) + 1
     }
 
     /// Segment number `index`'s capsule, as the preview's `add` makes it:
@@ -733,7 +751,22 @@ impl Fourteen {
 
     /// How many of the LED at (`x`, `y`)'s 64 pixels are lit. (0, 0) is the
     /// top left of `text`.
+    #[cfg(test)]
     pub(crate) fn coverage(&self, text: &[u8], spacing: u8, x: i32, y: i32) -> u16 {
+        self.coverage_from(text, 0, spacing, x, y)
+    }
+
+    /// [`Fourteen::coverage`] with the first glyph starting `origin` drawing
+    /// pixels (0 or more) right of LED column 0, so that part of a longer
+    /// text can be drawn exactly where it would be in the whole.
+    pub(crate) fn coverage_from(
+        &self,
+        text: &[u8],
+        origin: i32,
+        spacing: u8,
+        x: i32,
+        y: i32,
+    ) -> u16 {
         // Past 2^27 LEDs is far beyond any text's width (at most `u16::MAX`),
         // and keeps the pixel positions below from overflowing.
         if x < 0 || y < 0 || y >= i32::from(self.height) || x >= 1 << 27 {
@@ -742,7 +775,7 @@ impl Fourteen {
         let (left, top) = (8 * x, 8 * y);
         let padding = self.padding(spacing);
         let mut lit = 0;
-        let mut start = 0;
+        let mut start = origin;
         for &byte in text {
             if start > left + 7 {
                 break;

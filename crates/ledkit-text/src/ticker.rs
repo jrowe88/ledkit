@@ -51,7 +51,8 @@ pub struct Ticker<const LEN: usize = 256> {
     up_down: UpDown,
     /// LEDs per second.
     speed: u16,
-    /// Blank LEDs of travel after each message; `None` for the box's width.
+    /// Blank LEDs of travel after each message; `None` for the box's width
+    /// or the speed, whichever is less.
     gap: Option<u16>,
     /// Milliseconds a message that fits stays still.
     hold: u32,
@@ -214,8 +215,10 @@ impl<const LEN: usize> Ticker<LEN> {
     }
 
     /// How many LEDs of blank scroll by between one message leaving and the
-    /// next coming in. Unless you say otherwise, one box width: the box is
-    /// empty for as long as it takes the text to cross it.
+    /// next coming in. Unless you say otherwise, one box width or one
+    /// second's worth (the [`speed`](Ticker::speed)), whichever is less: the
+    /// box is empty for as long as it takes the text to cross it, but never
+    /// more than about a second.
     ///
     /// ```
     /// use ledkit_text::prelude::*;
@@ -244,11 +247,18 @@ impl<const LEN: usize> Ticker<LEN> {
     }
 
     /// Changes the messages. The message showing now finishes first (it
-    /// scrolls off, then the gap); then the new list starts at its first
-    /// message. Before the first [`render`](Ticker::render), or when there
-    /// were no messages, the new list starts straight away.
+    /// scrolls off, then the gap); then the new list carries on from the
+    /// same place: if the second message just finished, the third of the
+    /// new list comes next (or its first, if the new list is shorter).
+    /// Before the first [`render`](Ticker::render), or when there were no
+    /// messages, the new list starts straight away at its first message.
     ///
-    /// Letters other than plain ASCII (such as `é`) show as `?`. Messages
+    /// So you can call it as often as you like with the list built again,
+    /// for example once a second with an "up 12s" message among the others.
+    /// Giving it the same messages it already has changes nothing.
+    ///
+    /// Each letter other than plain ASCII (such as `é`) is kept as one `?`
+    /// (a blank in the seven-segment fonts). Messages
     /// past the ticker's room (256 bytes unless you chose otherwise, each
     /// message one byte per character plus one) are left out, and the one
     /// that runs out of room is cut short. An empty message is a pause.
@@ -266,6 +276,11 @@ impl<const LEN: usize> Ticker<LEN> {
             self.has_pending = false;
             self.current = 0;
             self.started = None;
+        } else if self.has_pending && self.pending.holds(messages) {
+            // Already waiting.
+        } else if self.list.holds(messages) {
+            // Back to the list showing: nothing to wait for.
+            self.has_pending = false;
         } else {
             self.pending.fill(messages);
             self.has_pending = true;
@@ -303,7 +318,7 @@ impl<const LEN: usize> Ticker<LEN> {
             style.height = surface.height();
         }
         let box_width = style.width;
-        let gap = self.gap.unwrap_or(box_width);
+        let gap = self.gap.unwrap_or(box_width.min(self.speed.max(1)));
         let now_ms = now.as_millis();
         // Time going backwards (or round past u32::MAX) restarts the message.
         let mut start = match self.started {
@@ -313,7 +328,7 @@ impl<const LEN: usize> Ticker<LEN> {
         // Move on past every message that has finished by now.
         let mut skips = 0;
         while !self.list.is_empty() {
-            let text_width = style.font.text_width(self.list.message(self.current));
+            let text_width = style.font.bytes_width(self.list.message(self.current));
             let duration = self.duration(text_width, box_width, gap);
             if u64::from(now_ms - start) < duration {
                 break;
@@ -330,17 +345,26 @@ impl<const LEN: usize> Ticker<LEN> {
         self.started = Some(start);
 
         let text = self.list.message(self.current);
-        let text_width = style.font.text_width(text);
+        let text_width = style.font.bytes_width(text);
         let elapsed = now_ms - start;
         let text_top = self
             .up_down
             .offset(i32::from(style.height) - i32::from(style.font.height()));
         match self.text_left(elapsed, text_width, box_width) {
             Some(text_left) => {
-                let (text, text_left) = visible_part(style.font, text, text_left, box_width);
-                style.draw(surface, now, text, text_left, text_top);
+                // Only the letters that can show (and the outline next to
+                // them), so a long message costs no more per LED than a short
+                // one. The outline looks one LED past each edge of the box.
+                let left = i64::from(text_left);
+                let part = style
+                    .font
+                    .visible(text, -left - 1, i64::from(box_width) - left);
+                // `shift` is at most the text's width, a u16, so this fits.
+                let text_left = (left + part.shift) as i32;
+                let text = &text[part.start..part.end];
+                style.draw(surface, now, text, part.origin, text_left, text_top);
             }
-            None => style.draw(surface, now, b"", 0, text_top),
+            None => style.draw(surface, now, b"", 0, 0, text_top),
         }
     }
 
@@ -377,45 +401,24 @@ impl<const LEN: usize> Ticker<LEN> {
         }
     }
 
-    /// Moves on to the next message, or to the first of a new list if one is
-    /// waiting.
+    /// Moves on to the next message. If a new list is waiting, that is the
+    /// one in the place after the message that just finished, going round to
+    /// the first past the new list's end.
     fn switch(&mut self) {
         if self.has_pending {
+            let next = self.list.index(self.current) + 1;
             core::mem::swap(&mut self.list, &mut self.pending);
             self.has_pending = false;
-            self.current = 0;
+            let count = self.list.count();
+            self.current = if count == 0 {
+                0
+            } else {
+                self.list.start(next % count)
+            };
         } else {
             self.current = self.list.next(self.current);
         }
     }
-}
-
-/// The letters of `text` that can show in a box `box_width` wide when the
-/// text starts at `text_left`, and where they start.
-///
-/// The segment fonts work out each LED by walking the text from its start,
-/// so they get the whole text. For the bitmap fonts, whose letters are all
-/// the same width, only the letters that can show are kept (and one either
-/// side, for the outline), so a long message costs no more per LED than a
-/// short one.
-fn visible_part(font: Font, text: &[u8], text_left: i32, box_width: u16) -> (&[u8], i32) {
-    let Some(advance) = font.fixed_advance() else {
-        return (text, text_left);
-    };
-    let advance = i64::from(advance.max(1));
-    let left = i64::from(text_left);
-    // The outline looks one LED past each edge of the box.
-    let first_column = (-left - 1).max(0);
-    let last_column = i64::from(box_width) - left;
-    let first = usize::try_from(first_column / advance)
-        .unwrap_or(usize::MAX)
-        .min(text.len());
-    let end = usize::try_from(last_column.div_euclid(advance) + 1)
-        .unwrap_or(0)
-        .clamp(first, text.len());
-    // `first` letters are at most a u16 of LEDs wide, so this fits.
-    let skipped = i64::try_from(first).unwrap_or(0) * advance;
-    (&text[first..end], (left + skipped) as i32)
 }
 
 /// Messages kept back to back, each followed by a 0 byte.
@@ -439,28 +442,76 @@ impl<const LEN: usize> List<LEN> {
 
     /// Replaces the messages with as many of `messages` as fit.
     fn fill(&mut self, messages: &[&str]) {
-        self.used = 0;
+        let bytes = &mut self.bytes;
+        self.used = Self::encode(messages, |at, byte| bytes[at] = byte);
+    }
+
+    /// True when the list is just what [`List::fill`] would make of
+    /// `messages`.
+    fn holds(&self, messages: &[&str]) -> bool {
+        let mut same = true;
+        let used = Self::encode(messages, |at, byte| same &= self.bytes[at] == byte);
+        same && used == self.used
+    }
+
+    /// Hands `put` each byte of as many of `messages` as fit, with where it
+    /// goes (below `LEN`), and returns how many bytes that is.
+    fn encode(messages: &[&str], mut put: impl FnMut(usize, u8)) -> usize {
+        let mut used = 0;
         for message in messages {
-            let room = LEN - self.used;
+            let room = LEN - used;
             // An empty message needs one byte; any other at least two.
             if room == 0 || (room == 1 && !message.is_empty()) {
                 break;
             }
             for character in message.chars() {
                 // Keep one byte for the end marker.
-                if self.used + 1 >= LEN {
+                if used + 1 >= LEN {
                     break;
                 }
-                self.bytes[self.used] = if character.is_ascii() && character != '\0' {
+                let byte = if character.is_ascii() && character != '\0' {
                     character as u8
                 } else {
                     b'?'
                 };
-                self.used += 1;
+                put(used, byte);
+                used += 1;
             }
-            self.bytes[self.used] = 0;
-            self.used += 1;
+            put(used, 0);
+            used += 1;
         }
+        used
+    }
+
+    /// How many messages there are.
+    fn count(&self) -> usize {
+        self.index(self.used)
+    }
+
+    /// Which message (0 for the first) starts at byte `start`: how many
+    /// messages end before it.
+    fn index(&self, start: usize) -> usize {
+        self.bytes[..start.min(self.used)]
+            .iter()
+            .map(|&byte| usize::from(byte == 0))
+            .sum()
+    }
+
+    /// Where message number `index` starts (`used` past the last).
+    fn start(&self, index: usize) -> usize {
+        if index == 0 {
+            return 0;
+        }
+        let mut ends = 0;
+        for (at, &byte) in self.bytes[..self.used].iter().enumerate() {
+            if byte == 0 {
+                ends += 1;
+                if ends == index {
+                    return at + 1;
+                }
+            }
+        }
+        self.used
     }
 
     /// The message starting at byte `start`.
@@ -548,10 +599,11 @@ mod tests {
     fn scrolls_off_then_gap_then_next() {
         let mut ticker = Ticker::new(FONT).speed(20);
         ticker.set_messages(&["ABCD", "WXYZ"]);
-        assert_eq!(FONT.text_width(b"ABCD"), 20);
+        assert_eq!(FONT.text_width("ABCD"), 20);
         let _ = render(&mut ticker, 0);
         assert_eq!(render(&mut ticker, 1000), showing(b"ABCD", -12));
-        // d = 28 (8 + 20) to d = 36 (+ the gap of one box width).
+        // d = 28 (8 + 20) to d = 36 (+ the gap: the box width, 8, which is
+        // less than the speed).
         for millis in (1400..1800).step_by(50) {
             assert_eq!(render(&mut ticker, millis), BLANK, "{millis} ms");
         }
@@ -608,9 +660,99 @@ mod tests {
         assert_eq!(render(&mut ticker, 1500), BLANK);
         // Set during the gap: still the next thing shown.
         ticker.set_messages(&["JKLM"]);
+        // Message 0 finished, so the new list goes on at message 1, which is
+        // past its end: back to its first.
         assert_eq!(render(&mut ticker, 1850), showing(b"JKLM", 7));
-        // The new list starts at its first message, and loops on its own.
+        // The new list loops on its own.
         assert_eq!(render(&mut ticker, 3650), showing(b"JKLM", 7));
+    }
+
+    #[test]
+    fn new_list_carries_on_in_order() {
+        // Each of these takes (8 + 20 + 8) LEDs at 20 a second: 1800 ms.
+        let mut ticker = Ticker::new(FONT).speed(20);
+        ticker.set_messages(&["ABCD", "EFGH", "IJKL"]);
+        let _ = render(&mut ticker, 0);
+        // While message 0 shows, a new list: message 1 of it comes next.
+        ticker.set_messages(&["MNOP", "QRST", "UVWX"]);
+        assert_eq!(render(&mut ticker, 1000), showing(b"ABCD", -12));
+        assert_eq!(render(&mut ticker, 1850), showing(b"QRST", 7));
+        // While message 1 shows, a list of two: message 2 is past its end.
+        ticker.set_messages(&["YZ12", "3456"]);
+        assert_eq!(render(&mut ticker, 3650), showing(b"YZ12", 7));
+        // The same list again changes nothing, nor does the waiting one.
+        ticker.set_messages(&["YZ12", "3456"]);
+        assert!(!ticker.has_pending);
+        ticker.set_messages(&["ABCD"]);
+        ticker.set_messages(&["ABCD"]);
+        assert!(ticker.has_pending);
+        // Going back to the list showing drops the waiting one.
+        ticker.set_messages(&["YZ12", "3456"]);
+        assert!(!ticker.has_pending);
+        assert_eq!(render(&mut ticker, 5450), showing(b"3456", 7));
+        // An empty list waiting: blank once the message showing is done.
+        ticker.set_messages(&[]);
+        assert_eq!(render(&mut ticker, 6000), showing(b"3456", -4));
+        assert_eq!(render(&mut ticker, 7250), BLANK);
+        assert_eq!(render(&mut ticker, 20_000), BLANK);
+    }
+
+    #[test]
+    fn list_set_again_every_second_shows_every_message() {
+        // As the esp32c6-text example does: the whole list again once a
+        // second, with the number of seconds in the middle message.
+        let mut ticker = Ticker::new(FONT);
+        let mut seen: Vec<String> = Vec::new();
+        for millis in (0..60_000u32).step_by(20) {
+            if millis % 1000 == 0 {
+                let uptime = format!("up {}s", millis / 1000);
+                ticker.set_messages(&["ledkit", uptime.as_str(), "Hello!"]);
+            }
+            let _ = render(&mut ticker, millis);
+            let showing = ticker.list.message(ticker.current);
+            let showing = String::from_utf8(showing.to_vec()).unwrap();
+            if seen.last() != Some(&showing) {
+                seen.push(showing);
+            }
+        }
+        // Each message in turn, round and round, the number going up.
+        assert!(seen.len() >= 9, "{seen:?}");
+        let mut last_seconds = 0;
+        for (place, message) in seen.iter().enumerate() {
+            match place % 3 {
+                0 => assert_eq!(message, "ledkit", "{seen:?}"),
+                1 => {
+                    let seconds: u32 = message
+                        .strip_prefix("up ")
+                        .and_then(|rest| rest.strip_suffix('s'))
+                        .and_then(|number| number.parse().ok())
+                        .unwrap_or_else(|| panic!("{seen:?}"));
+                    assert!(seconds > last_seconds, "{seen:?}");
+                    last_seconds = seconds;
+                }
+                _ => assert_eq!(message, "Hello!", "{seen:?}"),
+            }
+        }
+    }
+
+    #[test]
+    fn default_gap_is_at_most_a_second() {
+        // A 40 wide box at 10 LEDs a second: the gap is 10 LEDs (1 s), not 40.
+        let mut pixels = [Rgb::BLACK; 40 * 8];
+        let mut canvas = Canvas::new(&mut pixels, MatrixLayout::new(40, 8)).unwrap();
+        let mut ticker = Ticker::new(FONT).speed(10).hold(1000);
+        ticker.set_messages(&["1"]);
+        let lit = |canvas: &Canvas<'_, Rgb, MatrixLayout>| {
+            (0..40).any(|x| (0..8).any(|y| canvas.get(x, y).unwrap() != Rgb::BLACK))
+        };
+        ticker.render(&mut canvas, Time::from_millis(0));
+        assert!(lit(&canvas));
+        ticker.render(&mut canvas, Time::from_millis(1000));
+        assert!(!lit(&canvas));
+        ticker.render(&mut canvas, Time::from_millis(1999));
+        assert!(!lit(&canvas));
+        ticker.render(&mut canvas, Time::from_millis(2000));
+        assert!(lit(&canvas));
     }
 
     #[test]
@@ -681,6 +823,14 @@ mod tests {
         assert_eq!(list.message(0), b"h?llo");
         assert_eq!(list.message(list.next(0)), b"abc");
         assert_eq!(list.next(list.next(0)), 0);
+        // Counting messages, and where each starts.
+        assert_eq!(list.count(), 2);
+        assert_eq!((list.index(0), list.index(6)), (0, 1));
+        assert_eq!((list.start(0), list.start(1), list.start(2)), (0, 6, 10));
+        // What the list holds is compared as it was kept.
+        assert!(list.holds(&["héllo", "abcdef", "x"]));
+        assert!(list.holds(&["hèllo", "abc"]));
+        assert!(!list.holds(&["héllo"]) && !list.holds(&["héllo", "abd"]));
         // Room for one byte: an empty message fits, any other is left out.
         list.fill(&["abcdefgh", "", "x"]);
         assert_eq!(list.message(0), b"abcdefgh");
@@ -704,29 +854,99 @@ mod tests {
         // Only part of a long message is handed to the font; it must look
         // the same as the whole message, outline included. With no gap
         // between letters, '#' reaches into the next letter's outline.
-        let font = FONT;
         let text = "#$+# The quick brown fox jumps over the lazy dog #$+#";
-        let mut ticker = Ticker::new(font)
-            .outline(Rgb::RED)
-            .behind(Rgb::BLUE)
-            .speed(1000);
-        ticker.set_messages(&[text]);
-        let width = i32::from(font.text_width(text.as_bytes()));
-        let mut style = Style::new(font);
-        style.outline = Some(Rgb::RED.into());
-        style.behind = Some(Rgb::BLUE.into());
-        (style.width, style.height) = (8, 8);
-        let _ = render(&mut ticker, 0);
-        for d in 0..width + 8 {
-            let got = render(&mut ticker, d as u32);
-            let mut pixels = [Rgb::BLACK; 64];
-            let mut canvas = Canvas::new(&mut pixels, MatrixLayout::new(8, 8)).unwrap();
-            style.draw(&mut canvas, Time::from_millis(0), text.as_bytes(), 8 - d, 0);
-            for (y, row) in got.iter().enumerate() {
-                for (x, &led) in row.iter().enumerate() {
-                    assert_eq!(led, canvas.get(x as u16, y as u16).unwrap(), "d {d}");
+        let segments = "8:8.8 ABCDEFGHIJ KLMNOP:QRSTUV.WXYZ 0123456789 ,-+/*'\"_=<>?!$%";
+        let fonts = [
+            (FONT, text),
+            (FONT.spacing(2), text),
+            (Font::seven_segment(8), segments),
+            (Font::seven_segment(8).spacing(2), segments),
+            (Font::seven_segment_slanted(8), segments),
+            (Font::seven_segment_slanted(8).spacing(2), segments),
+            (Font::seven_segment_slanted(7).hard_edges(), segments),
+            (Font::seven_segment(8).hard_edges().spacing(2), segments),
+            (Font::fourteen_segment(8), segments),
+            (Font::fourteen_segment(8).spacing(2), segments),
+            (Font::fourteen_segment(7).hard_edges(), segments),
+        ];
+        for (font, text) in fonts {
+            let mut ticker = Ticker::new(font)
+                .outline(Rgb::RED)
+                .behind(Rgb::BLUE)
+                .speed(1000);
+            ticker.set_messages(&[text]);
+            let width = i32::from(font.text_width(text));
+            let mut style = Style::new(font);
+            style.outline = Some(Rgb::RED.into());
+            style.behind = Some(Rgb::BLUE.into());
+            (style.width, style.height) = (8, 8);
+            let top = UpDown::Middle.offset(8 - i32::from(font.height()));
+            let _ = render(&mut ticker, 0);
+            for d in 0..width + 8 {
+                let got = render(&mut ticker, d as u32);
+                let mut pixels = [Rgb::BLACK; 64];
+                let mut canvas = Canvas::new(&mut pixels, MatrixLayout::new(8, 8)).unwrap();
+                style.draw(
+                    &mut canvas,
+                    Time::from_millis(0),
+                    text.as_bytes(),
+                    0,
+                    8 - d,
+                    top,
+                );
+                for (y, row) in got.iter().enumerate() {
+                    for (x, &led) in row.iter().enumerate() {
+                        let want = canvas.get(x as u16, y as u16).unwrap();
+                        assert_eq!(led, want, "{} d {d} ({x}, {y})", font.name());
+                    }
                 }
             }
         }
+    }
+
+    #[test]
+    fn visible_part_of_segment_text() {
+        // Far into a long message only a few letters are handed over.
+        let font = Font::fourteen_segment(16);
+        let text = [b'W'; 240];
+        let width = i64::from(font.bytes_width(&text));
+        let part = font.visible(&text, width / 2, width / 2 + 192);
+        assert!(part.start > 100 && part.end - part.start < 30, "{part:?}");
+        assert!(part.origin < 8);
+        // Off either end: nothing.
+        let part = font.visible(&text, width + 2, width + 20);
+        assert_eq!(part.start, part.end);
+        let part = font.visible(&text, -30, -2);
+        assert_eq!(part.start, part.end);
+    }
+
+    /// Host time per frame for a long 14-segment message on a big panel, for
+    /// comparing changes (not a pass/fail test):
+    /// `cargo test --release -p ledkit-text --lib ticker_timing -- --ignored --nocapture`.
+    #[test]
+    #[ignore = "timing, run by hand in release"]
+    #[allow(clippy::cast_precision_loss)]
+    fn ticker_timing() {
+        let message: String = "THE QUICK BROWN FOX 0123456789 "
+            .chars()
+            .cycle()
+            .take(240)
+            .collect();
+        let font = Font::fourteen_segment(16);
+        let mut ticker = Ticker::new(font).outline(Rgb::RED).speed(1000);
+        ticker.set_messages(&[message.as_str()]);
+        let mut pixels = vec![Rgb::BLACK; 192 * 64];
+        let mut canvas = Canvas::new(&mut pixels[..], MatrixLayout::new(192, 64)).unwrap();
+        ticker.render(&mut canvas, Time::from_millis(0));
+        let width = u32::from(font.text_width(&message));
+        let frames = 100u32;
+        let start = std::time::Instant::now();
+        for frame in 1..=frames {
+            // Spread over the whole crossing (1 LED per millisecond).
+            let millis = frame * (width + 192) / (frames + 1);
+            ticker.render(&mut canvas, Time::from_millis(millis));
+        }
+        let ms = start.elapsed().as_secs_f64() * 1000.0 / f64::from(frames);
+        println!("240 chars, 14-segment 16 rows, 192x64, outline: {ms:.2} ms/frame");
     }
 }

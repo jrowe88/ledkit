@@ -135,8 +135,11 @@ coverage).
 
 ## Calls I made (the owner hasn't weighed in; flagged for review)
 
-- **Defaults:** text area centred both ways. Ticker gap = one box width of blank; hold for a
-  short message = 3 seconds, centred; a new list starts at its first message.
+- **Defaults:** text area centred both ways. Ticker gap = one box width of blank or one
+  second's worth (the speed in LEDs), whichever is less; hold for a short message = 3
+  seconds, centred; a new list continues with the next message in order (the one after the
+  place of the message that just finished, or its first past its end), and setting the same
+  list again changes nothing, so it can be set again every second.
 - **Panel coordinates for colour sources.** Letters, outline and behind are asked for the
   colour at the LED's position on the *panel*, not inside the box. So a text area whose
   *behind* is the same Plasma that fills the rest of the panel blends in seamlessly (ledkit

@@ -14,7 +14,7 @@ use ledkit_text::prelude::*;
 
 let font = Font::X11_5X8;
 assert_eq!(font.height(), 8);
-assert_eq!(font.text_width(b"Hi"), 10);
+assert_eq!(font.text_width("Hi"), 10);
 ```
 
 ## The fonts
@@ -104,6 +104,11 @@ date.render(&mut panel, now);
 time.render(&mut panel, now);
 ```
 
+To blink the colon, swap it for a space every other second, but give the area
+a fixed left edge (`Across::Left`, with the box starting where the wider of
+`"12:34"` and `"12 34"` would be centred), since the space is a different width
+from the colon and centred text would jiggle.
+
 Letters, the outline and what's behind can each be a plain colour or any
 effect. Effects are coloured by where each LED is on the whole panel, so a
 rainbow across two areas lines up.
@@ -132,8 +137,10 @@ for millis in (0..5000).step_by(33) {
 }
 ```
 
-Call `set_messages` again whenever the news changes: the message showing
-finishes first, then the new list starts.
+Call `set_messages` again whenever the news changes, even once a second with
+the whole list built again: the message showing finishes first, then the new
+list carries on with the next message in order. The same list again changes
+nothing.
 
 ## Try it
 

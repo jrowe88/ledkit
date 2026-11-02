@@ -249,18 +249,43 @@ impl Seven {
 
     /// How many LEDs wide `text` is: each glyph's cell, its two gaps and
     /// `spacing` blank LEDs, plus the slant's lean once. 0 for no text.
+    #[cfg(test)]
     pub(crate) fn width(&self, text: &[u8], spacing: u8) -> u16 {
-        if text.is_empty() {
+        self.width_of(text.iter().copied(), spacing)
+    }
+
+    /// [`Seven::width`] of the bytes `text` gives.
+    pub(crate) fn width_of(&self, text: impl Iterator<Item = u8>, spacing: u8) -> u16 {
+        let mut cells: i64 = 0;
+        let mut any = false;
+        for byte in text {
+            cells += i64::from(self.advance(byte, spacing));
+            any = true;
+        }
+        if !any {
             return 0;
         }
-        let padding = i64::from(self.padding(spacing));
-        let cells: i64 = text
-            .iter()
-            .map(|&byte| i64::from(self.cell(Glyph::of(byte))) + padding)
-            .sum();
         let pixels = cells + i64::from(self.skew);
         let scale = i64::from(self.scale);
         u16::try_from((pixels + scale - 1) / scale).unwrap_or(u16::MAX)
+    }
+
+    /// How far the glyph after `byte` starts from `byte`'s own start, in
+    /// drawing pixels: its cell, its two gaps and `spacing` blank LEDs. This
+    /// is the step [`Seven::coverage`] takes from one glyph to the next.
+    pub(crate) const fn advance(&self, byte: u8, spacing: u8) -> i32 {
+        self.cell(Glyph::of(byte)) + self.padding(spacing)
+    }
+
+    /// How far right of its start `byte`'s lit pixels can reach, in drawing
+    /// pixels: its cell plus the slant's lean.
+    pub(crate) const fn reach(&self, byte: u8) -> i32 {
+        self.cell(Glyph::of(byte)) + self.skew
+    }
+
+    /// Drawing pixels per LED: 8, or 1 when hard-edged.
+    pub(crate) const fn scale(&self) -> i32 {
+        self.scale
     }
 
     /// The rows and columns `(top, bottom, left, right)` of segment number
@@ -368,8 +393,23 @@ impl Seven {
 
     /// How many of the LED at (`x`, `y`)'s pixels are lit, in 64ths: 0..=64
     /// anti-aliased, 0 or 64 hard-edged. (0, 0) is the top left of `text`.
-    #[allow(clippy::cast_sign_loss)] // `lit` is never negative.
+    #[cfg(test)]
     pub(crate) fn coverage(&self, text: &[u8], spacing: u8, x: i32, y: i32) -> u16 {
+        self.coverage_from(text, 0, spacing, x, y)
+    }
+
+    /// [`Seven::coverage`] with the first glyph starting `origin` drawing
+    /// pixels (0 or more) right of LED column 0, so that part of a longer
+    /// text can be drawn exactly where it would be in the whole.
+    #[allow(clippy::cast_sign_loss)] // `lit` is never negative.
+    pub(crate) fn coverage_from(
+        &self,
+        text: &[u8],
+        origin: i32,
+        spacing: u8,
+        x: i32,
+        y: i32,
+    ) -> u16 {
         // Past `i32::MAX / 8 - 1` LEDs is far beyond any text's width (at most
         // `u16::MAX`), and keeps `x * scale + scale` from overflowing.
         if x < 0 || y < 0 || y >= i32::from(self.height) || x >= i32::MAX / 8 - 1 {
@@ -408,7 +448,7 @@ impl Seven {
 
         let padding = self.padding(spacing);
         let mut lit = 0;
-        let mut start = 0;
+        let mut start = origin;
         for &byte in text {
             if start >= window_high {
                 break;

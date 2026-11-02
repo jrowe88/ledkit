@@ -39,6 +39,9 @@ impl Style {
 
     /// Draws `text` with its top left at (`text_left`, `text_top`) inside the
     /// box. Only LEDs inside both the box and the surface are touched.
+    /// `origin` is where its first letter starts inside LED column
+    /// `text_left`, in the font's drawing pixels: 0 for a whole text (see
+    /// [`Font::visible`]).
     ///
     /// Per LED, as the preview's `draw`: start from behind (black if none),
     /// mix toward the outline by the outline amount, then toward the letters
@@ -48,6 +51,7 @@ impl Style {
         surface: &mut (impl Surface + ?Sized),
         now: Time,
         text: &[u8],
+        origin: i32,
         text_left: i32,
         text_top: i32,
     ) {
@@ -73,11 +77,12 @@ impl Style {
         for y in y_start..y_end {
             let ty = clamp(i64::from(y) - top - i64::from(text_top));
             if self.outline.is_some() {
+                let text = (text, origin);
                 self.draw_outlined_row(surface, frame, text, y, x_start..x_end, first_x, ty);
             } else {
                 let mut tx = first_x;
                 for x in x_start..x_end {
-                    let a = self.cover(text, tx, ty);
+                    let a = self.cover((text, origin), tx, ty);
                     self.set(surface, frame, x, y, a, 0);
                     tx = tx.saturating_add(1);
                 }
@@ -94,7 +99,7 @@ impl Style {
         &self,
         surface: &mut (impl Surface + ?Sized),
         frame: Frame,
-        text: &[u8],
+        text: (&[u8], i32),
         y: u16,
         columns: core::ops::Range<u16>,
         first_x: i32,
@@ -114,17 +119,18 @@ impl Style {
 
     /// The coverage at (`tx`, `ty`), and the most of the three LEDs from
     /// `ty - 1` to `ty + 1` in that column.
-    fn column(&self, text: &[u8], tx: i32, ty: i32) -> (u8, u8) {
+    fn column(&self, text: (&[u8], i32), tx: i32, ty: i32) -> (u8, u8) {
         let middle = self.cover(text, tx, ty);
         let above = self.cover(text, tx, ty.saturating_sub(1));
         let below = self.cover(text, tx, ty.saturating_add(1));
         (middle, middle.max(above).max(below))
     }
 
-    /// How much the LED at (`tx`, `ty`) of the text is "letter", 0 to 255,
-    /// swapped round when reversed (so outside the text is fully letter).
-    fn cover(&self, text: &[u8], tx: i32, ty: i32) -> u8 {
-        let a = self.font.coverage(text, tx, ty);
+    /// How much the LED at (`tx`, `ty`) of the text (its bytes and origin)
+    /// is "letter", 0 to 255, swapped round when reversed (so outside the
+    /// text is fully letter).
+    fn cover(&self, (text, origin): (&[u8], i32), tx: i32, ty: i32) -> u8 {
+        let a = self.font.coverage_from(text, origin, tx, ty);
         if self.reverse {
             255 - a
         } else {

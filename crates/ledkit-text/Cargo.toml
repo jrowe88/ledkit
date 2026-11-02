@@ -1,0 +1,25 @@
+[package]
+name = "ledkit-text"
+description = "ledkit text: scrolling and still text on LED matrices, with bitmap and segment fonts. no_std, no heap."
+keywords = ["led", "neopixel", "text", "matrix", "embedded"]
+categories = ["embedded", "no-std", "graphics"]
+readme = "README.md"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+ledkit-color = { path = "../ledkit-color", version = "0.1.0" }
+ledkit-anim = { path = "../ledkit-anim", version = "0.1.0" }
+
+[dev-dependencies]
+ledkit-layout = { path = "../ledkit-layout", version = "0.1.0" }
+
+[package.metadata.docs.rs]
+all-features = true
+
+[lints]
+workspace = true

@@ -94,6 +94,8 @@ const L: u32 = 12;
 const M: u32 = 13;
 
 /// Builds a segment mask from the preview's names, such as `"a b g1"`.
+/// An unknown name is a build error (the table is built at compile time),
+/// so a typo in [`FORMS`] can't silently draw the wrong glyph.
 const fn mask(names: &str) -> u16 {
     let names = names.as_bytes();
     let mut mask = 0;
@@ -113,10 +115,11 @@ const fn mask(names: &str) -> u16 {
             b'g' => {
                 // g1 or g2: the digit is part of the name.
                 i += 1;
-                if names[i] == b'1' {
-                    G1
-                } else {
-                    G2
+                assert!(i < names.len(), "segment g needs a 1 or 2");
+                match names[i] {
+                    b'1' => G1,
+                    b'2' => G2,
+                    _ => panic!("segment g needs a 1 or 2"),
                 }
             }
             b'h' => H,
@@ -124,10 +127,13 @@ const fn mask(names: &str) -> u16 {
             b'j' => J,
             b'k' => K,
             b'l' => L,
-            _ => M,
+            b'm' => M,
+            _ => panic!("unknown segment name"),
         };
-        mask |= 1 << segment;
         i += 1;
+        // A name ends at a space or the end.
+        assert!(i == names.len() || names[i] == b' ', "unknown segment name");
+        mask |= 1 << segment;
     }
     mask
 }
@@ -561,6 +567,21 @@ impl Fourteen {
             return 0;
         }
         let straight = span(x - h, x + h, left);
+        // Rows all within the straight part: the same columns in each.
+        if from <= top + first && top + last <= to {
+            if straight == 0xFF && first == 0 && last == 7 {
+                return FULL;
+            }
+            let mut copies = straight | straight << 8;
+            copies |= copies << 16;
+            copies |= copies << 32;
+            let rows = if last - first == 7 {
+                FULL
+            } else {
+                ((1u64 << (8 * (last - first + 1))) - 1) << (8 * first)
+            };
+            return copies & rows;
+        }
         let mut lit = 0;
         for row in first..=last {
             let y = top + row;
@@ -606,6 +627,26 @@ impl Fourteen {
     /// segment h: within `half` of its pulled-back line segment.
     fn on_slope(&self, x: i64, y: i64) -> bool {
         let dot = x * self.run + y * self.rise;
+        let cross = x * self.rise - y * self.run;
+        self.on_slope_with(x, y, dot, cross)
+    }
+
+    /// [`Fourteen::on_slope`] with the pixel's `dot = x * run + y * rise` and
+    /// `cross = x * rise - y * run` already worked out (a row steps them by
+    /// additions).
+    ///
+    /// Where a pixel lies along the diagonal is `dot / length`. The ends are
+    /// pulled back by `1.6 * gap`, which is `8 * gap / 5`, so they lie at
+    /// `dot = 8 * gap * length / 5` and `length^2` minus that. Multiplying by
+    /// 5 keeps this exact in integers: `5 * dot` is compared with `low5` and
+    /// `high5`, the two ends' `5 * dot` (`8 * gap * length` rounded up, and
+    /// `5 * length^2` minus it). Below `low5` or above `high5` a pixel is past
+    /// an end and is tested against that end's round cap; in between, against
+    /// the sides, `|cross| <= half * length` (`band`). Normally the low end is
+    /// the near one. When the pulled-back ends cross (`crossed`), the far end
+    /// is the low one, and the capsule runs between the crossed ends, as the
+    /// preview draws it.
+    fn on_slope_with(&self, x: i64, y: i64, dot: i64, cross: i64) -> bool {
         let radius = 256 * i64::from(self.half);
         let (low, high) = (5 * dot < self.low5, 5 * dot > self.high5);
         if low || high {
@@ -621,7 +662,7 @@ impl Fourteen {
             };
             dx * dx + dy * dy <= radius * radius
         } else {
-            (x * self.rise - y * self.run).abs() <= self.band
+            cross.abs() <= self.band
         }
     }
 
@@ -662,16 +703,30 @@ impl Fourteen {
         {
             return FULL;
         }
+        // Row by row: one dot and cross product per row, then each column
+        // steps them by an addition. A row's lit pixels are one run (the
+        // capsule is convex), so a row stops at the first unlit pixel after
+        // a lit one.
+        let step = if flip_x { -1 } else { 1 };
+        let (dot_step, cross_step) = (step * self.run, step * self.rise);
         let mut lit = 0;
         for r in 0..8 {
             let y = line(r);
-            let mut bits = 0u64;
+            let mut x = x0;
+            let mut dot = x * self.run + y * self.rise;
+            let mut cross = x * self.rise - y * self.run;
+            let mut bits = 0u32;
             for c in 0..8 {
-                if self.on_slope(column(c), y) {
+                if self.on_slope_with(x, y, dot, cross) {
                     bits |= 1 << c;
+                } else if bits != 0 {
+                    break;
                 }
+                x += step;
+                dot += dot_step;
+                cross += cross_step;
             }
-            lit |= bits << (8 * r);
+            lit |= u64::from(bits) << (8 * r);
         }
         lit
     }
@@ -704,7 +759,8 @@ impl Fourteen {
             }
             start += cell + padding;
         }
-        lit.count_ones() as u16
+        // Two 32-bit counts: cheaper than a 64-bit one on 32-bit chips.
+        ((lit as u32).count_ones() + ((lit >> 32) as u32).count_ones()) as u16
     }
 }
 
@@ -813,8 +869,9 @@ mod tests {
     }
 
     /// The integer measurements equal the preview's float maths for every
-    /// height, not just the ones in the fixtures, and the diagonals' pulled
-    /// back ends never cross.
+    /// height, not just the ones in the fixtures, including whether the
+    /// diagonals' pulled-back ends cross (they do at some small heights,
+    /// such as 12).
     #[test]
     #[allow(clippy::cast_precision_loss)]
     fn measurements_match_the_float_maths() {
@@ -1053,5 +1110,83 @@ mod tests {
             worst.0, worst.1
         );
         assert!(worst.0 <= 4, "worst error {}: {}", worst.0, worst.1);
+    }
+
+    /// The diagonals' row stepping (additions, stopping after the lit run)
+    /// lights exactly the pixels a plain per-pixel test does.
+    #[test]
+    fn diagonal_rows_match_single_pixels() {
+        for height in (7..=72).chain([100, 128]) {
+            let face = Fourteen::new(height, false);
+            let rows = i32::from(height) * 8;
+            for (flip_x, flip_y) in [(false, false), (true, false), (false, true), (true, true)] {
+                for top in (0..rows).step_by(8) {
+                    for left in (-8..face.wide + 8).step_by(8) {
+                        let mut plain = 0u64;
+                        for r in 0..8 {
+                            for c in 0..8 {
+                                let (x, y) = (left + c, top + r);
+                                let x = if flip_x { face.wide - x } else { x } - face.half;
+                                let y = if flip_y { face.drawn - y } else { y } - face.half;
+                                if face.on_slope(i64::from(x), i64::from(y)) {
+                                    plain |= 1 << (8 * r + c);
+                                }
+                            }
+                        }
+                        assert_eq!(
+                            face.slope(flip_x, flip_y, left, top),
+                            plain,
+                            "height {height}, LED at ({left}, {top}), flips {flip_x} {flip_y}"
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    /// Host timing per LED, for comparing changes (not a pass/fail test):
+    /// `cargo test --release -p ledkit-text --lib timing -- --ignored --nocapture`.
+    #[test]
+    #[ignore = "timing, run by hand in release"]
+    #[allow(clippy::cast_precision_loss)]
+    fn timing() {
+        for height in [64u16, 16] {
+            for text in [&b"XXXX"[..], b"8888"] {
+                let face = Fourteen::new(height, false);
+                let width = i32::from(face.width(text, 0));
+                let leds = f64::from(width) * f64::from(height);
+                let mut total = 0u64;
+                let rounds = 200;
+                let start = std::time::Instant::now();
+                for _ in 0..rounds {
+                    for y in 0..i32::from(height) {
+                        for x in 0..width {
+                            total += u64::from(face.coverage(std::hint::black_box(text), 0, x, y));
+                        }
+                    }
+                }
+                let ns = start.elapsed().as_nanos() as f64 / (leds * f64::from(rounds));
+                println!(
+                    "height {height} {}: {ns:.1} ns/LED ({total})",
+                    std::str::from_utf8(text).unwrap()
+                );
+            }
+            // The seven-segment face, for reference.
+            let seven = crate::faces::seven::Seven::new(height, false, false);
+            let width = i32::from(seven.width(b"8888", 0));
+            let leds = f64::from(width) * f64::from(height);
+            let mut total = 0u64;
+            let start = std::time::Instant::now();
+            for _ in 0..200 {
+                for y in 0..i32::from(height) {
+                    for x in 0..width {
+                        let text = std::hint::black_box(&b"8888"[..]);
+                        total += u64::from(seven.coverage(text, 0, x, y));
+                    }
+                }
+            }
+            let ns = start.elapsed().as_nanos() as f64 / (leds * 200.0);
+            println!("height {height} 7seg-8888: {ns:.1} ns/LED ({total})");
+        }
     }
 }

@@ -235,8 +235,8 @@ impl Font {
 
     /// The same font at another [`Size`].
     ///
-    /// Segment fonts ([`Font::seven_segment`], [`Font::fourteen_segment`]) are sized by their height
-    /// instead, so this has no effect on them.
+    /// Segment fonts ([`Font::seven_segment`], [`Font::fourteen_segment`]) are
+    /// sized by their height instead, so this has no effect on them.
     ///
     /// ```
     /// use ledkit_text::prelude::*;

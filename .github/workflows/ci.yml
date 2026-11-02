@@ -219,6 +219,26 @@ jobs:
       - run: cargo build --release --locked
         working-directory: examples/teensy4-spi
 
+  example-teensy4-anim:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+          targets: thumbv7em-none-eabihf
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: examples/teensy4-anim
+      - run: cargo build --release --locked
+        working-directory: examples/teensy4-anim
+      - run: cargo build --release --locked --features strip
+        working-directory: examples/teensy4-anim
+      - run: cargo clippy --release --locked -- -D warnings
+        working-directory: examples/teensy4-anim
+      - run: cargo clippy --release --locked --features strip -- -D warnings
+        working-directory: examples/teensy4-anim
+
   example-teensy4-uart:
     runs-on: ubuntu-latest
     steps:

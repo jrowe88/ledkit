@@ -188,9 +188,10 @@ impl Seven {
         let scale = if hard { 1 } else { 8 };
         let drawn = height as i32 * scale;
         // The preview's measurements, rounded the way `Math.round` does:
-        // t = round(H / 7), W = round(0.55 H), gap = round(0.8 t),
-        // skew = round(0.18 H), mid = floor((H - t) / 2).
-        let thick = max(1, round_div(drawn, 7));
+        // t = floor(H / 8), W = round(0.55 H), gap = round(0.8 t),
+        // skew = round(0.18 H), mid = floor((H - t) / 2). The stroke thickens
+        // only at 16, 24 ... rows, so short digits keep long enough sides.
+        let thick = max(1, drawn / 8);
         let wide = max(3, round_div(55 * drawn, 100));
         let gap = max(1, round_div(8 * thick, 10));
         let skew = if slanted {
@@ -616,7 +617,7 @@ mod tests {
             for hard in [false, true] {
                 let face = Seven::new(height, true, hard);
                 let h = f64::from(face.drawn);
-                let t = js_round(h / 7.0).max(1);
+                let t = ((h / 8.0).floor() as i32).max(1);
                 assert_eq!(face.thick, t, "t at {h}");
                 assert_eq!(face.wide, js_round(h * 0.55).max(3), "W at {h}");
                 assert_eq!(face.gap, js_round(f64::from(t) * 0.8).max(1), "gap at {h}");

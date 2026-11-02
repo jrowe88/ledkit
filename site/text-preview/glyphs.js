@@ -17,7 +17,7 @@ const SEGS = { '0':'abcdef','1':'bc','2':'abdeg','3':'abcdg','4':'bcfg','5':'acd
 function renderSeg(text, H, slant, aa, k) {
   if (aa) { const ss = 8, o = downsample(renderSeg(text, H * ss, slant, false), ss); if (k !== null) o.px = o.px.map(v => sharpen(v, k)); return o; }
   H = Math.max(5, H);
-  const t = Math.max(1, Math.round(H / 7));            // stroke thickness
+  const t = Math.max(1, Math.floor(H / 8));            // stroke thickness: thickens at 16, 24 ... rows, so short digits stay balanced
   const W = Math.max(3, Math.round(H * 0.55));
   const gap = Math.max(1, Math.round(t * 0.8));
   const chars = [...text].map(c => SEGS[c] !== undefined || c === ':' || c === '.' ? c : c.toUpperCase());

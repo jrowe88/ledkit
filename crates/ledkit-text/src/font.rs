@@ -148,7 +148,7 @@ impl Font {
     ///
     /// const CLOCK: Font = Font::seven_segment(8);
     /// assert_eq!(CLOCK.height(), 8);
-    /// assert_eq!(CLOCK.text_width("12:34"), 30);
+    /// assert_eq!(CLOCK.text_width("12:34"), 28);
     /// ```
     pub const fn seven_segment(height: u16) -> Font {
         Font::seven(Seven::new(height, false, false))
@@ -162,7 +162,7 @@ impl Font {
     ///
     /// let font = Font::seven_segment_slanted(8);
     /// assert_eq!(font.height(), 8);
-    /// assert_eq!(font.text_width("12:34"), 31);
+    /// assert_eq!(font.text_width("12:34"), 29);
     /// ```
     pub const fn seven_segment_slanted(height: u16) -> Font {
         Font::seven(Seven::new(height, true, false))

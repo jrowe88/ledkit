@@ -116,23 +116,30 @@ The pulse project switched its status LED to `ledkit-core` with a ~60-line RMT `
 - an image (BMP) drawing example
 - layouts for rings (circle coordinates), if wanted later
 
-## Text support (in design, 2026-11-01)
+## Text support (built, 2026-11-02)
 
-Fonts, digit sets and a scrolling-text effect for matrices, from the 8×8 up to three
-64×64 HUB75 panels (192×64). Decided so far with the owner, using the preview page:
+`ledkit-text` (design `specs/2026-11-02-ledkit-text-design.md`) is built: fonts, text areas
+and a ticker for matrices from the 8x8 up to three 64x64 HUB75 panels (192x64).
 
-- **Fonts:** the public-domain X11 misc-fixed bitmap fonts (4x6 to 10x20, in
-  `assets/fonts/x11-misc-fixed`), plus faces drawn for ledkit: a 3×5 (capitals and digits),
-  7-segment digits (numbers and clock labels only) and 14-segment (every capital letter).
-- **Sizes:** 1x exactly as drawn, or 1.25x / 1.5x / 2x anti-aliased with adjustable edge
-  sharpness; never shrunk (it blurs). The segment faces are drawn at any height.
-- **Colour:** text is a stencil. The letters, an optional one-LED outline and the background
-  are each any animation (a solid colour is the simple case); reverse swaps letters and
-  background.
-- **Preview:** `site/text-preview` (built by `build.py` from the vendored fonts), published
-  to <https://jrowe88.github.io/ledkit/text-preview/> by the Pages workflow. Later it should
-  run ledkit's own code compiled to WebAssembly, so it can't drift from the library.
-- Still open: scrolling behaviour, where the code lives (a module or a new crate), and the API.
+- **Fonts:** the public-domain X11 misc-fixed bitmap fonts (4x6 to 10x20), a Tiny 3x5, and
+  7-segment (upright and slanted) and 14-segment faces drawn at any height. Sizes 1x, 1.25x,
+  1.5x and 2x (the bigger ones smoothed, with adjustable edge sharpness).
+- **Colour:** text is a stencil: letters, an optional one-LED outline and the background are
+  each any animation; reverse swaps letters and background.
+- **Text area and ticker:** a box with alignment, and a list of messages scrolling through it.
+- **Generated data:** `tools/fontgen.py` and `site/text-preview/reference.mjs`, each with a
+  `--check` mode that CI runs.
+- **Examples:** `examples/esp32c6-text` (an 8x8 ticker plus a 192x64 speed test) and the text
+  and clock modes of `examples/anim-preview`.
+- **Preview:** <https://jrowe88.github.io/ledkit/text-preview/>, built by
+  `site/text-preview/build.py`.
+
+Still to come:
+
+- The preview running the real crate compiled to WebAssembly, so it can't drift from the
+  library (today it is a separate JavaScript copy, checked against the crate's results).
+- A hardware check by the owner: the 8x8 ticker example has been built, not flashed.
+- On-target timing for 192x64: how long one frame takes on a real chip.
 
 ## Notes on Teensy 4 WS2812 techniques (research, 2026-11-01)
 

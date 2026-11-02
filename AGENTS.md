@@ -17,13 +17,14 @@ replacing it. The design lives in `docs/superpowers/specs/`.
 | `ledkit-core` | Chip catalogue, color orders, encoders, `Strip`, output traits | `ledkit-color` |
 | `ledkit-layout` | Segments, matrices, coordinate mapping, `embedded-graphics` | `ledkit-core` |
 | `ledkit-anim` | `Animation` trait, effects, combinators | `ledkit-color`, `ledkit-layout`, `ledkit-core` |
+| `ledkit-text` | Fonts, text areas and a ticker | `ledkit-color`, `ledkit-anim` |
 | `ledkit-spi` | Backend over `embedded-hal` 1.0 SPI | `ledkit-core` |
 | `ledkit-esp` | ESP32 RMT backend (esp-hal, `no_std`) | `ledkit-core`, `esp-hal` |
 | `ledkit-esp-idf` | ESP32 RMT backend (esp-idf-hal, `std`) | `ledkit-core`, `esp-idf-hal` |
 | `ledkit-rp` | RP2040/RP2350 PIO backend | `ledkit-core`, an RP HAL |
 | `ledkit-sim` | Desktop simulator (`std`) | `ledkit-anim` |
 
-Exist so far: `ledkit-color`, `ledkit-core`, `ledkit-layout`, `ledkit-anim`, `ledkit-spi`, `ledkit-uart`, `ledkit-esp` and `ledkit-esp-idf`. The rest are planned.
+Exist so far: `ledkit-color`, `ledkit-core`, `ledkit-layout`, `ledkit-anim`, `ledkit-text`, `ledkit-spi`, `ledkit-uart`, `ledkit-esp` and `ledkit-esp-idf`. The rest are planned.
 
 `ledkit-esp` and `ledkit-esp-idf` live outside the root workspace (they only build for an ESP32 target, with their own toolchains), so `cargo test --workspace` doesn't touch them. They are built and linted through their examples (`examples/esp32c6-rmt`, `examples/esp32c6-esp-idf`, `examples/esp32c6-matrix`) and in CI. The ESP-IDF example sets `target-dir = "C:/t/ledkit"` in its `.cargo/config.toml`, because `esp-idf-sys` rejects output paths over 88 characters on Windows; on macOS/Linux (and in CI) set `CARGO_TARGET_DIR=target`. Hardware status is recorded in each crate's README.
 
@@ -38,6 +39,17 @@ Writing a new backend? Follow the "Add a backend" guide in `CONTRIBUTING.md`; `l
 - `math`: public integer helpers (`sine`, `triangle`, `phase`, `atan2`, `isqrt`, `hash`, `noise`, ...).
 
 Rule: an animation is a pure function of position and time. It keeps no state between frames, so combinators need no buffers; an effect that needs memory of past frames (Game of Life, Fire2012's heat) doesn't fit this trait. Integer math per pixel.
+
+## Text fonts
+
+The files in `crates/ledkit-text/src/faces/data` and
+`crates/ledkit-text/src/faces/segments.fixtures` are generated and never hand-edited.
+`tools/fontgen.py` makes the bitmap data (from `assets/fonts/x11-misc-fixed` and the Tiny 3x5
+face); `python tools/fontgen.py --check` fails if it is out of date. `site/text-preview/reference.mjs`
+makes the segment fixtures the Rust tests compare against; `node site/text-preview/reference.mjs --check`
+fails if they are out of date. Also run `python tools/test_fontgen.py` and
+`python site/text-preview/build.py --check`. Change the generator or the sources, then
+regenerate.
 
 ## ledkit-core modules
 

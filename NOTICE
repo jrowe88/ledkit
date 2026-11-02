@@ -14,4 +14,7 @@ Attributions
 - viridis color map (CC0, Stéfan van der Walt and Nathaniel Smith): the
   VIRIDIS palette's color stops.
 - X11 misc-fixed bitmap fonts (public domain, X.Org misc-misc, Markus Kuhn and others):
-  the fonts in `assets/fonts/x11-misc-fixed`, used by the text preview page.
+  the fonts in `assets/fonts/x11-misc-fixed`, used by the text preview page and
+  by `ledkit-text`.
+- The Tiny 3x5, 7-segment and 14-segment faces in `ledkit-text` are original to
+  ledkit.

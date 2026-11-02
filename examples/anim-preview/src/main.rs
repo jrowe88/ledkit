@@ -8,7 +8,15 @@
 //! cargo run -- demo --blocks    # solid blocks with no gaps, unlit LEDs black
 //! cargo run -- demo             # the playlist from the ESP32 example
 //! cargo run -- list             # the names you can use
+//! cargo run -- text "Hello!"    # a ticker scrolling a message (32x8 unless --size)
+//! cargo run -- text "Hi" --size 64x16 --font 10x20
+//! cargo run -- clock            # date and a 7-segment time, 64x64, system clock (UTC)
 //! ```
+//!
+//! `text` and `clock` use `ledkit-text`. Add `--frames N` to any command to stop
+//! after N frames. When it stops, it prints the average time it took to draw
+//! one frame, which is a good guide to how fast a microcontroller would be (a
+//! lot slower than a computer).
 //!
 //! Each LED is drawn as a colored dot, and unlit LEDs as dark grey dots, the way
 //! a real panel looks. Your terminal needs "true color"
@@ -21,13 +29,14 @@ use std::time::{Duration, Instant};
 
 use ledkit_anim::prelude::*;
 use ledkit_layout::{Canvas, MatrixLayout};
+use ledkit_text::{Font, TextArea, Ticker};
 
 /// The matrix size shown unless `--size` or `--strip` is given.
 const WIDTH: u16 = 8;
 const HEIGHT: u16 = 8;
 
 /// The longest side `--size` accepts.
-const MAX_SIDE: u16 = 128;
+const MAX_SIDE: u16 = 256;
 
 /// Code page 437 (the old IBM PC character set) from 128 to 255, so that
 /// `--char 219` is `█` as it was in DOS.
@@ -47,6 +56,37 @@ const BIG_DOT: char = '⬤';
 /// How long to run before stopping (press Ctrl-C to stop sooner).
 const RUN_FOR: Duration = Duration::from_secs(20);
 
+/// The panel size for `clock` unless `--size` is given.
+const CLOCK_SIZE: (u16, u16) = (64, 64);
+
+/// The panel size for `text` unless `--size` is given.
+const TEXT_SIZE: (u16, u16) = (32, 8);
+
+/// The font names `--font` accepts, with what each one is.
+const FONTS: [(&str, &str); 15] = [
+    ("4x6", "bitmap, 4 wide, 6 tall"),
+    ("5x7", "bitmap, 5 wide, 7 tall"),
+    ("5x8", "bitmap, 5 wide, 8 tall"),
+    ("6x10", "bitmap, 6 wide, 10 tall"),
+    ("6x13", "bitmap, bold, 13 tall"),
+    ("7x13", "bitmap, bold, 13 tall"),
+    ("7x14", "bitmap, bold, 14 tall"),
+    ("8x13", "bitmap, bold, 13 tall"),
+    ("9x15", "bitmap, bold, 15 tall"),
+    ("9x18", "bitmap, bold, 18 tall"),
+    ("10x20", "bitmap, 10 wide, 20 tall"),
+    ("tiny", "bitmap, 3 wide, 5 tall, capitals only"),
+    (
+        "7seg",
+        "seven-segment display, 2 rows shorter than the panel",
+    ),
+    ("7seg-slanted", "slanted seven-segment display"),
+    (
+        "14seg",
+        "fourteen-segment display, 2 rows shorter than the panel",
+    ),
+];
+
 /// About 30 frames a second.
 const FRAME: Duration = Duration::from_millis(33);
 
@@ -58,6 +98,10 @@ fn main() {
     let mut size = None;
     let mut glyph = None;
     let mut dots = true;
+    let mut font_name = None;
+    let mut max_frames = None;
+    // The words that are not options: the effect name, then (for `text`) the message.
+    let mut words: Vec<String> = Vec::new();
     let mut args = std::env::args().skip(1);
     while let Some(arg) = args.next() {
         if arg == "--strip" {
@@ -88,9 +132,26 @@ fn main() {
             }
         } else if arg == "--blocks" {
             dots = false;
+        } else if arg == "--font" {
+            font_name = args.next();
+            if font_name.is_none() {
+                eprintln!("`--font` needs a name. Try `cargo run -- list`.");
+                std::process::exit(1);
+            }
+        } else if arg == "--frames" {
+            match args.next().and_then(|n| n.parse::<u32>().ok()) {
+                Some(count) if count > 0 => max_frames = Some(count),
+                _ => {
+                    eprintln!("`--frames` needs a number of frames, 1 or more.");
+                    std::process::exit(1);
+                }
+            }
         } else {
-            name = arg;
+            words.push(arg);
         }
+    }
+    if let Some(first) = words.first() {
+        name = first.clone();
     }
     let name = name.as_str();
 
@@ -100,6 +161,17 @@ fn main() {
             println!("  {}", effect.name());
         }
         println!("  demo (a playlist of several)");
+        println!();
+        println!("Text (uses ledkit-text):");
+        println!("  text \"message\" [--size WxH] [--font NAME] (a ticker; 32x8 unless --size)");
+        println!(
+            "  clock [--size WxH] (date and a 7-segment time, up to 30 rows tall, from the system clock, in UTC; 64x64)"
+        );
+        println!();
+        println!("Fonts for --font:");
+        for (font, what) in FONTS {
+            println!("  {font:<13}{what}");
+        }
         return;
     }
 
@@ -122,32 +194,209 @@ fn main() {
     let demo = Playlist::new(&entries);
 
     let chosen = Effect::from_name(name);
+    let is_text = name == "text" || name == "clock";
     let animation: &dyn Animation = match &chosen {
         Some(effect) => effect,
-        None if name == "demo" => &demo,
+        None if name == "demo" || is_text => &demo,
         None => {
             eprintln!("No effect called \"{name}\". Try `cargo run -- list`.");
             std::process::exit(1);
         }
     };
 
+    let default_size = match name {
+        "text" => TEXT_SIZE,
+        "clock" => CLOCK_SIZE,
+        _ => (WIDTH, HEIGHT),
+    };
     let (width, height) = match (strip_len, size) {
         (Some(len), _) => (len, 1),
         (None, Some(width_height)) => width_height,
-        (None, None) => (WIDTH, HEIGHT),
+        (None, None) => default_size,
+    };
+
+    // The show: an effect (or the demo), a ticker, or the clock.
+    let mut show = match name {
+        "text" => {
+            let font = match font_name.as_deref() {
+                Some(font_name) => parse_font(font_name, height).unwrap_or_else(|| {
+                    eprintln!("No font called \"{font_name}\". Try `cargo run -- list`.");
+                    std::process::exit(1);
+                }),
+                None => default_font(height),
+            };
+            let message = if words.len() > 1 {
+                words[1..].join(" ")
+            } else {
+                String::from("ledkit")
+            };
+            let mut ticker = Ticker::new(font).letters(Rainbow::new());
+            ticker.set_messages(&[message.as_str()]);
+            Show::Text(Box::new(ticker))
+        }
+        "clock" => Show::Clock(Box::new(Clock::new(width, height))),
+        _ => Show::Effect(animation),
     };
     let mut pixels = vec![Rgb::BLACK; usize::from(width) * usize::from(height)];
     let layout = MatrixLayout::new(width, height);
 
     print!("\x1b[2J"); // clear the screen
     let start = Instant::now();
-    while start.elapsed() < RUN_FOR {
+    let mut frames = 0u32;
+    // The time spent working out the pictures (not printing them).
+    let mut drawing = Duration::ZERO;
+    while max_frames.map_or(start.elapsed() < RUN_FOR, |count| frames < count) {
         let now = Time::from(start.elapsed());
-        (&animation).render(&mut Canvas::new(&mut pixels, layout).unwrap(), now);
+        let drawing_started = Instant::now();
+        let mut canvas = Canvas::new(&mut pixels, layout).unwrap();
+        match &mut show {
+            Show::Effect(animation) => (&*animation).render(&mut canvas, now),
+            Show::Text(ticker) => ticker.render(&mut canvas, now),
+            Show::Clock(clock) => clock.render(&mut canvas, now),
+        }
+        drawing += drawing_started.elapsed();
+        frames += 1;
         draw(&pixels, width, height, name, glyph, dots);
         std::thread::sleep(FRAME);
     }
     println!("\x1b[0m");
+    if frames > 0 {
+        println!(
+            "Average time to draw a frame: {:.2} ms ({frames} frames, {width}x{height} LEDs).",
+            drawing.as_secs_f64() * 1000.0 / f64::from(frames)
+        );
+    }
+}
+
+/// What `main` shows: an effect, a ticker or the clock.
+enum Show<'a> {
+    Effect(&'a dyn Animation),
+    Text(Box<Ticker>),
+    Clock(Box<Clock>),
+}
+
+/// A bitmap font that suits a panel this tall.
+fn default_font(height: u16) -> Font {
+    match height {
+        0..=9 => Font::X11_5X7,
+        10..=23 => Font::X11_6X10,
+        _ => Font::X11_10X20,
+    }
+}
+
+/// Finds a font by the names in `FONTS`. The segment fonts are drawn two rows
+/// shorter than the panel.
+fn parse_font(name: &str, panel_height: u16) -> Option<Font> {
+    let segment_height = panel_height.saturating_sub(2).max(5);
+    Some(match name {
+        "4x6" => Font::X11_4X6,
+        "5x7" => Font::X11_5X7,
+        "5x8" => Font::X11_5X8,
+        "6x10" => Font::X11_6X10,
+        "6x13" => Font::X11_6X13_BOLD,
+        "7x13" => Font::X11_7X13_BOLD,
+        "7x14" => Font::X11_7X14_BOLD,
+        "8x13" => Font::X11_8X13_BOLD,
+        "9x15" => Font::X11_9X15_BOLD,
+        "9x18" => Font::X11_9X18_BOLD,
+        "10x20" => Font::X11_10X20,
+        "tiny" => Font::TINY_3X5.spacing(1),
+        "7seg" => Font::seven_segment(segment_height),
+        "7seg-slanted" => Font::seven_segment_slanted(segment_height),
+        "14seg" => Font::fourteen_segment(segment_height),
+        _ => return None,
+    })
+}
+
+/// The `clock` show: a small date on top, a big time below.
+struct Clock {
+    date: TextArea,
+    time: TextArea,
+}
+
+impl Clock {
+    /// A clock for a panel `width` x `height`: the date in the top 8 rows
+    /// and the time in a 7-segment font (30 rows tall, or less if the panel is
+    /// short or narrow) in the rest, with Plasma letters and a black outline.
+    fn new(width: u16, height: u16) -> Clock {
+        // A small font for the date, and a tiny one when the panel is narrow.
+        let date_font = if width >= 60 {
+            Font::X11_5X7
+        } else {
+            Font::TINY_3X5.spacing(1)
+        };
+        let date = TextArea::new(date_font)
+            .at(0, 1, width, 7)
+            .letters(Rgb::new(120, 120, 255));
+        let below = height.saturating_sub(8);
+        // As tall as 30 rows, but no taller than fits across the panel
+        // (a 30-row "12:34" is 111 LEDs wide, wider than a 64-wide panel).
+        let mut rows = 30.min(below).max(5);
+        while rows > 5 && Font::seven_segment(rows).text_width(b"88:88") > width {
+            rows -= 1;
+        }
+        let time = TextArea::new(Font::seven_segment(rows))
+            .at(0, 8, width, below)
+            .letters(Plasma::new())
+            .outline(Rgb::BLACK);
+        Clock { date, time }
+    }
+
+    /// Reads the system clock, updates both texts and draws them.
+    fn render(&mut self, canvas: &mut Canvas<'_, Rgb, MatrixLayout>, now: Time) {
+        let seconds = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |since| since.as_secs());
+        let (date, time) = format_clock(seconds);
+        self.date.set_text(&date);
+        self.time.set_text(&time);
+        self.date.render(canvas, now);
+        self.time.render(canvas, now);
+    }
+}
+
+/// The date ("MON 02 NOV") and the time ("12:34"; the colon blinks, so it is
+/// a space every other second) for `seconds` since 1970, in UTC.
+fn format_clock(seconds: u64) -> (String, String) {
+    const DAYS: [&str; 7] = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+    const MONTHS: [&str; 12] = [
+        "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC",
+    ];
+    let days = (seconds / 86_400) as i64;
+    let (_year, month, day) = civil_from_days(days);
+    // 1 January 1970 was a Thursday, day number 4 counting Sunday as 0.
+    let weekday = (days + 4).rem_euclid(7) as usize;
+    let of_day = seconds % 86_400;
+    let (hours, minutes) = (of_day / 3600, of_day / 60 % 60);
+    let colon = if of_day % 2 == 0 { ':' } else { ' ' };
+    (
+        format!(
+            "{} {day:02} {}",
+            DAYS[weekday],
+            MONTHS[(month - 1) as usize]
+        ),
+        format!("{hours:02}{colon}{minutes:02}"),
+    )
+}
+
+/// Turns a number of days since 1 January 1970 into (year, month, day).
+/// This is Howard Hinnant's `civil_from_days` algorithm.
+fn civil_from_days(days: i64) -> (i64, u32, u32) {
+    let z = days + 719_468;
+    let era = z.div_euclid(146_097);
+    let day_of_era = z.rem_euclid(146_097);
+    let year_of_era =
+        (day_of_era - day_of_era / 1460 + day_of_era / 36_524 - day_of_era / 146_096) / 365;
+    let day_of_year = day_of_era - (365 * year_of_era + year_of_era / 4 - year_of_era / 100);
+    let month_from_march = (5 * day_of_year + 2) / 153;
+    let day = (day_of_year - (153 * month_from_march + 2) / 5 + 1) as u32;
+    let month = if month_from_march < 10 {
+        month_from_march + 3
+    } else {
+        month_from_march - 9
+    } as u32;
+    let year = year_of_era + era * 400 + i64::from(month <= 2);
+    (year, month, day)
 }
 
 /// Reads a size such as `32x16`: the width, then the height.
@@ -279,11 +528,36 @@ mod tests {
     }
 
     #[test]
+    fn dates() {
+        assert_eq!(civil_from_days(0), (1970, 1, 1));
+        assert_eq!(civil_from_days(11_017), (2000, 3, 1));
+        assert_eq!(civil_from_days(19_723), (2024, 1, 1));
+        assert_eq!(civil_from_days(19_782), (2024, 2, 29));
+        assert_eq!(civil_from_days(-1), (1969, 12, 31));
+    }
+
+    #[test]
+    fn clock_text() {
+        // 2024-01-01 12:34:56 UTC was a Monday.
+        let seconds = 19_723 * 86_400 + 12 * 3600 + 34 * 60 + 56;
+        assert_eq!(format_clock(seconds), ("MON 01 JAN".into(), "12:34".into()));
+        assert_eq!(format_clock(seconds + 1).1, "12 34");
+    }
+
+    #[test]
+    fn fonts() {
+        assert!(parse_font("nope", 8).is_none());
+        for (name, _) in FONTS {
+            assert!(parse_font(name, 16).is_some(), "{name}");
+        }
+    }
+
+    #[test]
     fn sizes() {
         assert_eq!(parse_size("32x16"), Some((32, 16)));
         assert_eq!(parse_size("64X64"), Some((64, 64)));
         assert_eq!(parse_size("0x8"), None);
         assert_eq!(parse_size("64"), None);
-        assert_eq!(parse_size("129x8"), None);
+        assert_eq!(parse_size("257x8"), None);
     }
 }

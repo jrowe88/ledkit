@@ -13,3 +13,4 @@ publish = false
 ledkit-anim = { path = "../../crates/ledkit-anim" }
 ledkit-color = { path = "../../crates/ledkit-color" }
 ledkit-layout = { path = "../../crates/ledkit-layout" }
+ledkit-text = { path = "../../crates/ledkit-text" }

@@ -39,6 +39,11 @@ const CP437_HIGH: &str = "ÇüéâäàåçêëèïîìÄÅÉæÆôöòûùÿÖÜ
 /// LEDs look when they're off.
 const UNLIT: Rgb = Rgb::new(40, 40, 40);
 
+/// The LED shape unless `--char` is given: a large circle (U+2B24). Fonts
+/// without it fall back to another font; `--char 9679` (●) is smaller but in
+/// nearly every font.
+const BIG_DOT: char = '⬤';
+
 /// How long to run before stopping (press Ctrl-C to stop sooner).
 const RUN_FOR: Duration = Duration::from_secs(20);
 
@@ -175,7 +180,7 @@ fn parse_char(text: &str) -> Option<char> {
 
 /// Prints the LEDs, from the top-left corner of the terminal.
 ///
-/// Normally each LED is a `●` (or the `--char` character) followed by a
+/// Normally each LED is a large dot, `⬤` (or the `--char` character), then a
 /// space, so the LEDs sit on a square grid with gaps between them, and LEDs
 /// that are off or nearly off show dark grey instead of disappearing.
 ///
@@ -195,7 +200,7 @@ fn draw(pixels: &[Rgb], width: u16, height: u16, name: &str, glyph: Option<char>
         .collect();
     let small = width <= 32 && height <= 32;
     if dots {
-        let glyph = glyph.unwrap_or('●');
+        let glyph = glyph.unwrap_or(BIG_DOT);
         for row in rows {
             out.push_str("[48;2;0;0;0m");
             for &color in row {

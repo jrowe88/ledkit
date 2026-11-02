@@ -34,7 +34,9 @@ cargo run -- demo --size 64x64
 - `--strip N` shows it on a strip of N LEDs instead.
 - Each LED is a round dot in its color, and unlit LEDs are dark grey dots, the
   way a real panel looks.
-- `--char C` draws each LED as another character instead of `●`. Give the
+- `--char C` draws each LED as another character instead of `⬤`. If your font
+  draws `⬤` badly, `--char 9679` gives a smaller dot, `●`, that nearly every font
+  has. Give the
   character itself (`--char "#"`, `--char ●`) or its code: 32 to 126 for ASCII,
   128 to 255 for the DOS character set (code page 437, so `--char 219` is `█` and
   `--char 254` is `■`), or any Unicode code point (`--char 9679` or

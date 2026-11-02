@@ -45,7 +45,7 @@ Each is my recommendation, with the reason and what I set aside.
    up-counting, one channel.
 
 4. **Reset gap: trailing zero-duty words in the frame**, `ceil(reset_us / period)` of them
-   (204 words, 408 bytes, for the WS2812B). `write` returns only after they've played, so
+   (plus one, as the PWM reports the end when the last word starts: 205 words, 410 bytes, for the WS2812B). `write` returns only after they've played, so
    back-to-back `show()` calls each latch (T2) with no timer. *Set aside:* the `ENDDELAY`
    register (no RAM, but its event timing is easy to get wrong) and a timestamp-and-wait.
 
@@ -97,7 +97,7 @@ counting (LED 0 red, every 10th white, last blue) 5 s; 50 fps rainbow 10 s.
 
 - **`nrf52840-pwm`:** PWM blocking; PWM async with a second task busy-toggling a pin
   (T8/T9); a 1–150 LED length sweep (T4); then a rainbow forever.
-- **`nrf52840-spi`:** SPIM3 `new_packed` at 4 MHz blocking and async; `new` at 4 MHz; then
+- **`nrf52840-spi`:** SPIM2 (SPIM3 has erratum 198) `new_packed` at 4 MHz blocking and async; `new` at 4 MHz; then
   `ClocklessUart` at 1 Mbaud on UARTE0, which must be refused (`UartBaudUnusable`): onboard
   LED magenta = refused as expected.
 

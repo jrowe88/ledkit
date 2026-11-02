@@ -21,11 +21,12 @@ replacing it. The design lives in `docs/superpowers/specs/`.
 | `ledkit-esp` | ESP32 RMT backend (esp-hal, `no_std`) | `ledkit-core`, `esp-hal` |
 | `ledkit-esp-idf` | ESP32 RMT backend (esp-idf-hal, `std`) | `ledkit-core`, `esp-idf-hal` |
 | `ledkit-rp` | RP2040/RP2350 PIO backend | `ledkit-core`, an RP HAL |
+| `ledkit-nrf` | nRF52840 PWM + EasyDMA backend (`no_std`, blocking + async) | `ledkit-core`, `embassy-nrf` |
 | `ledkit-sim` | Desktop simulator (`std`) | `ledkit-anim` |
 
-Exist so far: `ledkit-color`, `ledkit-core`, `ledkit-layout`, `ledkit-anim`, `ledkit-spi`, `ledkit-uart`, `ledkit-esp` and `ledkit-esp-idf`. The rest are planned.
+Exist so far: `ledkit-color`, `ledkit-core`, `ledkit-layout`, `ledkit-anim`, `ledkit-spi`, `ledkit-uart`, `ledkit-esp`, `ledkit-esp-idf` and `ledkit-nrf`. The rest are planned.
 
-`ledkit-esp` and `ledkit-esp-idf` live outside the root workspace (they only build for an ESP32 target, with their own toolchains), so `cargo test --workspace` doesn't touch them. They are built and linted through their examples (`examples/esp32c6-rmt`, `examples/esp32c6-esp-idf`, `examples/esp32c6-matrix`) and in CI. The ESP-IDF example sets `target-dir = "C:/t/ledkit"` in its `.cargo/config.toml`, because `esp-idf-sys` rejects output paths over 88 characters on Windows; on macOS/Linux (and in CI) set `CARGO_TARGET_DIR=target`. Hardware status is recorded in each crate's README.
+`ledkit-esp` and `ledkit-esp-idf` live outside the root workspace (they only build for an ESP32 target, with their own toolchains), so `cargo test --workspace` doesn't touch them. They are built and linted through their examples (`examples/esp32c6-rmt`, `examples/esp32c6-esp-idf`, `examples/esp32c6-matrix`) and in CI. The ESP-IDF example sets `target-dir = "C:/t/ledkit"` in its `.cargo/config.toml`, because `esp-idf-sys` rejects output paths over 88 characters on Windows; on macOS/Linux (and in CI) set `CARGO_TARGET_DIR=target`. `ledkit-nrf` is outside the workspace for the same reason (`embassy-nrf` only builds for an nRF target); it is built and linted in CI from its own folder and through `examples/nrf52840-pwm`. Locally that needs a checkout that isn't nested inside another ledkit checkout, or Cargo finds the outer workspace. Hardware status is recorded in each crate's README.
 
 Writing a new backend? Follow the "Add a backend" guide in `CONTRIBUTING.md`; `ledkit-spi` is the model for a bus backend, and `ledkit-esp` / `ledkit-esp-idf` for a pulse (RMT) backend that times the reset gap itself.
 
@@ -48,7 +49,7 @@ Rule: an animation is a pure function of position and time. It keeps no state be
 - `strip`: `Strip<C, N, O>`, the pixel buffer.
 - `output`: the `Output` / `OutputAsync` traits.
 - `wire`: pixels to bytes in chip order (`clockless_bytes`, `clocked_frame`).
-- `encode`: timing to peripheral data: `SpiEncoding` (SPI), and for pulse peripherals `PulseTicks`, `BitPulse`, `ResetGap` and the RMT word helpers (`rmt_bit_word`, `fill_rmt_words`, ...).
+- `encode`: timing to peripheral data: `SpiEncoding` (SPI), and for pulse peripherals `PulseTicks`, `BitPulse`, `ResetGap` and the RMT word helpers (`rmt_bit_word`, `fill_rmt_words`, ...). For peripherals whose bit length is fixed (PWM, PIO): `EqualPeriodTicks` (`ClocklessTiming::equal_period_ticks`) and the nRF52 PWM duty-word helpers (`pwm_bit_word`, `fill_pwm_words`, ...).
 - `testing`: `MemoryOutput`, for host tests. `interop`: `smart-leds` feature.
 
 Rule: a backend implements `Output` (and/or `OutputAsync`) using the `wire` and `encode` helpers. It never re-implements color order, timing math or the SPI bit patterns, and never applies brightness or gamma itself (`Strip` already did).

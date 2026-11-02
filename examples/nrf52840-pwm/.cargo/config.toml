@@ -1,0 +1,9 @@
+[build]
+target = "thumbv7em-none-eabihf"
+
+[target.thumbv7em-none-eabihf]
+# `cargo run` flashes over an SWD probe. With the UF2 bootloader instead, see
+# the README.
+runner = "probe-rs run --chip nRF52840_xxAA"
+# `link.x` is cortex-m-rt's linker script; it reads `memory.x` (copied by build.rs).
+rustflags = ["-C", "link-arg=-Tlink.x"]

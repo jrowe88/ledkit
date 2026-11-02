@@ -82,29 +82,48 @@ impl ClocklessTiming {
         let (zero_low_lo, zero_low_hi) = tick_range(self.zero_low, hz);
         let (one_low_lo, one_low_hi) = tick_range(self.one_low, hz);
 
+        // The period nearest the typical one, rounded down (the candidate above it is
+        // this plus 1).
+        let typical_period = (typical_period_ps as u128 * hz as u128 / 1_000_000_000_000) as u64;
+
         // (ticks, miss of the highs, miss of the period), best so far.
         let mut best: Option<(EqualPeriodTicks, u64, u64)> = None;
         let mut zero_high = zero_high_lo;
         while zero_high <= zero_high_hi {
             let mut one_high = one_high_lo;
             while one_high <= one_high_hi {
-                let high_miss =
-                    miss_ps(self.zero_high, zero_high, hz) + miss_ps(self.one_high, one_high, hz);
-                // Periods where both lows are inside their windows.
-                let first = max(max(zero_high + zero_low_lo, one_high + one_low_lo), 2);
-                let last = min(
-                    min(zero_high + zero_low_hi, one_high + one_low_hi),
-                    max_period as u64,
-                );
-                let mut period = first;
-                while period <= last {
-                    if window_ok(self.zero_high, zero_high, hz)
-                        && window_ok(self.one_high, one_high, hz)
-                        && window_ok(self.zero_low, period - zero_high, hz)
-                        && window_ok(self.one_low, period - one_high, hz)
-                    {
-                        let period_miss =
-                            (period * 1_000_000_000_000 / hz).abs_diff(typical_period_ps);
+                if window_ok(self.zero_high, zero_high, hz)
+                    && window_ok(self.one_high, one_high, hz)
+                {
+                    let high_miss = miss_ps(self.zero_high, zero_high, hz)
+                        + miss_ps(self.one_high, one_high, hz);
+                    // The periods where both lows fit form one unbroken range. Its
+                    // rough ends come from the outward-rounded tick ranges; step each
+                    // inwards until it really fits.
+                    let mut first = max(max(zero_high + zero_low_lo, one_high + one_low_lo), 2);
+                    let mut last = min(
+                        min(zero_high + zero_low_hi, one_high + one_low_hi),
+                        max_period as u64,
+                    );
+                    while first <= last && !self.lows_fit(first, zero_high, one_high, hz) {
+                        first += 1;
+                    }
+                    while last >= first && !self.lows_fit(last, zero_high, one_high, hz) {
+                        last -= 1;
+                    }
+                    if first <= last {
+                        // The fitting period closest to typical, preferring the shorter.
+                        let below = clamp(typical_period, first, last);
+                        let above = clamp(typical_period + 1, first, last);
+                        let (below_miss, above_miss) = (
+                            period_miss_ps(below, hz, typical_period_ps),
+                            period_miss_ps(above, hz, typical_period_ps),
+                        );
+                        let (period, period_miss) = if above_miss < below_miss {
+                            (above, above_miss)
+                        } else {
+                            (below, below_miss)
+                        };
                         let better = match best {
                             None => true,
                             Some((b, b_high, b_period)) => {
@@ -124,7 +143,6 @@ impl ClocklessTiming {
                             best = Some((ticks, high_miss, period_miss));
                         }
                     }
-                    period += 1;
                 }
                 one_high += 1;
             }
@@ -135,6 +153,27 @@ impl ClocklessTiming {
             None => Err(unusable),
         }
     }
+
+    /// Whether both lows are inside their windows for a bit of `period` ticks.
+    const fn lows_fit(&self, period: u64, zero_high: u64, one_high: u64, hz: u64) -> bool {
+        window_ok(self.zero_low, period - zero_high, hz)
+            && window_ok(self.one_low, period - one_high, hz)
+    }
+}
+
+/// How far `period` ticks are from the typical period, in picoseconds.
+const fn period_miss_ps(period: u64, hz: u64, typical_period_ps: u64) -> u64 {
+    let ps = period as u128 * 1_000_000_000_000 / hz as u128;
+    let ps = if ps > u64::MAX as u128 {
+        u64::MAX
+    } else {
+        ps as u64
+    };
+    ps.abs_diff(typical_period_ps)
+}
+
+const fn clamp(value: u64, lo: u64, hi: u64) -> u64 {
+    max(lo, min(value, hi))
 }
 
 /// The whole tick counts (at least 1) that might fall inside the phase's window. The
@@ -250,6 +289,22 @@ mod tests {
         assert_eq!((t.period, t.zero_high, t.one_high), (20, 6, 12));
         // Nothing fits in 10 ticks (625 ns).
         assert!(timing.equal_period_ticks(NRF_PWM_HZ, 10).is_err());
+    }
+
+    #[test]
+    fn fast_clocks_stay_cheap_and_inside_the_windows() {
+        // The RP2040's PIO runs at up to 125 MHz (and the RP2350's at 150 MHz); the
+        // search must stay quick enough for `const` there.
+        const AT_150_MHZ: Result<EqualPeriodTicks, TimingError> =
+            ClocklessTiming::of::<Ws2812b>().equal_period_ticks(150_000_000, 32_767);
+        let t = AT_150_MHZ.unwrap();
+        let ns = |ticks: u32| u64::from(ticks) * 1_000_000_000 / 150_000_000;
+        assert_eq!((ns(t.zero_high), ns(t.one_high)), (400, 800));
+        assert!((1300..=1400).contains(&ns(t.period)));
+        // Huge clocks and limits must not overflow.
+        assert!(ClocklessTiming::of::<Ws2812b>()
+            .equal_period_ticks(u32::MAX, u32::MAX)
+            .is_ok());
     }
 
     #[test]

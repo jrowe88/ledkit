@@ -120,6 +120,10 @@ and wiring, setup and troubleshooting in its README.
 | DotStar HD vs plain dimming on the ESP32-C6 | `ledkit-core` | [esp32c6-dotstar-hd](examples/esp32c6-dotstar-hd) | ✅ on hardware |
 | NeoPixels from a serial port, ESP32-C6 | `ledkit-uart` | [esp32c6-uart](examples/esp32c6-uart) | ✅ on hardware |
 | NeoPixels from a serial port, Teensy 4 (with DMA) | `ledkit-uart` | [teensy4-uart](examples/teensy4-uart) | ✅ on hardware |
+| ESP32-S3 Feather, onboard NeoPixel (esp-hal) | `ledkit-esp` | [esp32s3-rmt](examples/esp32s3-rmt) | builds; hardware test pending |
+| ESP32-S3 Feather, a strip every way: RMT, SPI ± DMA, UART | `ledkit-esp` + `ledkit-spi` + `ledkit-uart` | [esp32s3-check](examples/esp32s3-check) | builds; hardware test pending |
+| ESP32-S3 Feather with ESP-IDF: RMT ± DMA, with Wi-Fi | `ledkit-esp-idf` | [esp32s3-esp-idf](examples/esp32s3-esp-idf) | builds; hardware test pending |
+| ESP32-S3: matrix, animations, DotStar HD | as the C6 versions | [esp32s3-matrix](examples/esp32s3-matrix), [esp32s3-anim](examples/esp32s3-anim), [esp32s3-dotstar-hd](examples/esp32s3-dotstar-hd) | builds; hardware test pending |
 | Raspberry Pi Pico | `ledkit-rp` | | 🔜 coming soon |
 
 ## Get started

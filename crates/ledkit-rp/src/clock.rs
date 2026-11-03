@@ -59,27 +59,28 @@ pub(crate) struct FrameClock<T> {
     /// Microseconds from "the FIFO is empty" to "the last bit is out": the word
     /// still in the shift register plus the bit in progress, rounded up.
     drain_us: u64,
-    last_end_us: Option<u64>,
+    /// When the last frame ended (at first, when the pin was driven low).
+    last_end_us: u64,
 }
 
 impl<T: MicrosecondClock> FrameClock<T> {
+    /// Call right after the pin has been driven low. That moment counts as the end
+    /// of a frame, so the first frame also waits a whole reset gap: the pin may
+    /// have been high, or carrying another frame, just before.
     pub(crate) fn new(clock: T, gap: ResetGap, drain_us: u64) -> Self {
+        let last_end_us = clock.now_us();
         Self {
             clock,
             gap,
             drain_us,
-            last_end_us: None,
+            last_end_us,
         }
     }
 
     /// Microseconds before the next frame may start.
     fn remaining_us(&self) -> u32 {
-        match self.last_end_us {
-            None => 0,
-            Some(end) => self
-                .gap
-                .remaining_us(self.clock.now_us().saturating_sub(end)),
-        }
+        self.gap
+            .remaining_us(self.clock.now_us().saturating_sub(self.last_end_us))
     }
 
     /// Waits until the reset gap since the last frame is over.
@@ -100,7 +101,7 @@ impl<T: MicrosecondClock> FrameClock<T> {
     pub(crate) fn finish_frame(&mut self) {
         let end = self.clock.now_us() + self.drain_us;
         while self.clock.now_us() < end {}
-        self.last_end_us = Some(end);
+        self.last_end_us = end;
     }
 
     /// The async twin of [`finish_frame`](Self::finish_frame).
@@ -109,7 +110,7 @@ impl<T: MicrosecondClock> FrameClock<T> {
         while self.clock.now_us() < end {
             yield_now().await;
         }
-        self.last_end_us = Some(end);
+        self.last_end_us = end;
     }
 }
 

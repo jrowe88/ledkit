@@ -284,6 +284,11 @@ fn main() -> ! {
     let mut output =
         PioDmaOutput::<LedType, _, _, _, _, _>::new(&mut pio, sm0, pin, ch0, buffer, sys_hz, timer)
             .unwrap();
+    // A shorter frame only changes the first LEDs and the rest keep their colors,
+    // so clear the whole sweep range first. Then the bar grows from dark.
+    output
+        .write(core::iter::repeat_n(Rgb::BLACK, SWEEP_MAX))
+        .unwrap();
     let dim_blue = Rgb::new(0, 0, 24);
     for length in 1..=SWEEP_MAX {
         output

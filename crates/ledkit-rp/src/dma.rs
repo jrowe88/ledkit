@@ -218,13 +218,23 @@ where
         }
     }
 
-    /// If a frame is going out (only after an async send was dropped half way),
-    /// waits until its last bit is out.
-    fn finish_blocking(&mut self) {
+    /// If a transfer is in flight, waits for the DMA channel to finish it and puts
+    /// the channel, FIFO and buffer back as `Idle`. Any other state is left as it
+    /// is, so an idle output keeps its parts.
+    fn collect_transfer(&mut self) {
+        if !matches!(self.state, State::Sending(_)) {
+            return;
+        }
         if let State::Sending(transfer) = core::mem::replace(&mut self.state, State::Lost) {
             let (channel, frame, tx) = transfer.wait();
             self.state = State::Idle { channel, tx, frame };
         }
+    }
+
+    /// If a frame is going out (only after an async send was dropped half way),
+    /// waits until its last bit is out.
+    fn finish_blocking(&mut self) {
+        self.collect_transfer();
         if let State::Idle { tx, .. } = &self.state {
             if self.draining {
                 while !tx.is_empty() {}
@@ -243,10 +253,7 @@ where
             }
             yield_now().await;
         }
-        if let State::Sending(transfer) = core::mem::replace(&mut self.state, State::Lost) {
-            let (channel, frame, tx) = transfer.wait();
-            self.state = State::Idle { channel, tx, frame };
-        }
+        self.collect_transfer();
         if let State::Idle { tx, .. } = &self.state {
             if self.draining {
                 while !tx.is_empty() {
@@ -305,10 +312,12 @@ where
     /// Sends wire bytes, yielding to other tasks until the frame is out.
     pub(crate) async fn send_async(&mut self, wire: impl Iterator<Item = u8>) -> Result<(), Error> {
         self.finish_async().await;
+        // Wait out the gap before taking the parts out of `self.state`: if this
+        // future is dropped while it waits, the output still owns them.
+        self.frame_clock.wait_for_gap_async().await;
         let Some((channel, tx, frame)) = self.prepare(wire)? else {
             return Ok(());
         };
-        self.frame_clock.wait_for_gap_async().await;
         self.draining = true;
         self.state = State::Sending(Config::new(channel, frame, tx).start());
         self.finish_async().await;

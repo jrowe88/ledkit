@@ -60,9 +60,16 @@ const POWER_LIMIT: Milliamps = Milliamps(500);
 // The data wire is D10 (`P1_15`), through a 74AHCT125 level shifter. To use another
 // pin, change `P1_15` in `main` below.
 
-/// One frame buffer, big enough for the longest frame (the sweep), worked out when the
-/// program is compiled. It lives in static memory: 150 WS2812B LEDs take 7.6 KB.
-const BUFFER_LEN: usize = buffer_len::<LedType>(SWEEP_MAX);
+/// The longest frame the program sends: the whole strip, or the sweep if that's longer.
+const FRAME_MAX: usize = if LED_COUNT > SWEEP_MAX {
+    LED_COUNT
+} else {
+    SWEEP_MAX
+};
+
+/// One frame buffer, big enough for the longest frame, worked out when the program is
+/// compiled. It lives in static memory: 150 WS2812B LEDs take 7.6 KB.
+const BUFFER_LEN: usize = buffer_len::<LedType>(FRAME_MAX);
 static BUFFER: StaticCell<[u16; BUFFER_LEN]> = StaticCell::new();
 
 /// Whether the busy task should keep the processor busy (round 2 only).
@@ -183,9 +190,9 @@ async fn main(spawner: Spawner) {
     status.show(false, true, true);
     let mut output = PwmOutput::<LedType, _>::new(p.PWM0, p.P1_15, buffer).unwrap();
     // A shorter frame only changes the first LEDs and the rest keep their colors,
-    // so clear the whole sweep range first. Then the bar grows from dark.
+    // so clear the whole strip (and the sweep range) first. Then the bar grows from dark.
     output
-        .write(core::iter::repeat_n(Rgb::BLACK, SWEEP_MAX))
+        .write(core::iter::repeat_n(Rgb::BLACK, FRAME_MAX))
         .unwrap();
     // Straight to the output, so no brightness is applied: send a dim blue.
     let dim_blue = Rgb::new(0, 0, 24);
@@ -199,11 +206,11 @@ async fn main(spawner: Spawner) {
 
     // DONE: a rainbow forever. Press RESET to run the check again.
     status.show(false, false, false);
-    let mut strip = Strip::<LedType, SWEEP_MAX, _>::new(output);
+    let mut strip = Strip::<LedType, LED_COUNT, _>::new(output);
     strip.set_brightness(BRIGHTNESS);
     strip.set_power_limit(POWER_LIMIT);
     loop {
-        for i in 0..SWEEP_MAX {
+        for i in 0..LED_COUNT {
             let spread = (i * 65_536 / 60) as u16;
             strip.set(i, Rgb::from_hue(hue.shifted(spread)));
         }

@@ -13,7 +13,7 @@ ends with something that works and is tested on its own.
 | **2** | **`ledkit-core`** | LED chip catalogue (all phase 1 chips), color orders, encoders for every technique (pulse pairs, SPI with clock validation, clocked frames), `Strip<Led, N>`, the output pipeline (brightness, gamma, power limit, dithering), blocking + async output traits, `smart-leds-trait` interop | The central "define a chip once, encode for any technique" idea, entirely in host-side unit tests | No |
 | **3** | **First light: `ledkit-spi`** | `ledkit-spi` (blocking + async, `smart-leds` impls) plus first light on the ESP32-C6 onboard LED; Raspberry Pi (spidev) and Teensy 4 (LPSPI) examples built in CI | NeoPixel via SPI encoding on real hardware (ESP32-C6 passed 2026-10-30); the Teensy 4 (2026-10-31) and Pi Zero W (2026-11-01) examples passed on hardware too | ESP32-C6 (done); Pi Zero / 3 A+, Teensy 4, WS2812B + APA102 strips (follow-ups) |
 | **4** | **ESP32 backends** | Delivered: `ledkit-esp-idf` (ESP-IDF, `std`; the pulse project's RMT `Output` grown into a crate, with the reset gap enforced) and `ledkit-esp` (esp-hal RMT, `no_std`, blocking + async); core additions `BitPulse`, `ResetGap` and the RMT word helpers in `ledkit_core::encode`; examples `esp32c6-esp-idf` and `esp32c6-rmt` built in CI; pulse switched to `ledkit-esp-idf` and passed on hardware (pulse commit awaiting the owner) | Both ESP32 worlds on the C6 DevKit. `ledkit-esp-idf` passed on hardware 2026-10-30 (colors, back-to-back frames; the rainbow needed dithering off); `ledkit-esp` passed on the onboard LED 2026-10-30 (long strips untested); S3 (Xtensa) still to do | ESP32-C6 (done for both), ESP32-S3, strips |
-| **5** | **`ledkit-rp`** | RP2040/RP2350 PIO backend | Pico 2 | Pico 2, strips |
+| **5** | **`ledkit-rp`** | Delivered (builds; hardware pending): `ledkit-rp` on `rp2040-hal` / `rp235x-hal` (features `rp2040`, `rp235x`), `PioOutput` (processor-fed FIFO) and `PioDmaOutput` (DMA-fed), each blocking and async, reset gap timed with the HAL timer; core additions `PioTiming` / `ClocklessTiming::pio_timing` (whole-divider PIO steps, built on the shared `equal_period_ticks` from the `nrf` branch, cherry-picked so both merge cleanly), `pio_words` / `fill_pio_words` and `Strip::release`; examples `rp2350-pio` (Pico 2 W, Arm and RISC-V) and `rp2040-pio` (Feather RP2040 SCORPIO), each with a DotStar round over SPI (`ledkit-spi`), built in CI. Plan: `plans/2026-11-02-ledkit-05-rp.md` | PIO on the Pico 2 W (both core types) and the SCORPIO: pending hardware test | Pico 2 W, SCORPIO, strips, DotStars |
 | **5b** | **`ledkit-nrf`** | Delivered and passing on hardware (`nrf52840-pwm`, `nrf52840-spi`, `nrf52840-dotstar`): nRF52840 PWM + EasyDMA backend (`embassy-nrf`, blocking + async); core `equal_period_ticks` and PWM duty words; examples `nrf52840-pwm`, `nrf52840-spi`, `nrf52840-dotstar` built in CI | Every native nRF path on the Seeed XIAO nRF52840 | XIAO nRF52840, strips, DotStars |
 | **6** | **`ledkit-layout`** | Delivered: `Layout`, `MatrixLayout` (serpentine, columns first, any starting corner), `Rotated` and `Tiled`, `Canvas`, `Segment`, and `embedded-graphics` support (a `Canvas` is a `DrawTarget`, with `rgb_from_rgb888` / `rgb888_from_rgb`); example `esp32c6-matrix` (wiring finder, shapes, scrolling text) builds in CI. No panel presets (see follow-ups) | Text and shapes on a matrix: tested on an Adafruit NeoPixel 8×8 on the ESP32-C6 (2026-10-31) | Adafruit NeoPixel 8×8 |
 | **7** | **`ledkit-anim`** | Delivered: the `Animation` trait (a pure function of position and time) and `Surface`; 16 effects (the phase 1 list plus swirl, rings, pinwheel, plasma and rain for matrices) and `Effect` by name; modifiers, layers with blend modes, transitions (fade, fade through black, wipe, dissolve, iris), `then`/crossfade, playlists and segments; `ColorMap` and named palettes in `ledkit-color`; examples `esp32c6-anim` and `anim-preview`, built in CI | Combined effects on strips and matrices: host-tested; hardware check on the 8x8 and a strip pending | Strips, matrix |
@@ -99,7 +99,7 @@ The pulse project switched its status LED to `ledkit-core` with a ~60-line RMT `
 
 ## Hardware follow-ups after milestone 4
 
-- Xtensa build and test (ESP32-S3) for both ESP crates
+- Xtensa build and test (ESP32-S3) for both ESP crates: builds 2026-11-02 (`esp32s3-*` examples, CI jobs, `new_with_dma` for `ledkit-esp-idf`); hardware test pending, see `2026-11-02-hardware-test-plan.md`
 - an external strip on the RMT at 300 LEDs (buffer RAM and timing), for both crates
 - async `ledkit-esp` on hardware with Embassy
 - async for `ledkit-esp-idf`
@@ -180,6 +180,18 @@ the owner until `ledkit-core` has a multi-strip output. These notes are backgrou
   - a border marquee (lights running round the edge of a matrix), rectangular regions as segments, and mirroring by chain order on matrices
   - a generic (non-`'static`) palette option for effects, if palettes built at run time are wanted
   - pulse's `status_led.rs` can now use `Breathe` and `Rainbow` (the acceptance test noted under "first consumer")
+
+## Milestone 5 (`ledkit-rp`, 2026-11-02)
+
+- Plan: `docs/superpowers/plans/2026-11-02-ledkit-05-rp.md`. Built and linted for `thumbv6m-none-eabi` (RP2040), `thumbv8m.main-none-eabihf` and `riscv32imac-unknown-none-elf` (RP2350); not yet run on hardware.
+- Why rp-hal, not embassy-rp: embassy-rp 0.10 depends on `cortex-m` unconditionally, so it can't build for the RP2350's RISC-V cores.
+- Hardware check still to do (by eye, the test plan's T1–T4, T7 and T10): `rp2350-pio` on the Pico 2 W, once per core type; `rp2040-pio` on the SCORPIO (onboard NeoPixel, strip on GPIO16, DotStars on GPIO19/18). Record results in `crates/ledkit-rp/README.md` ("Tested on hardware") and the example READMEs.
+- Follow-ups:
+  - an embassy-rp flavour (Arm only): interrupt-driven async instead of yielding, and the CYW43 radio running alongside (check T11)
+  - busy-CPU (T8) and non-blocking frame (T9) rounds; a "start the frame, wait later" API on `PioDmaOutput`
+  - one installed program shared by several state machines, and parallel output on the SCORPIO's 8 channels (needs the multi-strip output in `ledkit-core`)
+  - a clocked PIO output for DotStars (two pins, side-set clock), if SPI pins are ever a constraint; today DotStars use `ledkit-spi` on the RP's SPI
+  - matrix and anim examples for both boards; `rp2040-spi` / `rp2040-uart` / `rp2350-spi` / `rp2350-uart` portable examples
 
 ## Milestone 5b (`ledkit-nrf`, 2026-11-02)
 

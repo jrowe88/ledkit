@@ -177,7 +177,9 @@ setup: target, linker script and the `rt` feature. Copy it from the
 
 The ESP32-C3 and C6 are RISC-V chips and build with plain stable Rust. The
 ESP32, S2 and S3 use Xtensa cores and need the `esp` toolchain (installed by
-`espup`).
+`espup`). For those, copy the setup of `examples/esp32s3-rmt` instead: its
+`rust-toolchain.toml` picks the `esp` toolchain and its `.cargo/config.toml`
+builds `core` from source (`build-std`).
 
 ## Tested on hardware
 

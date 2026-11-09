@@ -20,13 +20,13 @@ replacing it. The design lives in `docs/superpowers/specs/`.
 | `ledkit-spi` | Backend over `embedded-hal` 1.0 SPI | `ledkit-core` |
 | `ledkit-esp` | ESP32 RMT backend (esp-hal, `no_std`) | `ledkit-core`, `esp-hal` |
 | `ledkit-esp-idf` | ESP32 RMT backend (esp-idf-hal, `std`) | `ledkit-core`, `esp-idf-hal` |
-| `ledkit-rp` | RP2040/RP2350 PIO backend | `ledkit-core`, an RP HAL |
+| `ledkit-rp` | RP2040/RP2350 PIO backend (`no_std`; processor-fed and DMA-fed, blocking and async) | `ledkit-core`, `rp2040-hal` or `rp235x-hal` |
 | `ledkit-nrf` | nRF52840 PWM + EasyDMA backend (`no_std`, blocking + async) | `ledkit-core`, `embassy-nrf` |
 | `ledkit-sim` | Desktop simulator (`std`) | `ledkit-anim` |
 
-Exist so far: `ledkit-color`, `ledkit-core`, `ledkit-layout`, `ledkit-anim`, `ledkit-spi`, `ledkit-uart`, `ledkit-esp`, `ledkit-esp-idf` and `ledkit-nrf`. The rest are planned.
+Exist so far: `ledkit-color`, `ledkit-core`, `ledkit-layout`, `ledkit-anim`, `ledkit-spi`, `ledkit-uart`, `ledkit-esp`, `ledkit-esp-idf`, `ledkit-rp` and `ledkit-nrf`. The rest are planned.
 
-`ledkit-esp` and `ledkit-esp-idf` live outside the root workspace (they only build for an ESP32 target, with their own toolchains), so `cargo test --workspace` doesn't touch them. They are built and linted through their examples (`examples/esp32c6-rmt`, `examples/esp32c6-esp-idf`, `examples/esp32c6-matrix`) and in CI. The ESP-IDF example sets `target-dir = "C:/t/ledkit"` in its `.cargo/config.toml`, because `esp-idf-sys` rejects output paths over 88 characters on Windows; on macOS/Linux (and in CI) set `CARGO_TARGET_DIR=target`. `ledkit-nrf` is outside the workspace for the same reason (`embassy-nrf` only builds for an nRF target); it is built and linted in CI from its own folder and through `examples/nrf52840-pwm`. Locally that needs a checkout that isn't nested inside another ledkit checkout, or Cargo finds the outer workspace. Hardware status is recorded in each crate's README.
+`ledkit-esp`, `ledkit-esp-idf`, `ledkit-rp` and `ledkit-nrf` live outside the root workspace (they only build for their chips' targets), so `cargo test --workspace` doesn't touch them. They are built and linted through their examples (`examples/esp32c6-rmt`, `examples/esp32c6-esp-idf`, `examples/esp32c6-matrix`, the Xtensa `examples/esp32s3-*`, which use the `esp` toolchain from `espup`, `examples/rp2040-pio`, `examples/rp2350-pio`, `examples/nrf52840-pwm`) and in CI. `ledkit-rp` picks its HAL with a feature, `rp2040` or `rp235x` (exactly one); the RP2350 builds for both `thumbv8m.main-none-eabihf` and `riscv32imac-unknown-none-elf`. Its testable logic lives in `ledkit-core` (`encode::equal_period`, `encode::pio_timing`, `encode::pio`). Inside a `.claude/worktrees/` checkout, cargo finds the main checkout's workspace above, so build `ledkit-rp` and `ledkit-nrf` through their examples or a small wrapper project with an empty `[workspace]`. The ESP-IDF examples set a short `target-dir` (`C:/t/ledkit`, `C:/t/ledkit-s3`) in their `.cargo/config.toml`, because `esp-idf-sys` rejects output paths over 88 characters on Windows; on macOS/Linux (and in CI) set `CARGO_TARGET_DIR=target`. Hardware status is recorded in each crate's README.
 
 Writing a new backend? Follow the "Add a backend" guide in `CONTRIBUTING.md`; `ledkit-spi` is the model for a bus backend, and `ledkit-esp` / `ledkit-esp-idf` for a pulse (RMT) backend that times the reset gap itself.
 
@@ -49,7 +49,7 @@ Rule: an animation is a pure function of position and time. It keeps no state be
 - `strip`: `Strip<C, N, O>`, the pixel buffer.
 - `output`: the `Output` / `OutputAsync` traits.
 - `wire`: pixels to bytes in chip order (`clockless_bytes`, `clocked_frame`).
-- `encode`: timing to peripheral data: `SpiEncoding` (SPI), and for pulse peripherals `PulseTicks`, `BitPulse`, `ResetGap` and the RMT word helpers (`rmt_bit_word`, `fill_rmt_words`, ...). For peripherals whose bit length is fixed (PWM, PIO): `EqualPeriodTicks` (`ClocklessTiming::equal_period_ticks`) and the nRF52 PWM duty-word helpers (`pwm_bit_word`, `fill_pwm_words`, ...).
+- `encode`: timing to peripheral data: `SpiEncoding` (SPI), `UartEncoding` (serial), and for pulse peripherals `PulseTicks`, `BitPulse`, `ResetGap`, the RMT word helpers (`rmt_bit_word`, `fill_rmt_words`, ...), the equal-period search shared by PIO and PWM (`EqualPeriodTicks`, `ClocklessTiming::equal_period_ticks`), the PIO step timing with a whole clock divider (`PioTiming`, `ClocklessTiming::pio_timing`) and FIFO word packing (`pio_words`, `fill_pio_words`), and the nRF52 PWM duty-word helpers (`pwm_bit_word`, `fill_pwm_words`, ...).
 - `testing`: `MemoryOutput`, for host tests. `interop`: `smart-leds` feature.
 
 Rule: a backend implements `Output` (and/or `OutputAsync`) using the `wire` and `encode` helpers. It never re-implements color order, timing math or the SPI bit patterns, and never applies brightness or gamma itself (`Strip` already did).

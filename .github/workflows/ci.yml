@@ -128,6 +128,72 @@ jobs:
         env:
           RUSTDOCFLAGS: -D warnings
 
+  # ledkit-rp is outside the workspace and only builds for RP targets.
+  ledkit-rp:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+          targets: thumbv6m-none-eabi,thumbv8m.main-none-eabihf,riscv32imac-unknown-none-elf
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: crates/ledkit-rp
+      - run: cargo clippy --features rp2040 --target thumbv6m-none-eabi -- -D warnings
+        working-directory: crates/ledkit-rp
+      - run: cargo clippy --features rp2040,smart-leds --target thumbv6m-none-eabi -- -D warnings
+        working-directory: crates/ledkit-rp
+      - run: cargo clippy --features rp235x,smart-leds --target thumbv8m.main-none-eabihf -- -D warnings
+        working-directory: crates/ledkit-rp
+      - run: cargo clippy --features rp235x,smart-leds --target riscv32imac-unknown-none-elf -- -D warnings
+        working-directory: crates/ledkit-rp
+      - run: cargo doc --features rp2040,smart-leds --target thumbv6m-none-eabi --no-deps
+        working-directory: crates/ledkit-rp
+        env:
+          RUSTDOCFLAGS: -D warnings
+      - run: cargo doc --features rp235x,smart-leds --target riscv32imac-unknown-none-elf --no-deps
+        working-directory: crates/ledkit-rp
+        env:
+          RUSTDOCFLAGS: -D warnings
+
+  example-rp2040-pio:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+          targets: thumbv6m-none-eabi
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: examples/rp2040-pio
+      - run: cargo build --release --locked
+        working-directory: examples/rp2040-pio
+      - run: cargo clippy --release --locked -- -D warnings
+        working-directory: examples/rp2040-pio
+
+  # The Pico 2 W example builds for both of the RP2350's core types.
+  example-rp2350-pio:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+          targets: thumbv8m.main-none-eabihf,riscv32imac-unknown-none-elf
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: examples/rp2350-pio
+      - run: cargo build --release --locked
+        working-directory: examples/rp2350-pio
+      - run: cargo build --release --locked --target riscv32imac-unknown-none-elf
+        working-directory: examples/rp2350-pio
+      - run: cargo clippy --release --locked -- -D warnings
+        working-directory: examples/rp2350-pio
+      - run: cargo clippy --release --locked --target riscv32imac-unknown-none-elf -- -D warnings
+        working-directory: examples/rp2350-pio
+
   example-esp32c6-matrix:
     runs-on: ubuntu-latest
     steps:
@@ -294,6 +360,63 @@ jobs:
         working-directory: examples/esp32c6-esp-idf
       - run: cargo clippy --locked -- -D warnings
         working-directory: examples/esp32c6-esp-idf
+
+  # ESP32-S3 (Xtensa) examples on esp-hal. Xtensa needs Espressif's `esp` Rust
+  # toolchain, which the xtensa-toolchain action installs (the same thing `espup`
+  # does on a desktop).
+  example-esp32s3:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: esp-rs/xtensa-toolchain@v1.6
+        with:
+          default: true
+          buildtargets: esp32s3
+          ldproxy: false
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            examples/esp32s3-rmt
+            examples/esp32s3-check
+            examples/esp32s3-matrix
+            examples/esp32s3-anim
+            examples/esp32s3-dotstar-hd
+      - name: Build and lint every esp-hal S3 example
+        run: |
+          for example in esp32s3-rmt esp32s3-check esp32s3-matrix esp32s3-anim esp32s3-dotstar-hd; do
+            (cd "examples/$example" && cargo build --release --locked && cargo clippy --release --locked -- -D warnings)
+          done
+          (cd examples/esp32s3-anim && cargo build --release --locked --features strip && cargo clippy --release --locked --features strip -- -D warnings)
+
+  # ESP32-S3 on ESP-IDF (std). Like example-esp32c6-esp-idf, the first run downloads
+  # ESP-IDF and its tools; ~/.espressif is cached after that.
+  example-esp32s3-esp-idf:
+    runs-on: ubuntu-latest
+    env:
+      # The example's .cargo/config.toml sets a short Windows target-dir; this puts the
+      # build back in the example folder, where rust-cache looks.
+      CARGO_TARGET_DIR: target
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install ESP-IDF build prerequisites
+        run: sudo apt-get update && sudo apt-get install -y git wget flex bison gperf python3 python3-pip python3-venv cmake ninja-build ccache libffi-dev libssl-dev dfu-util libusb-1.0-0
+      - uses: esp-rs/xtensa-toolchain@v1.6
+        with:
+          default: true
+          buildtargets: esp32s3
+          ldproxy: true
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: examples/esp32s3-esp-idf
+      - uses: actions/cache@v4
+        with:
+          path: ~/.espressif
+          key: espressif-s3-${{ runner.os }}-${{ hashFiles('examples/esp32s3-esp-idf/.cargo/config.toml') }}
+          restore-keys: espressif-s3-${{ runner.os }}-
+      - run: cargo build --release --locked
+        working-directory: examples/esp32s3-esp-idf
+      - run: cargo clippy --locked -- -D warnings
+        working-directory: examples/esp32s3-esp-idf
 
   # The text preview page is built from a template and the fonts in assets/fonts;
   # this fails if someone changed one without rebuilding the page.

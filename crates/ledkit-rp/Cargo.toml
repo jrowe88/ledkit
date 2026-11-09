@@ -1,0 +1,46 @@
+[package]
+name = "ledkit-rp"
+description = "ledkit backend that drives NeoPixels with the RP2040 / RP2350 PIO, fed by the processor or by DMA (no_std, blocking and async)."
+keywords = ["led", "neopixel", "ws2812", "rp2040", "pio"]
+categories = ["embedded", "no-std", "hardware-support"]
+readme = "README.md"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.82"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/jrowe88/ledkit"
+authors = ["Jim Rowe"]
+
+[dependencies]
+ledkit-core = { path = "../ledkit-core", version = "0.1.0" }
+# Pick the HAL with the `rp2040` or `rp235x` feature. `rt` and the rest of the
+# start-up belong to the application, not to a library.
+rp2040-hal = { version = "0.12", optional = true }
+rp235x-hal = { version = "0.4", optional = true }
+# The PIO assembler. Both HALs take programs from pio 0.3.
+pio = "0.3"
+smart-leds-trait = { version = "0.3", default-features = false, optional = true }
+
+[features]
+# Pick exactly one chip family.
+rp2040 = ["dep:rp2040-hal"]
+rp235x = ["dep:rp235x-hal"]
+smart-leds = ["dep:smart-leds-trait", "ledkit-core/smart-leds"]
+
+[package.metadata.docs.rs]
+features = ["rp2040", "smart-leds"]
+targets = ["thumbv6m-none-eabi"]
+
+# This crate is outside the ledkit workspace (see the root Cargo.toml), so the
+# workspace lint table is copied here. `unsafe_code` is `deny` rather than
+# `forbid`: the DMA output needs one `unsafe impl` (see `src/dma.rs`).
+[lints.rust]
+missing_docs = "warn"
+unsafe_code = "deny"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+module_name_repetitions = "allow"
+cast_possible_truncation = "allow"
+cast_lossless = "allow"
+must_use_candidate = "allow"

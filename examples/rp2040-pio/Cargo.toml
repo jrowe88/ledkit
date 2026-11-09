@@ -1,0 +1,35 @@
+[package]
+name = "rp2040-pio"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.82"
+publish = false
+
+# This example is its own little project. The empty [workspace] table keeps
+# Cargo from treating it as part of the ledkit workspace one folder up.
+[workspace]
+
+[dependencies]
+ledkit-core = { path = "../../crates/ledkit-core" }
+ledkit-rp = { path = "../../crates/ledkit-rp", features = ["rp2040"] }
+ledkit-spi = { path = "../../crates/ledkit-spi" }
+rp2040-hal = { version = "0.12", features = ["rt", "critical-section-impl"] }
+rp2040-boot2 = "0.3"
+cortex-m-rt = "0.7"
+embedded-hal = "1.0"
+embassy-futures = "0.1"
+static_cell = "2"
+# The Cortex-M0+ has no atomic compare-and-swap; static_cell gets it from
+# portable-atomic, through the HAL's critical section.
+portable-atomic = { version = "1", features = ["critical-section"] }
+panic-halt = "1"
+
+[profile.dev]
+# Rust code is very slow without optimization on a microcontroller.
+opt-level = "s"
+
+[profile.release]
+opt-level = "s"
+lto = "fat"
+codegen-units = 1
+debug = 2

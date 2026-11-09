@@ -1,0 +1,10 @@
+ledkit-nrf
+Copyright (c) 2026 Jim Rowe
+
+Attributions
+============
+
+ledkit-nrf contains no third-party code. The approach (one PWM duty word per
+LED bit, played by the PWM sequencer through EasyDMA) is the usual one on the
+nRF52, as in the nrf-smartled crate; no code was taken from it. The duty words
+and timings come from ledkit-core; see its NOTICE.

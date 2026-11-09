@@ -1,6 +1,6 @@
 # ledkit-nrf: one-wire LEDs from the nRF52840's PWM and EasyDMA
 
-Status: design, waiting for the owner's approval (2026-11-02). Breadth first: get the
+Status: approved (2026-11-02), built, and passing on a XIAO nRF52840 (2026-11-08). Breadth first: get the
 nRF52840 covered with a working native path and the portable one, refine later.
 
 ## What and why

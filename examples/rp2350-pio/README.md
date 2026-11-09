@@ -5,9 +5,9 @@ Drives one WS2812B ("NeoPixel") strip from a Raspberry Pi Pico 2 W (RP2350) ever
 (APA102) strip over SPI with `ledkit-spi`. The same program builds for the RP2350's
 **Arm** cores and its **RISC-V** cores; run it once on each.
 
-> **Pending hardware test.** This example builds in CI for both cores, but it has not
-> been run on a real Pico 2 W yet. If you try it, please report what you see, round by
-> round and core by core.
+> **Passes on hardware** (2026-11-09, Pico 2 W, Arm and RISC-V cores, a 100-LED
+> WS2812B strip and a DotStar HD 8x8). If you try it on other hardware, please report
+> what you see, round by round and core by core.
 
 ## What you'll see
 
@@ -36,7 +36,9 @@ blue bar that grows along the strip. Then the NeoPixels go dark.
 Round 5 shows the same pattern on the DotStars (64 by default, `DOTSTAR_COUNT`),
 then a **clock sweep**: the counting pattern at 1, 2, 4, 8, 12, 16, 20, 24 and 32 MHz, each
 after a short dark gap and with its step number shown as LEDs 1 to 9 in green (step 1
-is 1 MHz, step 9 is 32 MHz). Last, the NeoPixel rainbow runs forever on DMA. Unplug and
+is 1 MHz, step 9 is 32 MHz). Last, the NeoPixel rainbow runs forever on DMA. The DotStars aren't sent anything
+after the sweep, so they keep showing its last step (nine green marks): that's the end
+of their part, not a hang. Unplug and
 replug (or reset with the RUN pin) to run it all again.
 
 A round **passes** when every color is right through to the last LED, the
@@ -122,4 +124,15 @@ At the top of `src/main.rs`: `LED_COUNT`, `SWEEP_MAX`, `LedType` (use `Sk6812` o
 
 ## Status
 
-Pending hardware test (Arm and RISC-V cores, NeoPixel strip and DotStars).
+**Pass** (2026-11-09) on a Raspberry Pi Pico 2 W, once on the Arm cores and once on
+the RISC-V cores, loaded with picotool:
+
+- NeoPixels: a 100-LED WS2812B strip on GP16 through a 74AHCT125. All four rounds
+  (processor-fed and DMA, blocking and async) and the 1–150 LED sweep looked right.
+- DotStars (round 5): a DotStar HD 8x8 (64 APA102-2020) on GP19 (data) and GP18
+  (clock). The pattern at 4 MHz and the counting pattern at every step of the clock
+  sweep, up to 32 MHz, looked right.
+
+The NeoPixels and the DotStars were watched in separate runs, rewired in between. The
+Pico 2 W has no reset button: tapping RUN (pin 30) to GND restarts the program, and
+holding BOOTSEL while doing it enters BOOTSEL mode.

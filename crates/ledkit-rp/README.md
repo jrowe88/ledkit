@@ -134,10 +134,12 @@ dithering is added.
 |---|---|---|---|
 | Adafruit Feather RP2040 SCORPIO | `PioOutput`, blocking (PIO0, GPIO4) | the onboard NeoPixel (`examples/rp2040-pio`, round 0) | pass (2026-11-08): colors in order, back-to-back frames end on the second color, smooth rainbow |
 | Adafruit Feather RP2040 SCORPIO | `PioOutput` and `PioDmaOutput`, blocking and async (PIO0, GPIO16, DMA channel 0) | WS2812-type strip, 100 LEDs, on the board's 5 V NeoPixel output 0 | pass (2026-11-08), all four rounds: solid colors, back to back, counting, a rainbow at 50 frames a second; then every frame length from 1 to 150 LEDs |
+| Raspberry Pi Pico 2 W (RP2350, Arm cores) | `PioOutput` and `PioDmaOutput`, blocking and async (PIO1, GPIO16, DMA channel 1) | WS2812B strip, 100 LEDs, through a 74AHCT125 | pass (2026-11-09), all four rounds and the 1–150 LED sweep (`examples/rp2350-pio`) |
+| Raspberry Pi Pico 2 W (RP2350, RISC-V cores) | the same | the same | pass (2026-11-09), all four rounds and the 1–150 LED sweep |
 
-Still untested: the RP2350 (Pico 2 W, Arm and RISC-V cores), RGBW strips, and long
-strips with a busy processor. The timing search and word packing are also covered by
-host tests in `ledkit-core` (`encode::equal_period`, `encode::pio_timing`,
+Still untested: RGBW strips, and long strips with a busy processor. The timing search and
+word packing are also covered by host tests in `ledkit-core` (`encode::equal_period`,
+`encode::pio_timing`,
 `encode::pio`). If you try it on other hardware, please report what you see.
 
 ## Features

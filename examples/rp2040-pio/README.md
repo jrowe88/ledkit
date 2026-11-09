@@ -4,8 +4,8 @@ Drives the onboard NeoPixel of an Adafruit Feather RP2040 SCORPIO (#5650), then 
 WS2812B ("NeoPixel") strip every way `ledkit-rp` can feed the PIO, one after another
 on the same pin, then a DotStar (APA102) strip over SPI with `ledkit-spi`.
 
-> **Pending hardware test.** This example builds in CI, but it has not been run on a
-> real SCORPIO yet. If you try it, please report what you see, round by round.
+> **Tested on hardware (2026-11-08):** round 0 and rounds 1–4 with the length sweep pass on
+> a SCORPIO with a 100-LED strip. The DotStar round is still to be tried.
 
 ## What you'll see
 
@@ -103,4 +103,6 @@ At the top of `src/main.rs`: `LED_COUNT`, `SWEEP_MAX`, `LedType` (use `Sk6812` o
 
 ## Status
 
-Pending hardware test (onboard NeoPixel, NeoPixel strip and DotStars).
+Onboard NeoPixel and NeoPixel strip: **pass** (2026-11-08) on a Feather RP2040 SCORPIO with a 100-LED WS2812-type strip on output 0 (GPIO16): round 0, all four PIO rounds and the 1–150 LED sweep looked right. DotStars (round 5): pending hardware test.
+
+The board's RESET button didn't always restart it during the test (holding it longer usually did; it worked as part of BOOT + RESET); replugging USB always does. It looked like the button rather than the program, but a known-good UF2 hasn't been tried to confirm.

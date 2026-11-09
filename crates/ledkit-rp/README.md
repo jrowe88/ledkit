@@ -132,10 +132,13 @@ dithering is added.
 
 | Board | Output | LEDs | Result |
 |---|---|---|---|
+| Adafruit Feather RP2040 SCORPIO | `PioOutput`, blocking (PIO0, GPIO4) | the onboard NeoPixel (`examples/rp2040-pio`, round 0) | pass (2026-11-08): colors in order, back-to-back frames end on the second color, smooth rainbow |
+| Adafruit Feather RP2040 SCORPIO | `PioOutput` and `PioDmaOutput`, blocking and async (PIO0, GPIO16, DMA channel 0) | WS2812-type strip, 100 LEDs, on the board's 5 V NeoPixel output 0 | pass (2026-11-08), all four rounds: solid colors, back to back, counting, a rainbow at 50 frames a second; then every frame length from 1 to 150 LEDs |
 
-Not yet tested on hardware. The timing search and word packing are covered by host
-tests in `ledkit-core` (`encode::equal_period`, `encode::pio_timing`, `encode::pio`). If you try it, please
-report what you see.
+Still untested: the RP2350 (Pico 2 W, Arm and RISC-V cores), RGBW strips, and long
+strips with a busy processor. The timing search and word packing are also covered by
+host tests in `ledkit-core` (`encode::equal_period`, `encode::pio_timing`,
+`encode::pio`). If you try it on other hardware, please report what you see.
 
 ## Features
 

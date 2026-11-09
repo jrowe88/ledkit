@@ -51,11 +51,12 @@ use panic_halt as _; // If the program panics, stop.
 use rp2040_hal as hal;
 use static_cell::ConstStaticCell;
 
-/// The second-stage bootloader, which sets up the flash chip. The generic one works
-/// with any flash; it is a little slower than a chip-specific one.
+/// The second-stage bootloader, which sets up the flash chip: the one for the
+/// GD25Q64C flash on Adafruit's RP2040 Feathers (as rp-rs's Feather board crate
+/// uses).
 #[link_section = ".boot2"]
 #[used]
-pub static BOOT2: [u8; 256] = rp2040_boot2::BOOT_LOADER_GENERIC_03H;
+pub static BOOT2: [u8; 256] = rp2040_boot2::BOOT_LOADER_GD25Q64CS;
 
 // ---------------------------------------------------------------------------
 // Settings you may want to change

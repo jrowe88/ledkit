@@ -70,7 +70,7 @@ Send path: compute words with `fill_pwm_words`; if `> 32_767` → `FrameTooLong`
 
 **Files:** `examples/nrf52840-pwm/{Cargo.toml,.cargo/config.toml,memory.x,build.rs,rust-toolchain.toml,.gitignore,README.md,src/main.rs}`.
 
-`memory.x`: FLASH `0x27000` length `0xED000 - 0x27000`; RAM `0x20000000` length 256K. Embassy executor; HFXO on; data pin D10 = `P1_15`; onboard LED red `P0_26`, green `P0_30`, blue `P0_06` (active low). Rounds per the spec (blocking; async with a 10 kHz pin-toggling task; 1–150 sweep; rainbow forever). `defmt` not used (no probe assumed); `panic-halt`.
+`memory.x`: FLASH `0x27000` length `0xED000 - 0x27000`; RAM `0x20000008` length 256K - 8 (the first 8 bytes hold the MBR's interrupt-forwarding address). Embassy executor; HFXO on; data pin D10 = `P1_15`; onboard LED red `P0_26`, green `P0_30`, blue `P0_06` (active low). Rounds per the spec (blocking; async with a 10 kHz pin-toggling task; 1–150 sweep; rainbow forever). `defmt` not used (no probe assumed); `panic-halt`.
 
 - [ ] `cargo build --release` and `cargo clippy --release -- -D warnings` clean in the example dir.
 

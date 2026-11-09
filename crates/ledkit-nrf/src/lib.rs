@@ -142,9 +142,10 @@
 //!
 //! | Board | LEDs | Result |
 //! |---|---|---|
+//! | Seeed XIAO nRF52840 (D10, through a 74AHCT125) | WS2812B strip, 100 LEDs | blocking, async (with a busy task) and the 1–150 LED length sweep pass, 2026-11-08 |
 //!
-//! Not yet tested on hardware. The duty words and timings are covered by host tests in
-//! `ledkit-core` (`equal_period_ticks`, `fill_pwm_words`). If you try it, please report
+//! The duty words and timings are also covered by host tests in `ledkit-core`
+//! (`equal_period_ticks`, `fill_pwm_words`). If you try another board or LED, please report
 //! what you see.
 //!
 //! ## Features

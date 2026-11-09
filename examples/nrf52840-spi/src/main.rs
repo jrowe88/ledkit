@@ -33,7 +33,7 @@
 use embassy_executor::Spawner;
 use embassy_nrf::config::{Config, HfclkSource};
 use embassy_nrf::gpio::{Level, Output as Pin, OutputDrive};
-use embassy_nrf::{bind_interrupts, peripherals, spim, uarte};
+use embassy_nrf::{bind_interrupts, peripherals, spim, uarte, Peri};
 use embassy_time::{Delay, Timer};
 use ledkit_core::prelude::*;
 use ledkit_core::TimingError;
@@ -58,7 +58,8 @@ const BRIGHTNESS: Brightness = Brightness::from_percent(20);
 const POWER_LIMIT: Milliamps = Milliamps(500);
 
 // The data wire is D10 (`P1_15`, the SPI's MOSI pin), through a 74AHCT125 level
-// shifter: the same wire as the `nrf52840-pwm` check.
+// shifter: the same wire as the `nrf52840-pwm` check. D8 (`P1_13`) carries the SPI's
+// clock, which NeoPixels don't use: leave it unconnected (see `led_spi`).
 
 /// The SPI speed: 4 MHz, the one SPIM speed that suits WS2812-type LEDs.
 const SPI_HZ: u32 = 4_000_000;
@@ -93,11 +94,19 @@ impl StatusLed {
     }
 }
 
-/// The SPIM2 settings for NeoPixels: 4 MHz, and MOSI only (no clock pin needed).
-fn spi_config() -> spim::Config {
+/// SPIM2 at 4 MHz, sending on D10 (MOSI).
+///
+/// NeoPixels have no clock wire, but the SPIM still needs a clock pin: given none
+/// (`Spim::new_txonly_nosck`), it never starts, and the first `show()` waits forever.
+/// So D8 (`P1_13`) is the clock pin here, with nothing connected to it.
+fn led_spi<'d>(
+    spi: Peri<'d, peripherals::SPI2>,
+    sck: Peri<'d, peripherals::P1_13>,
+    mosi: Peri<'d, peripherals::P1_15>,
+) -> spim::Spim<'d> {
     let mut config = spim::Config::default();
     config.frequency = spim::Frequency::M4;
-    config
+    spim::Spim::new_txonly(spi, Irqs, sck, mosi, config)
 }
 
 /// Shows one round of the test pattern. `$show` sends the strip.
@@ -160,8 +169,7 @@ async fn main(_spawner: Spawner) {
     // ROUND 1: new_packed at 4 MHz, blocking.
     status.show(false, false, true);
     {
-        let spi =
-            spim::Spim::new_txonly_nosck(p.SPI2.reborrow(), Irqs, p.P1_15.reborrow(), spi_config());
+        let spi = led_spi(p.SPI2.reborrow(), p.P1_13.reborrow(), p.P1_15.reborrow());
         let output =
             ClocklessSpi::<LedType, _, _>::new_packed(spi, SPI_HZ, [0u8; PACKED_LEN]).unwrap();
         let mut strip = Strip::<LedType, LED_COUNT, _>::new(output);
@@ -171,8 +179,7 @@ async fn main(_spawner: Spawner) {
     // ROUND 2: the same, async.
     status.show(false, true, false);
     {
-        let spi =
-            spim::Spim::new_txonly_nosck(p.SPI2.reborrow(), Irqs, p.P1_15.reborrow(), spi_config());
+        let spi = led_spi(p.SPI2.reborrow(), p.P1_13.reborrow(), p.P1_15.reborrow());
         let output =
             ClocklessSpi::<LedType, _, _>::new_packed(spi, SPI_HZ, [0u8; PACKED_LEN]).unwrap();
         let mut strip = Strip::<LedType, LED_COUNT, _>::new(output);
@@ -182,8 +189,7 @@ async fn main(_spawner: Spawner) {
     // ROUND 3: new at 4 MHz (a whole SPI byte per LED bit), blocking.
     status.show(true, true, false);
     {
-        let spi =
-            spim::Spim::new_txonly_nosck(p.SPI2.reborrow(), Irqs, p.P1_15.reborrow(), spi_config());
+        let spi = led_spi(p.SPI2.reborrow(), p.P1_13.reborrow(), p.P1_15.reborrow());
         let output = ClocklessSpi::<LedType, _, _>::new(spi, SPI_HZ, [0u8; PLAIN_LEN]).unwrap();
         let mut strip = Strip::<LedType, LED_COUNT, _>::new(output);
         run_round!(strip, strip.show().unwrap(), hue);
@@ -206,7 +212,7 @@ async fn main(_spawner: Spawner) {
 
     // DONE: a rainbow forever over SPI. Press RESET to run the check again.
     status.show(false, false, false);
-    let spi = spim::Spim::new_txonly_nosck(p.SPI2, Irqs, p.P1_15, spi_config());
+    let spi = led_spi(p.SPI2, p.P1_13, p.P1_15);
     let output = ClocklessSpi::<LedType, _, _>::new_packed(spi, SPI_HZ, [0u8; PACKED_LEN]).unwrap();
     let mut strip = Strip::<LedType, LED_COUNT, _>::new(output);
     strip.set_brightness(BRIGHTNESS);

@@ -5,8 +5,8 @@ Drives one WS2812B ("NeoPixel") strip from a Seeed XIAO nRF52840's SPI periphera
 refuses the nRF's serial port, which can't drive NeoPixels. It's the portable path,
 to compare with the PWM check in [`nrf52840-pwm`](../nrf52840-pwm) on the same wire.
 
-> **Status: pending hardware test.** This example builds in CI, but it has not been run
-> on a real XIAO nRF52840 yet. If you try it, please report what you see, round by round.
+> **Status: passes on hardware** (2026-11-08, XIAO nRF52840, 100-LED WS2812B strip).
+> If you try it on another board or strip, please report what you see, round by round.
 
 ## What you'll see
 
@@ -42,7 +42,12 @@ that can corrupt its data while the processor uses the same RAM.
 
 The same as [`nrf52840-pwm`](../nrf52840-pwm#wiring): XIAO **D10** (P1.15, the SPI's
 MOSI) → 74AHCT125 1A, 1Y → 330 ohm → the strip's DIN, 1OE to GND, VCC 5 V, the strip on
-its own 5 V supply, grounds joined. No clock wire: NeoPixels don't use one.
+its own 5 V supply, grounds joined.
+
+**Leave D8 (P1.13) unconnected.** NeoPixels have no clock wire, but the nRF's SPIM
+won't run without a clock pin: with none it never starts, and the first frame never
+ends (found on hardware: the onboard LED stays blue and the strip stays dark). So the
+check puts the SPI's clock on D8, where nothing is wired.
 
 ## Setup and flashing
 
@@ -61,4 +66,6 @@ an SWD probe.
 
 | Date | Round | Result |
 |---|---|---|
-| | | |
+| 2026-11-08 | 1 to 3 (`new_packed` blocking and async, `new` blocking) | pass: XIAO nRF52840, WS2812B strip, 100 LEDs |
+| 2026-11-08 | 4, `ClocklessUart` at 1 Mbaud | refused, as expected |
+| 2026-11-08 | first try, with no clock pin (`new_txonly_nosck`) | the SPIM never started: the onboard LED stayed blue, the strip stayed dark. Fixed by giving it a clock pin on D8 |

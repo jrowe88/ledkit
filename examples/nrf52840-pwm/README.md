@@ -5,8 +5,8 @@ peripheral and EasyDMA: the PWM plays the whole frame from RAM by itself, one du
 value per LED bit, so the processor is free while it goes out. It runs blocking, then
 async while another task keeps the processor busy, then a frame-length sweep.
 
-> **Status: pending hardware test.** This example builds in CI, but it has not been run
-> on a real XIAO nRF52840 yet. If you try it, please report what you see, round by round.
+> **Status: passes on hardware** (2026-11-08, XIAO nRF52840, 100-LED WS2812B strip).
+> If you try it on another board or strip, please report what you see, round by round.
 
 ## What you'll see
 
@@ -88,6 +88,11 @@ ship with. Open `INFO_UF2.TXT` on the bootloader drive: if it names another Soft
 `memory.x` to match. A wrong address gives a board that stays in the bootloader or does
 nothing.
 
+**RAM starts at `0x20000008`**, not `0x20000000`: the bootloader's MBR keeps the address
+it forwards interrupts to in RAM's first 8 bytes. A program that writes over them runs
+one frame and then resets at its first timer interrupt, again and again (the onboard LED
+flickers and the strip stays on its first color).
+
 ## Or flash it with a debug probe
 
 The XIAO has SWD pads on the back (SWDIO, SWCLK, GND, 3V3). With a probe on them (a
@@ -104,4 +109,6 @@ then stays in bootloader mode, copy the UF2 once as above and use the probe afte
 
 | Date | Round | Result |
 |---|---|---|
-| | | |
+| 2026-11-08 | 1, blocking | pass: XIAO nRF52840, WS2812B strip, 100 LEDs |
+| 2026-11-08 | 2, async with a busy task | pass, same setup |
+| 2026-11-08 | sweep, 1 to 150 LEDs, then the rainbow | pass, same setup |

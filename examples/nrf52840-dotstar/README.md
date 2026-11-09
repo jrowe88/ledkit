@@ -5,8 +5,8 @@ Drives DotStars (APA102 or SK9822) from a Seeed XIAO nRF52840's SPIM3 with
 through ledkit's HD brightness. DotStars have a clock wire, so they don't use the PWM
 path of [`nrf52840-pwm`](../nrf52840-pwm); SPI is their native path on every board.
 
-> **Status: pending hardware test.** This example builds in CI, but it has not been run
-> on a real XIAO nRF52840 yet. If you try it, please report what you see, part by part.
+> **Status: passes on hardware** (2026-11-08, XIAO nRF52840, DotStar HD 8x8), clean at
+> every clock up to 32 MHz. If you try it with other DotStars, please report what you see.
 
 ## What you'll see
 
@@ -71,4 +71,6 @@ an SWD probe.
 
 | Date | LEDs | Part | Result |
 |---|---|---|---|
-| | | | |
+| 2026-11-08 | DotStar HD 8x8 (APA102, 64), through a 74AHCT125 on a breadboard | 1: clock sweep, 1 to 32 MHz | pass: clean at every clock, 32 MHz included |
+| 2026-11-08 | same | 2: async at 8 MHz | pass |
+| 2026-11-08 | same | 3: HD brightness, 5 to 60 % | pass |

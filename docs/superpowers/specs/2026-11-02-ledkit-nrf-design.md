@@ -113,13 +113,15 @@ counting (LED 0 red, every 10th white, last blue) 5 s; 50 fps rainbow 10 s.
 READMEs: wiring (D10 → 74AHCT125 → 330 Ω → DIN, as on the Teensy); flashing with the UF2
 bootloader (double-tap RESET, `uf2conv.py -f 0xADA52840 -b 0x27000`, copy to the drive),
 `memory.x` with flash at `0x27000` (after the bootloader's S140 SoftDevice) and RAM at
-`0x20000000` while BLE is unused; `probe-rs` on the SWD pads as the alternative; what you'll
+`0x20000008` while BLE is unused; `probe-rs` on the SWD pads as the alternative; what you'll
 see; "Status: pending hardware test".
 
 My calls on the builder's open questions: `equal_period_ticks` is written here, with the
 signature above; the RP session can take it as-is. The XIAO's Adafruit-style bootloader
-jumps to the app with the SoftDevice disabled, so RAM from `0x20000000` is safe until BLE is
-added. Starting the HF crystal is harmless if the bootloader already has it running.
+jumps to the app with the SoftDevice disabled, but the MBR still forwards every interrupt
+through the address in RAM's first 8 bytes, so RAM starts at `0x20000008` (found on hardware,
+2026-11-08: from `0x20000000` the first timer interrupt reset the board). BLE will need RAM
+after the SoftDevice's share. Starting the HF crystal is harmless if the bootloader already has it running.
 
 ## Repo edits (small, for the merge with `ledkit-rp`)
 

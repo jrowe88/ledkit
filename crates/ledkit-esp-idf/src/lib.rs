@@ -49,6 +49,10 @@
 //! [`RmtOutput::new`] takes the pin and asks ESP-IDF for any free RMT transmit channel,
 //! so you never pick a channel number. You only choose the LED type and the pin.
 //!
+//! On the ESP32-S3, [`RmtOutput::new_with_dma`] feeds the RMT through DMA instead, which
+//! keeps long strips clean even when the processor is busy. Other chips (except the
+//! ESP32-P4) have no RMT DMA, and there it returns an error.
+//!
 //! ## The reset gap
 //!
 //! The LEDs latch the new colors once the data line has been idle for the chip's reset
@@ -81,7 +85,8 @@
 //! This crate only builds for ESP-IDF targets (for example `riscv32imac-esp-espidf`), with
 //! the setup `esp-idf-sys` needs: a nightly Rust with `rust-src`, `ldproxy`, and a
 //! `.cargo/config.toml` that sets the target, `build-std` and `ESP_IDF_VERSION`.
-//! Copy the setup of `examples/esp32c6-esp-idf`; its README walks through it.
+//! Copy the setup of `examples/esp32c6-esp-idf` (RISC-V chips) or
+//! `examples/esp32s3-esp-idf` (the Xtensa ESP32-S3); their READMEs walk through it.
 //! On Windows, keep the build folder short (the example's `.cargo/config.toml` sets
 //! `target-dir = "C:/t/ledkit"`), because `esp-idf-sys` rejects output paths over 88 characters.
 //!
@@ -128,7 +133,7 @@ use std::marker::PhantomData;
 use std::time::{Duration, Instant};
 
 use esp_idf_hal::gpio::OutputPin;
-use esp_idf_hal::rmt::config::{TransmitConfig, TxChannelConfig};
+use esp_idf_hal::rmt::config::{MemoryAccess, TransmitConfig, TxChannelConfig};
 use esp_idf_hal::rmt::encoder::{BytesEncoder, BytesEncoderConfig};
 use esp_idf_hal::rmt::{PinState, Pulse, PulseTicks, Symbol, TxChannelDriver};
 use esp_idf_hal::sys::EspError;
@@ -147,6 +152,11 @@ const RESOLUTION: Hertz = Hertz(10_000_000);
 
 /// The longest single RMT pulse, in ticks.
 const MAX_TICKS: u32 = 32_767;
+
+/// The DMA buffer for [`RmtOutput::new_with_dma`], in RMT symbols (4 bytes each).
+/// ESP-IDF suggests about 1024 for good throughput; that is about 42 WS2812B LEDs,
+/// refilled by the DMA as the frame goes out.
+const DMA_BLOCK_SYMBOLS: usize = 1024;
 
 /// A chain of clockless LEDs of type `C` (for example [`ledkit_core::Ws2812b`]) on one
 /// GPIO pin.
@@ -208,6 +218,42 @@ impl<'d, C: Chip> RmtOutput<'d, C> {
     /// let output = RmtOutput::<Ws2812b>::new(peripherals.pins.gpio8)?;
     /// ```
     pub fn new(pin: impl OutputPin + 'd) -> Result<Self, Error> {
+        Self::with_memory(pin, MemoryAccess::default())
+    }
+
+    /// Like [`new`](Self::new), but the RMT reads the frame through DMA.
+    ///
+    /// Without DMA, ESP-IDF refills the RMT's small memory from an interrupt while a
+    /// frame goes out, and a late refill (a busy CPU, a long interrupt elsewhere) can
+    /// garble a long strip. With DMA the RMT fetches the frame from RAM by itself, so
+    /// long strips stay clean however busy the processor is.
+    ///
+    /// Only some chips have RMT DMA: the ESP32-S3 (on one of its four transmit
+    /// channels) and the ESP32-P4. Elsewhere, such as on the ESP32-C3 and C6, ESP-IDF
+    /// refuses and this returns an error, so use [`new`](Self::new) there.
+    ///
+    /// # Errors
+    ///
+    /// As [`new`](Self::new), and [`Error::Esp`] if the chip has no RMT DMA or its DMA
+    /// channel is already taken.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// // GPIO5 on an ESP32-S3 board.
+    /// let output = RmtOutput::<Ws2812b>::new_with_dma(peripherals.pins.gpio5)?;
+    /// ```
+    pub fn new_with_dma(pin: impl OutputPin + 'd) -> Result<Self, Error> {
+        Self::with_memory(
+            pin,
+            MemoryAccess::Direct {
+                memory_block_symbols: DMA_BLOCK_SYMBOLS,
+            },
+        )
+    }
+
+    /// Claims a channel with the given memory access (plain RMT memory or DMA).
+    fn with_memory(pin: impl OutputPin + 'd, memory_access: MemoryAccess) -> Result<Self, Error> {
         // Evaluated at compile time: a clocked chip can't be driven this way, and using
         // one here fails the build.
         let timing = const { ClocklessTiming::of::<C>() };
@@ -219,6 +265,7 @@ impl<'d, C: Chip> RmtOutput<'d, C> {
             pin,
             &TxChannelConfig {
                 resolution: RESOLUTION,
+                memory_access,
                 ..Default::default()
             },
         )?;

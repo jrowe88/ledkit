@@ -1,1 +1,1 @@
-doc-valid-idents = ["NeoPixel", "NeoPixels", "DotStar", "DotStars", "FastLED", "SparkFun", "LuMini", ".."]
+doc-valid-idents = ["NeoPixel", "NeoPixels", "DotStar", "DotStars", "FastLED", "SparkFun", "LuMini", "EasyDMA", ".."]

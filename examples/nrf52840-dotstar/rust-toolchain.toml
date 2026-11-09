@@ -1,0 +1,4 @@
+# The nRF52840's Cortex-M4F core works with plain stable Rust.
+[toolchain]
+channel = "stable"
+targets = ["thumbv7em-none-eabihf"]

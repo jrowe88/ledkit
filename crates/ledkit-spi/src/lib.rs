@@ -90,8 +90,15 @@
 //! let mut strip = Strip::<Ws2812b, LED_COUNT, _>::new(output);
 //! strip.fill(Color::BLUE);
 //! strip.show().unwrap();
+//! let after_first = strip.output().bus().0;
+//! strip.show().unwrap();
 //!
-//! assert_eq!(strip.output().bus().0, buffer_len::<Ws2812b>(LED_COUNT, SPI_HZ));
+//! // The first frame starts with a reset gap; every frame after it is
+//! // exactly the buffer.
+//! assert_eq!(
+//!     strip.output().bus().0 - after_first,
+//!     buffer_len::<Ws2812b>(LED_COUNT, SPI_HZ)
+//! );
 //! ```
 //!
 //! ## Coming from `smart-leds`?

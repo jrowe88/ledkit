@@ -33,6 +33,13 @@ use ledkit_core::{wire, Chip, ClocklessTiming, Output, OutputAsync, TimingError}
 /// bus to finish (`flush`) before returning, so frames are never run
 /// together, however often you call `show()`.
 ///
+/// The very first frame also starts with a reset gap. Some SPI peripherals
+/// hold their data pin high until their first transfer (the ESP32-S3's
+/// does). LEDs read that high as one extra bit, which shifts the whole first
+/// frame by a bit and turns the first LED's color wrong (a red LED shows
+/// green). Starting low for a reset time ends that stray bit before the
+/// colors come.
+///
 /// # DotStars
 ///
 /// DotStars (APA102 and SK9822) have their own clock wire and don't need
@@ -90,6 +97,9 @@ pub struct ClocklessSpi<C: Chip, SPI, B> {
     encoding: SpiEncoding,
     /// The most bytes handed to the bus in one `write` call.
     max_write: usize,
+    /// Whether a frame has gone out. Until then the data line may rest high,
+    /// so the next frame starts with a reset gap.
+    started: bool,
     chip: PhantomData<C>,
 }
 
@@ -162,6 +172,7 @@ impl<C: Chip, SPI, B: AsMut<[u8]>> ClocklessSpi<C, SPI, B> {
             buffer,
             encoding,
             max_write: usize::MAX,
+            started: false,
             chip: PhantomData,
         }
     }
@@ -294,28 +305,52 @@ impl<C: Chip, SPI, B: AsMut<[u8]>> ClocklessSpi<C, SPI, B> {
     ) -> Result<usize, ledkit_core::BufferTooSmall> {
         self.encoding.encode_from_iter(wire, self.buffer.as_mut())
     }
+
+    /// How many zero bytes to send before the next frame: a reset gap before
+    /// the first frame, none after that.
+    fn gap_len(&self) -> usize {
+        if self.started {
+            0
+        } else {
+            self.encoding.reset_bytes as usize
+        }
+    }
 }
 
 impl<C: Chip, SPI: embedded_hal::spi::SpiBus, B: AsMut<[u8]>> ClocklessSpi<C, SPI, B> {
     /// Sends the first `used` buffer bytes (in writes of at most
     /// `max_write` bytes), then flushes once.
     pub(crate) fn send(&mut self, used: usize) -> Result<(), Error<SPI::Error>> {
-        let frame = &self.buffer.as_mut()[..used];
-        for piece in frame.chunks(self.max_write) {
+        let gap = self.gap_len();
+        let buffer = self.buffer.as_mut();
+        // The frame ends in its reset gap, so its tail is the zeros to send.
+        for piece in buffer[used - gap..used].chunks(self.max_write) {
             self.spi.write(piece).map_err(Error::Spi)?;
         }
-        self.spi.flush().map_err(Error::Spi)
+        for piece in buffer[..used].chunks(self.max_write) {
+            self.spi.write(piece).map_err(Error::Spi)?;
+        }
+        self.spi.flush().map_err(Error::Spi)?;
+        self.started = true;
+        Ok(())
     }
 }
 
 impl<C: Chip, SPI: embedded_hal_async::spi::SpiBus, B: AsMut<[u8]>> ClocklessSpi<C, SPI, B> {
     /// The async twin of `send`.
     pub(crate) async fn send_async(&mut self, used: usize) -> Result<(), Error<SPI::Error>> {
-        let frame = &self.buffer.as_mut()[..used];
-        for piece in frame.chunks(self.max_write) {
+        let gap = self.gap_len();
+        let buffer = self.buffer.as_mut();
+        // The frame ends in its reset gap, so its tail is the zeros to send.
+        for piece in buffer[used - gap..used].chunks(self.max_write) {
             self.spi.write(piece).await.map_err(Error::Spi)?;
         }
-        self.spi.flush().await.map_err(Error::Spi)
+        for piece in buffer[..used].chunks(self.max_write) {
+            self.spi.write(piece).await.map_err(Error::Spi)?;
+        }
+        self.spi.flush().await.map_err(Error::Spi)?;
+        self.started = true;
+        Ok(())
     }
 }
 
@@ -434,16 +469,49 @@ mod tests {
         out
     }
 
+    /// The reset gap sent before the first frame, in bytes.
+    fn gap<C: Chip>() -> usize {
+        ClocklessTiming::of::<C>()
+            .spi_encoding_byte_aligned(HZ)
+            .unwrap()
+            .reset_bytes as usize
+    }
+
+    /// What the bus gets for a driver's first frame: the reset gap, then the frame.
+    fn first_frame<C: Chip>(pixels: &[C::Pixel]) -> Vec<u8>
+    where
+        C::Pixel: Copy,
+    {
+        let mut bytes = vec![0u8; gap::<C>()];
+        bytes.extend(expected::<C>(pixels));
+        bytes
+    }
+
     #[test]
     fn sends_the_encoded_frame_then_flushes() {
         let mut out =
             ClocklessSpi::<Ws2812b, _, _>::new(FakeBus::default(), HZ, [0u8; 256]).unwrap();
         Output::<Ws2812b>::write(&mut out, [Rgb::RED].into_iter()).unwrap();
         let (bus, _) = out.release();
-        assert_eq!(bus.bytes, expected::<Ws2812b>(&[Rgb::RED]));
-        assert_eq!((bus.writes, bus.flushes), (1, 1));
+        assert_eq!(bus.bytes, first_frame::<Ws2812b>(&[Rgb::RED]));
+        assert_eq!((bus.writes, bus.flushes), (2, 1));
     }
 
+    #[test]
+    fn only_the_first_frame_starts_with_a_reset_gap() {
+        let mut out =
+            ClocklessSpi::<Ws2812b, _, _>::new(FakeBus::default(), HZ, [0u8; 256]).unwrap();
+        Output::<Ws2812b>::write(&mut out, [Rgb::RED].into_iter()).unwrap();
+        Output::<Ws2812b>::write(&mut out, [Rgb::BLUE].into_iter()).unwrap();
+        let (bus, _) = out.release();
+        let mut want = first_frame::<Ws2812b>(&[Rgb::RED]);
+        want.extend(expected::<Ws2812b>(&[Rgb::BLUE]));
+        assert_eq!(bus.bytes, want);
+        assert_eq!((bus.writes, bus.flushes), (3, 2));
+    }
+
+    /// Sends one frame of two LEDs; gives back the bus and the frame's
+    /// length without the first frame's reset gap.
     fn frame_of(max: Option<usize>) -> (FakeBus, usize) {
         let mut out =
             ClocklessSpi::<Ws2812b, _, _>::new(FakeBus::default(), HZ, [0u8; 512]).unwrap();
@@ -452,7 +520,7 @@ mod tests {
         }
         Output::<Ws2812b>::write(&mut out, [Rgb::RED, Rgb::BLUE].into_iter()).unwrap();
         let (bus, _) = out.release();
-        let len = bus.bytes.len();
+        let len = bus.bytes.len() - gap::<Ws2812b>();
         (bus, len)
     }
 
@@ -468,9 +536,14 @@ mod tests {
     #[test]
     fn chunked_write_and_flush_counts() {
         let (_, len) = frame_of(None);
+        let gap = gap::<Ws2812b>();
         for max in [1, 7, 50, 1000] {
             let (bus, _) = frame_of(Some(max));
-            assert_eq!(bus.writes, len.div_ceil(max), "max {max}");
+            assert_eq!(
+                bus.writes,
+                gap.div_ceil(max) + len.div_ceil(max),
+                "max {max}"
+            );
             assert_eq!(bus.flushes, 1);
         }
     }
@@ -478,13 +551,14 @@ mod tests {
     #[test]
     fn exact_multiple_sends_no_empty_write() {
         let (_, len) = frame_of(None);
-        // Divide the frame exactly: every write is full, none is empty.
+        let gap = gap::<Ws2812b>();
+        // Divide the frame exactly: every frame write is full, none is empty.
         let (bus, _) = frame_of(Some(len));
-        assert_eq!((bus.writes, bus.flushes), (1, 1));
+        assert_eq!((bus.writes, bus.flushes), (gap.div_ceil(len) + 1, 1));
         let half = (1..len).rev().find(|d| len % d == 0).unwrap();
         let (bus, _) = frame_of(Some(half));
-        assert_eq!(bus.writes, len / half);
-        assert_eq!(bus.bytes.len(), len);
+        assert_eq!(bus.writes, gap.div_ceil(half) + len / half);
+        assert_eq!(bus.bytes.len(), gap + len);
     }
 
     #[test]
@@ -500,7 +574,10 @@ mod tests {
         .unwrap();
         let (bus, _) = out.release();
         assert_eq!(bus.bytes, whole.bytes);
-        assert_eq!((bus.writes, bus.flushes), (len.div_ceil(50), 1));
+        assert_eq!(
+            (bus.writes, bus.flushes),
+            (gap::<Ws2812b>().div_ceil(50) + len.div_ceil(50), 1)
+        );
     }
 
     #[test]
@@ -531,7 +608,7 @@ mod tests {
         assert_eq!(strip.output().encoding().bits_per_led_bit, 4);
         assert_eq!(
             strip.output().bus().bytes,
-            expected::<Ws2812b>(&[Rgb::BLUE; N])
+            first_frame::<Ws2812b>(&[Rgb::BLUE; N])
         );
     }
 
@@ -593,7 +670,7 @@ mod tests {
         let mut out =
             ClocklessSpi::<Ws2812b, _, _>::new(FakeBus::default(), HZ, [0u8; 200]).unwrap();
         Output::<Ws2812b>::write(&mut out, core::iter::empty()).unwrap();
-        assert_eq!(out.release().0.bytes, expected::<Ws2812b>(&[]));
+        assert_eq!(out.release().0.bytes, first_frame::<Ws2812b>(&[]));
     }
 
     #[test]
@@ -617,8 +694,8 @@ mod tests {
         ))
         .unwrap();
         let (bus, _) = out.release();
-        assert_eq!(bus.bytes, expected::<Ws2812b>(&[Rgb::RED, Rgb::GREEN]));
-        assert_eq!((bus.writes, bus.flushes), (1, 1));
+        assert_eq!(bus.bytes, first_frame::<Ws2812b>(&[Rgb::RED, Rgb::GREEN]));
+        assert_eq!((bus.writes, bus.flushes), (2, 1));
 
         let mut rgbw =
             ClocklessSpi::<Sk6812Rgbw, _, _>::new(FakeAsyncBus::default(), HZ, [0u8; 256]).unwrap();
@@ -628,7 +705,7 @@ mod tests {
             [pixel].into_iter(),
         ))
         .unwrap();
-        assert_eq!(rgbw.release().0.bytes, expected::<Sk6812Rgbw>(&[pixel]));
+        assert_eq!(rgbw.release().0.bytes, first_frame::<Sk6812Rgbw>(&[pixel]));
     }
 
     #[test]

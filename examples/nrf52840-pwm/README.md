@@ -5,8 +5,8 @@ peripheral and EasyDMA: the PWM plays the whole frame from RAM by itself, one du
 value per LED bit, so the processor is free while it goes out. It runs blocking, then
 async while another task keeps the processor busy, then a frame-length sweep.
 
-> **Status: rounds 1 and 2 pass on hardware** (2026-11-08); the length sweep is still to be
-> checked. If you try it, please report what you see, round by round.
+> **Status: passes on hardware** (2026-11-08, XIAO nRF52840, 100-LED WS2812B strip).
+> If you try it on another board or strip, please report what you see, round by round.
 
 ## What you'll see
 
@@ -111,3 +111,4 @@ then stays in bootloader mode, copy the UF2 once as above and use the probe afte
 |---|---|---|
 | 2026-11-08 | 1, blocking | pass: XIAO nRF52840, WS2812B strip, 100 LEDs |
 | 2026-11-08 | 2, async with a busy task | pass, same setup |
+| 2026-11-08 | sweep, 1 to 150 LEDs, then the rainbow | pass, same setup |

@@ -144,7 +144,7 @@ repository's `examples/nrf52840-pwm`, which uses this crate.
 
 | Board | LEDs | Result |
 |---|---|---|
-| Seeed XIAO nRF52840 (D10, through a 74AHCT125) | WS2812B strip, 100 LEDs | blocking and async (with a busy task) pass, 2026-11-08 |
+| Seeed XIAO nRF52840 (D10, through a 74AHCT125) | WS2812B strip, 100 LEDs | blocking, async (with a busy task) and the 1–150 LED length sweep pass, 2026-11-08 |
 
 The duty words and timings are also covered by host tests in `ledkit-core`
 (`equal_period_ticks`, `fill_pwm_words`). If you try another board or LED, please report

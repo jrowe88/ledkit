@@ -24,6 +24,11 @@ static_cell = "2"
 portable-atomic = { version = "1", features = ["critical-section"] }
 panic-halt = "1"
 
+[features]
+# Only the onboard NeoPixel and the DotStar round (no NeoPixel strip on GPIO16),
+# then a DotStar rainbow forever: `cargo build --release --features dotstar-only`.
+dotstar-only = []
+
 [profile.dev]
 # Rust code is very slow without optimization on a microcontroller.
 opt-level = "s"

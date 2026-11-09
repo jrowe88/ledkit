@@ -228,6 +228,7 @@ strip.set_hd_brightness(false);
 | ESP32-C6 (SPI2, 4 MHz) | DotStar strip (APA102-type 5050), 300 LEDs | ✅ pass (2026-11-01): sized to exactly 300, the last LED lit, every frame latched at once through to LED 299 with the `0xFF` end frame (19 bytes), and an HD rainbow ran clean |
 | Seeed XIAO nRF52840 (SPIM2, 4 MHz, embassy-nrf) | WS2812B strip, 100 LEDs, through a 74AHCT125 | ✅ pass (2026-11-08) with `new_packed` (blocking and async) and `new`: colors, back-to-back frames, counting and a rainbow clean through to LED 99. The nRF's SPIM needs a clock pin even for NeoPixels: without one (`new_txonly_nosck`) it never starts and `show()` never returns; `examples/nrf52840-spi` puts it on an unconnected pin |
 | Seeed XIAO nRF52840 (SPIM3, 1 to 32 MHz, embassy-nrf) | DotStar HD 8×8 (APA102-2020, 64 LEDs), through a 74AHCT125 | ✅ pass (2026-11-08): colors and counting clean at every clock up to 32 MHz, async at 8 MHz, and HD brightness down to 5 % |
+| Feather RP2040 SCORPIO (rp2040-hal SPI0, data GPIO19 / clock GPIO18 through the board's 5 V outputs) | DotStar HD 8×8 (APA102-2020, 64 LEDs) | ✅ pass (2026-11-08), `examples/rp2040-pio` round 5: colors, back to back, counting and a rainbow at 4 MHz, then the counting pattern clean at every step of a 1 to 32 MHz sweep (the RP2040 makes 31.25 MHz for 32) |
 | other boards (`ClockedSpi`) | | untested on hardware |
 
 Everything else is covered by host tests with a pretend SPI bus. Examples

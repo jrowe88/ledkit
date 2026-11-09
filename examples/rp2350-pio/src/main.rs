@@ -290,18 +290,23 @@ fn main() -> ! {
             DOTSTAR_COUNT
         );
     }
-    for hz in DOTSTAR_CLOCKS {
+    // Each step of the sweep: dark for a moment, then the counting pattern with the
+    // step number on LEDs 1 to `step` in green (step 1 is 1 MHz, step 9 is 32 MHz).
+    for (step, hz) in (1..).zip(DOTSTAR_CLOCKS) {
         spi.set_baudrate(clocks.peripheral_clock.freq(), hz.Hz());
         let mut dotstars = Strip::<DotStarType, DOTSTAR_COUNT, _>::new(ClockedSpi::new(&mut spi));
         dotstars.set_brightness(BRIGHTNESS);
         dotstars.fill(Rgb::BLACK);
+        dotstars.show().unwrap();
+        delay.delay_ms(400);
         for i in (10..DOTSTAR_COUNT).step_by(10) {
             dotstars.set(i, Rgb::WHITE);
         }
+        dotstars.fill_range(1..=step, Rgb::GREEN);
         dotstars.set(0, Rgb::RED);
         dotstars.set(DOTSTAR_COUNT - 1, Rgb::BLUE);
         dotstars.show().unwrap();
-        delay.delay_ms(2000);
+        delay.delay_ms(2500);
     }
 
     // DONE: the NeoPixel rainbow, on DMA, forever.

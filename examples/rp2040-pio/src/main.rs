@@ -36,6 +36,8 @@
 // No operating system here, and no ordinary `main`: the HAL provides the start-up.
 #![no_std]
 #![no_main]
+// With `dotstar-only`, the NeoPixel strip rounds are left out.
+#![cfg_attr(feature = "dotstar-only", allow(unused_imports, dead_code))]
 
 use embedded_hal::delay::DelayNs;
 use hal::dma::DMAExt;
@@ -233,70 +235,82 @@ fn main() -> ! {
     onboard.fill(Rgb::BLACK);
     onboard.show().unwrap();
 
-    // ROUND 1: the processor feeds the FIFO, blocking.
-    let output = PioOutput::<LedType, _, _, _, _>::new(
-        &mut pio,
-        sm0,
-        pins.gpio16.into_function(),
-        sys_hz,
-        timer,
-    )
-    .unwrap();
-    let mut strip = Strip::<LedType, LED_COUNT, _>::new(output);
-    announce!(strip, strip.show().unwrap(), delay, 1);
-    run_round!(strip, strip.show().unwrap(), delay, hue, LED_COUNT);
-    let (sm0, pin) = strip.release().release(&mut pio);
-
-    // ROUND 2: DMA feeds the FIFO, blocking.
-    let output = PioDmaOutput::<LedType, _, _, _, _, _>::new(
-        &mut pio, sm0, pin, dma.ch0, buffer, sys_hz, timer,
-    )
-    .unwrap();
-    let mut strip = Strip::<LedType, LED_COUNT, _>::new(output);
-    announce!(strip, strip.show().unwrap(), delay, 2);
-    run_round!(strip, strip.show().unwrap(), delay, hue, LED_COUNT);
-    let (sm0, pin, ch0, buffer) = strip.release().release(&mut pio).unwrap();
-
-    // ROUND 3: DMA, async. `block_on` polls the future until it is done; a program
-    // with an async executor would `.await` it among its other tasks.
-    let output =
-        PioDmaOutput::<LedType, _, _, _, _, _>::new(&mut pio, sm0, pin, ch0, buffer, sys_hz, timer)
-            .unwrap();
-    let mut strip = Strip::<LedType, LED_COUNT, _>::new(output);
-    let show = |strip: &mut Strip<LedType, LED_COUNT, _>| {
-        embassy_futures::block_on(strip.show_async()).unwrap();
-    };
-    announce!(strip, show(&mut strip), delay, 3);
-    run_round!(strip, show(&mut strip), delay, hue, LED_COUNT);
-    let (sm0, pin, ch0, buffer) = strip.release().release(&mut pio).unwrap();
-
-    // ROUND 4: the processor feeds the FIFO, async.
-    let output = PioOutput::<LedType, _, _, _, _>::new(&mut pio, sm0, pin, sys_hz, timer).unwrap();
-    let mut strip = Strip::<LedType, LED_COUNT, _>::new(output);
-    let show = |strip: &mut Strip<LedType, LED_COUNT, _>| {
-        embassy_futures::block_on(strip.show_async()).unwrap();
-    };
-    announce!(strip, show(&mut strip), delay, 4);
-    run_round!(strip, show(&mut strip), delay, hue, LED_COUNT);
-    let (sm0, pin) = strip.release().release(&mut pio);
-
-    // SWEEP: DMA frames of 1 to SWEEP_MAX LEDs, straight to the output (so no
-    // brightness is applied: send a dim blue).
-    let mut output =
-        PioDmaOutput::<LedType, _, _, _, _, _>::new(&mut pio, sm0, pin, ch0, buffer, sys_hz, timer)
-            .unwrap();
-    let dim_blue = Rgb::new(0, 0, 24);
-    for length in 1..=SWEEP_MAX {
-        output
-            .write(core::iter::repeat_n(dim_blue, length))
-            .unwrap();
-        delay.delay_ms(30);
-    }
-    delay.delay_ms(1000);
-    // Blank the NeoPixels while the DotStars run.
-    output
-        .write(core::iter::repeat_n(Rgb::BLACK, SWEEP_MAX))
+    // ROUNDS 1 to 4 and the SWEEP, on the NeoPixel strip. Built without the
+    // `dotstar-only` feature only.
+    #[cfg(not(feature = "dotstar-only"))]
+    let output = {
+        // ROUND 1: the processor feeds the FIFO, blocking.
+        let output = PioOutput::<LedType, _, _, _, _>::new(
+            &mut pio,
+            sm0,
+            pins.gpio16.into_function(),
+            sys_hz,
+            timer,
+        )
         .unwrap();
+        let mut strip = Strip::<LedType, LED_COUNT, _>::new(output);
+        announce!(strip, strip.show().unwrap(), delay, 1);
+        run_round!(strip, strip.show().unwrap(), delay, hue, LED_COUNT);
+        let (sm0, pin) = strip.release().release(&mut pio);
+
+        // ROUND 2: DMA feeds the FIFO, blocking.
+        let output = PioDmaOutput::<LedType, _, _, _, _, _>::new(
+            &mut pio, sm0, pin, dma.ch0, buffer, sys_hz, timer,
+        )
+        .unwrap();
+        let mut strip = Strip::<LedType, LED_COUNT, _>::new(output);
+        announce!(strip, strip.show().unwrap(), delay, 2);
+        run_round!(strip, strip.show().unwrap(), delay, hue, LED_COUNT);
+        let (sm0, pin, ch0, buffer) = strip.release().release(&mut pio).unwrap();
+
+        // ROUND 3: DMA, async. `block_on` polls the future until it is done; a program
+        // with an async executor would `.await` it among its other tasks.
+        let output = PioDmaOutput::<LedType, _, _, _, _, _>::new(
+            &mut pio, sm0, pin, ch0, buffer, sys_hz, timer,
+        )
+        .unwrap();
+        let mut strip = Strip::<LedType, LED_COUNT, _>::new(output);
+        let show = |strip: &mut Strip<LedType, LED_COUNT, _>| {
+            embassy_futures::block_on(strip.show_async()).unwrap();
+        };
+        announce!(strip, show(&mut strip), delay, 3);
+        run_round!(strip, show(&mut strip), delay, hue, LED_COUNT);
+        let (sm0, pin, ch0, buffer) = strip.release().release(&mut pio).unwrap();
+
+        // ROUND 4: the processor feeds the FIFO, async.
+        let output =
+            PioOutput::<LedType, _, _, _, _>::new(&mut pio, sm0, pin, sys_hz, timer).unwrap();
+        let mut strip = Strip::<LedType, LED_COUNT, _>::new(output);
+        let show = |strip: &mut Strip<LedType, LED_COUNT, _>| {
+            embassy_futures::block_on(strip.show_async()).unwrap();
+        };
+        announce!(strip, show(&mut strip), delay, 4);
+        run_round!(strip, show(&mut strip), delay, hue, LED_COUNT);
+        let (sm0, pin) = strip.release().release(&mut pio);
+
+        // SWEEP: DMA frames of 1 to SWEEP_MAX LEDs, straight to the output (so no
+        // brightness is applied: send a dim blue).
+        let mut output = PioDmaOutput::<LedType, _, _, _, _, _>::new(
+            &mut pio, sm0, pin, ch0, buffer, sys_hz, timer,
+        )
+        .unwrap();
+        let dim_blue = Rgb::new(0, 0, 24);
+        for length in 1..=SWEEP_MAX {
+            output
+                .write(core::iter::repeat_n(dim_blue, length))
+                .unwrap();
+            delay.delay_ms(30);
+        }
+        delay.delay_ms(1000);
+        // Blank the NeoPixels while the DotStars run.
+        output
+            .write(core::iter::repeat_n(Rgb::BLACK, SWEEP_MAX))
+            .unwrap();
+        output
+    };
+    // With `dotstar-only`, GPIO16, its state machine and the DMA channel stay unused.
+    #[cfg(feature = "dotstar-only")]
+    let _unused = (sm0, dma, buffer);
 
     // DOTSTAR: ledkit-spi drives DotStars on any embedded-hal SPI bus, the RP2350's
     // included. The bus is borrowed, so each strip below can reuse it.
@@ -324,32 +338,59 @@ fn main() -> ! {
             DOTSTAR_COUNT
         );
     }
-    for hz in DOTSTAR_CLOCKS {
+    // Each step of the sweep: dark for a moment, then the counting pattern with the
+    // step number on LEDs 1 to `step` in green (step 1 is 1 MHz, step 9 is 32 MHz).
+    for (step, hz) in (1..).zip(DOTSTAR_CLOCKS) {
         spi.set_baudrate(clocks.peripheral_clock.freq(), hz.Hz());
         let mut dotstars = Strip::<DotStarType, DOTSTAR_COUNT, _>::new(ClockedSpi::new(&mut spi));
         dotstars.set_brightness(BRIGHTNESS);
         dotstars.fill(Rgb::BLACK);
+        dotstars.show().unwrap();
+        delay.delay_ms(400);
         for i in (10..DOTSTAR_COUNT).step_by(10) {
             dotstars.set(i, Rgb::WHITE);
         }
+        dotstars.fill_range(1..=step, Rgb::GREEN);
         dotstars.set(0, Rgb::RED);
         dotstars.set(DOTSTAR_COUNT - 1, Rgb::BLUE);
         dotstars.show().unwrap();
-        delay.delay_ms(2000);
+        delay.delay_ms(2500);
     }
 
     // DONE: the NeoPixel rainbow, on DMA, forever.
-    let mut strip = Strip::<LedType, SWEEP_MAX, _>::new(output);
-    strip.set_brightness(BRIGHTNESS);
-    strip.set_power_limit(POWER_LIMIT);
-    strip.set_dithering(false);
-    loop {
-        for i in 0..SWEEP_MAX {
-            let spread = (i * 65_536 / 60) as u16;
-            strip.set(i, Rgb::from_hue(hue.shifted(spread)));
+    #[cfg(not(feature = "dotstar-only"))]
+    {
+        let mut strip = Strip::<LedType, SWEEP_MAX, _>::new(output);
+        strip.set_brightness(BRIGHTNESS);
+        strip.set_power_limit(POWER_LIMIT);
+        strip.set_dithering(false);
+        loop {
+            for i in 0..SWEEP_MAX {
+                let spread = (i * 65_536 / 60) as u16;
+                strip.set(i, Rgb::from_hue(hue.shifted(spread)));
+            }
+            strip.show().unwrap();
+            hue = hue.shifted(768);
+            delay.delay_ms(20);
         }
-        strip.show().unwrap();
-        hue = hue.shifted(768);
-        delay.delay_ms(20);
+    }
+
+    // DONE (`dotstar-only`): a DotStar rainbow at DOTSTAR_HZ, forever.
+    #[cfg(feature = "dotstar-only")]
+    {
+        spi.set_baudrate(clocks.peripheral_clock.freq(), DOTSTAR_HZ.Hz());
+        let mut dotstars = Strip::<DotStarType, DOTSTAR_COUNT, _>::new(ClockedSpi::new(&mut spi));
+        dotstars.set_brightness(BRIGHTNESS);
+        dotstars.set_power_limit(POWER_LIMIT);
+        dotstars.set_dithering(false);
+        loop {
+            for i in 0..DOTSTAR_COUNT {
+                let spread = (i * 65_536 / 60) as u16;
+                dotstars.set(i, Rgb::from_hue(hue.shifted(spread)));
+            }
+            dotstars.show().unwrap();
+            hue = hue.shifted(768);
+            delay.delay_ms(20);
+        }
     }
 }

@@ -5,7 +5,8 @@ WS2812B ("NeoPixel") strip every way `ledkit-rp` can feed the PIO, one after ano
 on the same pin, then a DotStar (APA102) strip over SPI with `ledkit-spi`.
 
 > **Tested on hardware (2026-11-08):** round 0 and rounds 1–4 with the length sweep pass on
-> a SCORPIO with a 100-LED strip. The DotStar round is still to be tried.
+> a SCORPIO with a 100-LED strip. The DotStar round passes too, on an
+> HD 8×8 at every clock up to 32 MHz.
 
 ## What you'll see
 
@@ -35,10 +36,15 @@ After round 4, the **sweep**: DMA frames of every length from 1 to 150 LEDs, a d
 blue bar that grows along the strip. Then the NeoPixels go dark.
 
 Round 5 shows the same pattern on the DotStars (64 by default, `DOTSTAR_COUNT`), then
-a **clock sweep**: the counting pattern at 1, 2, 4, 8, 12, 16, 20, 24 and 32 MHz,
-2 seconds each (the RP2040 divides 125 MHz, so the real clock is the nearest it can
-make at or below each). Last, the NeoPixel rainbow runs forever on DMA. Press
-**RESET** to run it all again.
+a **clock sweep**: the counting pattern at 1, 2, 4, 8, 12, 16, 20, 24 and 32 MHz
+(the RP2040 divides 125 MHz, so the real clock is the nearest it can make at or below
+each). Each step starts with a short dark gap and shows its number as LEDs 1 to 9 in
+green: step 1 is 1 MHz, step 9 is 32 MHz. Last, the NeoPixel rainbow runs forever on
+DMA. Replug USB (or press **RESET**) to run it all again.
+
+With `cargo build --release --features dotstar-only`, the program runs only round 0
+(the onboard NeoPixel) and the DotStar round, never touches GPIO16, and ends with a
+DotStar rainbow forever: handy when the DotStars share a harness with the NeoPixels.
 
 A round **passes** when every color is right through to the last LED, the
 back-to-back frames end blue, the counting marks are on LEDs 0, 10, 20 … 90 and 99,
@@ -103,6 +109,6 @@ At the top of `src/main.rs`: `LED_COUNT`, `SWEEP_MAX`, `LedType` (use `Sk6812` o
 
 ## Status
 
-Onboard NeoPixel and NeoPixel strip: **pass** (2026-11-08) on a Feather RP2040 SCORPIO with a 100-LED WS2812-type strip on output 0 (GPIO16): round 0, all four PIO rounds and the 1–150 LED sweep looked right. DotStars (round 5): pending hardware test.
+Onboard NeoPixel and NeoPixel strip: **pass** (2026-11-08) on a Feather RP2040 SCORPIO with a 100-LED WS2812-type strip on output 0 (GPIO16): round 0, all four PIO rounds and the 1–150 LED sweep looked right. DotStars (round 5): **pass** (2026-11-08) on a DotStar HD 8×8 (64 APA102-2020) on outputs 3 (data) and 2 (clock): the pattern at 4 MHz and every step of the clock sweep up to 32 MHz (31.25 MHz real), run with `--features dotstar-only`.
 
 The board's RESET button didn't always restart it during the test (holding it longer usually did; it worked as part of BOOT + RESET); replugging USB always does. It looked like the button rather than the program, but a known-good UF2 hasn't been tried to confirm.

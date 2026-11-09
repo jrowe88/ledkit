@@ -34,8 +34,9 @@ After round 4, the **sweep**: DMA frames of every length from 1 to 150 LEDs, a d
 blue bar that grows along the strip. Then the NeoPixels go dark.
 
 Round 5 shows the same pattern on the DotStars (64 by default, `DOTSTAR_COUNT`),
-then a **clock sweep**: the counting pattern at 1, 2, 4, 8, 12, 16, 20, 24 and
-32 MHz, 2 seconds each. Last, the NeoPixel rainbow runs forever on DMA. Unplug and
+then a **clock sweep**: the counting pattern at 1, 2, 4, 8, 12, 16, 20, 24 and 32 MHz, each
+after a short dark gap and with its step number shown as LEDs 1 to 9 in green (step 1
+is 1 MHz, step 9 is 32 MHz). Last, the NeoPixel rainbow runs forever on DMA. Unplug and
 replug (or reset with the RUN pin) to run it all again.
 
 A round **passes** when every color is right through to the last LED, the

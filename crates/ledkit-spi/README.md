@@ -226,6 +226,7 @@ strip.set_hd_brightness(false);
 | ESP32-C6 (SPI2, 1 to 40 MHz requested) | DotStar HD 8×8 (APA102-2020, 64 LEDs) | ✅ pass (2026-10-31), clean at every speed tried; dark at 10% brightness without HD, lit with it (see "Dim DotStars" above) |
 | ESP32-C6 (SPI2, 4 MHz) | SK9822 strip, 144 LEDs | ✅ pass (2026-10-31): each frame latched at once through to LED 143 with the zero end frame, and HD brightness worked |
 | ESP32-C6 (SPI2, 4 MHz) | DotStar strip (APA102-type 5050), 300 LEDs | ✅ pass (2026-11-01): sized to exactly 300, the last LED lit, every frame latched at once through to LED 299 with the `0xFF` end frame (19 bytes), and an HD rainbow ran clean |
+| Feather RP2040 SCORPIO (rp2040-hal SPI0, data GPIO19 / clock GPIO18 through the board's 5 V outputs) | DotStar HD 8×8 (APA102-2020, 64 LEDs) | ✅ pass (2026-11-08), `examples/rp2040-pio` round 5: colors, back to back, counting and a rainbow at 4 MHz, then the counting pattern clean at every step of a 1 to 32 MHz sweep (the RP2040 makes 31.25 MHz for 32) |
 | other boards (`ClockedSpi`) | | untested on hardware |
 
 Everything else is covered by host tests with a pretend SPI bus. Examples

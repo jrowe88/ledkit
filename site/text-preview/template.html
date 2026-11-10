@@ -90,14 +90,43 @@ $('height').value = '16';
 
 // A bitmap is {w, h, px: Float32Array}. Baked faces: draw each glyph's coverage table,
 // advancing by its baked width plus the spacing in LEDs; shown value is sharpen(sum/16, k).
-function renderBaked(name, sizeIdx, text, gap, k) {
+// Smoothed 1x (trial): the same enlarge-and-shrink as the bigger sizes, at the font's own
+// size, so diagonal stair-steps get half-lit corners. Returns the glyph's sums, 0..16.
+const smoothCache = {};
+function smooth1x(name, glyph, w, h) {
+  const key = name + glyph;
+  if (smoothCache[key]) return smoothCache[key];
+  let g = { w, h, px: [...glyph].map(c => (c.charCodeAt(0) - 97) / 16) };
+  for (let n = 0; n < 3; n++) {
+    const o = { w: g.w * 2, h: g.h * 2, px: new Array(g.w * g.h * 4) };
+    const at = (x, y) => (x < 0 || y < 0 || x >= g.w || y >= g.h) ? 0 : g.px[y * g.w + x];
+    for (let y = 0; y < g.h; y++) for (let x = 0; x < g.w; x++) {
+      const P = at(x, y), A = at(x, y - 1), B = at(x + 1, y), C = at(x - 1, y), D = at(x, y + 1);
+      o.px[2 * y * o.w + 2 * x] = (C === A && C !== D && A !== B) ? A : P;
+      o.px[2 * y * o.w + 2 * x + 1] = (A === B && A !== C && B !== D) ? B : P;
+      o.px[(2 * y + 1) * o.w + 2 * x] = (D === C && D !== B && C !== A) ? C : P;
+      o.px[(2 * y + 1) * o.w + 2 * x + 1] = (B === D && B !== A && D !== C) ? D : P;
+    }
+    g = o;
+  }
+  let out = '';
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    let sum = 0;
+    for (let j = 0; j < 4; j++) for (let i = 0; i < 4; i++) sum += g.px[(8 * y + 2 * j + 1) * g.w + 8 * x + 2 * i + 1];
+    out += String.fromCharCode(97 + sum);
+  }
+  return (smoothCache[key] = out);
+}
+
+function renderBaked(name, sizeIdx, text, gap, k, smooth) {
   const sz = FACES_DATA[name].sizes[sizeIdx], cw = sz.w + gap, n = [...text].length;
   const b = bitmap(Math.max(1, cw * n), sz.h);
   [...text].forEach((ch, i) => {
-    const c = ch.charCodeAt(0), s = sz.glyphs[(c >= 32 && c <= 126 ? c : 63) - 32];
+    const c = ch.charCodeAt(0), raw = sz.glyphs[(c >= 32 && c <= 126 ? c : 63) - 32];
+    const s = smooth ? smooth1x(name, raw, sz.w, sz.h) : raw;
     for (let y = 0; y < sz.h; y++) for (let x = 0; x < sz.w; x++) {
       const sum = s.charCodeAt(y * sz.w + x) - 97;
-      if (sum > 0) b.px[y * b.w + i * cw + x] = sizeIdx === 0 ? sum / 16 : sharpen(sum / 16, k);
+      if (sum > 0) b.px[y * b.w + i * cw + x] = sizeIdx === 0 && !smooth ? sum / 16 : sharpen(sum / 16, k);
     }
   });
   return b;
@@ -109,17 +138,17 @@ function build() {
   const s = +$('size').value, H = +$('height').value, k = +$('sharp').value, gap = +$('gap').value;
   const sizeIdx = ['1', '1.25', '1.5', '2'].indexOf($('size').value);
   let b, note = '';
-  if (face.startsWith('bdf:')) { b = renderBaked(face.slice(4), sizeIdx, text, gap, k);
+  if (face.startsWith('bdf:')) { b = renderBaked(face.slice(4), sizeIdx, text, gap, k, sizeIdx === 0 && $('aa7').checked);
     note = 'Pixel font: public domain (the classic X11 "fixed" fonts). 1x is exactly as drawn; bigger sizes are smoothed (anti-aliased).'; }
-  else if (face === 'tiny') { b = renderBaked('tiny', sizeIdx, text, gap, k); note = '3x5: drawn fresh for ledkit. Capitals and digits only (lower case shows as capitals).'; }
+  else if (face === 'tiny') { b = renderBaked('tiny', sizeIdx, text, gap, k, sizeIdx === 0 && $('aa7').checked); note = '3x5: drawn fresh for ledkit. Capitals and digits only (lower case shows as capitals).'; }
   else if (face === 'seg14') { b = renderSeg14(text, H, $('aa7').checked, k); note = '14-segment: like an alarm-clock display but with diagonal and centre bars, so every capital letter and digit has a shape (lower case shows as capitals). Drawn by code at any height; needs about 12+ LEDs tall to read well.'; }
   else if (face.startsWith('seg7')) { b = renderSeg(text, H, face === 'seg7r', $('aa7').checked, k); note = '7-segment: drawn by code at any height, no font data. Digits plus the usual 7-segment letters (some only as lower case: b d h n o r t u); K M V W X have no 7-segment form.'; }
   textBmp = b;
   // Only show the controls that matter for this face and mode.
   const pixelFace = face.startsWith('bdf:') || face === 'tiny', seg = face.startsWith('seg');
   const show = (id, on) => $(id).classList.toggle('hide', !on);
-  show('r-size', pixelFace); show('r-height', seg); show('r-aa7', seg); show('r-gap', pixelFace);
-  show('r-sharp', (pixelFace && s > 1) || (seg && $('aa7').checked));
+  show('r-size', pixelFace); show('r-height', seg); show('r-aa7', seg || (pixelFace && s === 1)); show('r-gap', pixelFace);
+  show('r-sharp', (pixelFace && (s > 1 || $('aa7').checked)) || (seg && $('aa7').checked));
   $('note').textContent = note + `  Text is ${b.w} x ${b.h} LEDs.`;
 }
 

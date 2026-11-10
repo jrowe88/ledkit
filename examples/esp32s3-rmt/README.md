@@ -5,8 +5,9 @@ product 5477) with `ledkit-core` and `ledkit-esp`. The NeoPixel's data pin (GPIO
 fed by the chip's RMT peripheral, which makes the precisely timed pulses a NeoPixel
 needs, in hardware.
 
-> **Pending hardware test.** This example builds in CI, but it has not been run on a
-> real ESP32-S3 yet. If you try it, please report what you see.
+> **Passes on hardware** (2026-11-09, Adafruit ESP32-S3 Feather 4 MB flash / 2 MB
+> PSRAM, product 5477, chip revision v0.2): colors in order, the back-to-back frames end
+> blue, and a smooth rainbow. If you try it on other hardware, please report what you see.
 
 ## What you'll see
 

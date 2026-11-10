@@ -191,6 +191,9 @@
 //! through the `esp32c6-matrix` example: the wiring finder, the shapes and the
 //! scrolling text all came out right with
 //! `MatrixLayout::new(8, 8).columns_first().starting_at(Corner::BottomLeft)`.
+//! The same layout passed on an Adafruit ESP32-S3 Feather (`esp32s3-matrix`,
+//! 2026-11-09). Held a quarter turn clockwise, with the words printed on the
+//! panel reading upright, the panel fits the default `MatrixLayout::new(8, 8)`.
 
 #![cfg_attr(not(test), no_std)]
 

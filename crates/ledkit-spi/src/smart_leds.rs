@@ -145,7 +145,8 @@ mod tests {
             .unwrap();
         let (bus_a, bus_b) = (a.release().0, b.release().0);
         assert_eq!(bus_a.bytes, bus_b.bytes);
-        assert_eq!((bus_a.writes, bus_a.flushes), (1, 1));
+        // The first frame's reset gap, then the frame.
+        assert_eq!((bus_a.writes, bus_a.flushes), (2, 1));
     }
 
     #[test]
@@ -198,7 +199,7 @@ mod tests {
         embassy_futures::block_on(SmartLedsWriteAsync::write(&mut a, colors)).unwrap();
         let (bus, _) = a.release();
         assert_eq!(bus.bytes, blocking.release().0.bytes);
-        assert_eq!((bus.writes, bus.flushes), (1, 1));
+        assert_eq!((bus.writes, bus.flushes), (2, 1));
 
         let mut rgbw = clockless::<Sk6812Rgbw, _>(FakeAsyncBus::default(), 256);
         let c = RGBW {
@@ -231,6 +232,11 @@ mod tests {
         let mut whole = clockless::<Ws2812b, _>(FakeBus::default(), 512);
         SmartLedsWrite::write(&mut whole, colors.clone()).unwrap();
         let whole = whole.release().0;
+        // The first frame starts with a reset gap, written on its own.
+        let gap = ledkit_core::ClocklessTiming::of::<Ws2812b>()
+            .spi_encoding_byte_aligned(HZ)
+            .unwrap()
+            .reset_bytes as usize;
 
         let mut chunked = clockless::<Ws2812b, _>(FakeBus::default(), 512).with_max_write_len(50);
         SmartLedsWrite::write(&mut chunked, colors.clone()).unwrap();
@@ -238,7 +244,7 @@ mod tests {
         assert_eq!(bus.bytes, whole.bytes);
         assert_eq!(
             (bus.writes, bus.flushes),
-            (whole.bytes.len().div_ceil(50), 1)
+            (gap.div_ceil(50) + (whole.bytes.len() - gap).div_ceil(50), 1)
         );
 
         let mut a = clockless::<Ws2812b, _>(FakeAsyncBus::default(), 512).with_max_write_len(50);
@@ -247,7 +253,7 @@ mod tests {
         assert_eq!(bus.bytes, whole.bytes);
         assert_eq!(
             (bus.writes, bus.flushes),
-            (whole.bytes.len().div_ceil(50), 1)
+            (gap.div_ceil(50) + (whole.bytes.len() - gap).div_ceil(50), 1)
         );
     }
 

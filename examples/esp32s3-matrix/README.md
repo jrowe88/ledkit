@@ -7,9 +7,9 @@ RMT peripheral, which makes the precisely timed pulses the LEDs need, in hardwar
 and its `embedded-graphics` feature lets you draw text and shapes with the usual
 `embedded-graphics` tools.
 
-> **Pending hardware test.** This example builds in CI, but it has not been run on a
-> real ESP32-S3 yet. It is a port of the tested `esp32c6-matrix` example. If you try it,
-> please report what you see.
+> **Passes on hardware** (2026-11-09, Adafruit ESP32-S3 Feather, Adafruit NeoPixel
+> 8×8): the wiring finder, the shapes and the scrolling text. If you try it on other
+> hardware, please report what you see.
 
 ## What you'll see
 
@@ -26,7 +26,10 @@ The settings at the top of `src/main.rs` are defaults for a generic panel (8 by 
 `Ws2812b`, progressive, rows first, starting top-left). Set `WIDTH`, `HEIGHT`,
 `LedType` and the wiring to match your panel. The tested Adafruit NeoPixel 8×8, held
 with its data-in pin at the bottom left, is
-`MatrixLayout::new(8, 8).columns_first().starting_at(Corner::BottomLeft)`. An 8-row panel fits the 5×8 font exactly; below 8 rows the text is clipped.
+`MatrixLayout::new(8, 8).columns_first().starting_at(Corner::BottomLeft)`. Held the
+other way, with the words printed on the panel reading upright (a quarter turn
+clockwise, data-in at the top left), the default layout fits as it is. An 8-row panel
+fits the 5×8 font exactly; below 8 rows the text is clipped.
 
 ## Wiring
 

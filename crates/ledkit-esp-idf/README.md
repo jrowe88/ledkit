@@ -123,6 +123,7 @@ not yet released).
 | ESP32-C6 dev kit (chip rev v0.2), 2026-10-30 | the onboard LED, slow rainbow | flickered with dithering on (20% brightness, about 45 frames a second), steady with it off; the example now turns it off, see its troubleshooting |
 | ESP32-C6, the pulse project (first consumer) | its status LED | pass (2026-10-30): breathes as before after pulse raised its own minimum brightness |
 | ESP32-C6 dev kit, 2026-10-31 | WS2812-type strip, 100 LEDs, through a 74AHCT125 | runs after the padding fix below: frames of every length from 1 to 150 LEDs, then colors, a counting pattern and a rainbow on 100 LEDs, with no crash, and all 100 LEDs look right. Before the fix, every frame of 4 or more LEDs whose bit count was a multiple of 48 crashed |
+| Adafruit ESP32-S3 Feather (chip rev v0.2, ESP-IDF v5.5.3), 2026-11-09 | WS2812B strip, 100 LEDs, data straight from GPIO5 on a 4.3 V supply | pass (`examples/esp32s3-esp-idf`): `new` and `new_with_dma`, each with Wi-Fi off and with Wi-Fi scanning nonstop: colors, back-to-back frames, counting, a rainbow, and every frame length from 1 to 150 LEDs with no panic |
 
 The example is `examples/esp32c6-esp-idf` in the repository. If you try it on your
 hardware, please report what you see.

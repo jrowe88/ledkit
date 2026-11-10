@@ -6,8 +6,10 @@ refilling it from an interrupt, and with the RMT reading the frame through DMA
 (`RmtOutput::new_with_dma`, which only the S3 and P4 have). Then it repeats both with the
 Wi-Fi radio busy.
 
-> **Pending hardware test.** This example builds in CI, but it has not been run on a
-> real ESP32-S3 yet. If you try it, please report what you see, round by round.
+> **Passes on hardware** (2026-11-09, Adafruit ESP32-S3 Feather, a 100-LED WS2812B
+> strip): all four rounds, RMT with and without DMA, with Wi-Fi off and scanning
+> nonstop, and every sweep from 1 to 150 LEDs with no panic. If you try it on other
+> hardware, please report what you see, round by round.
 
 ## What you'll see
 

@@ -4,8 +4,10 @@ Drives one WS2812B ("NeoPixel") strip from an Adafruit ESP32-S3 Feather every wa
 esp-hal can make the pulses, one after another, on the same pin. It's for checking
 ledkit on the S3, and for comparing the ways side by side.
 
-> **Pending hardware test.** This example builds in CI, but it has not been run on a
-> real ESP32-S3 yet. If you try it, please report what you see, round by round.
+> **Passes on hardware** (2026-11-09, Adafruit ESP32-S3 Feather, a 100-LED WS2812B
+> strip): all seven rounds and the sweep. The SPI rounds found a bug, now fixed; see
+> "Status" at the end. If you try it on other hardware, please report what you see,
+> round by round.
 
 ## What you'll see
 
@@ -108,3 +110,23 @@ At the top of `src/main.rs`: `LED_COUNT` (100), `SWEEP_MAX` (150), `LedType`
   breadboard contact, a missing ground, no level shifter).
 - **Round 4 or 5 panics at start-up**: the DMA buffer must hold the whole frame
   (`SPI_DMA_LEN`); with many more LEDs it may not fit in RAM.
+
+## Status
+
+**Pass** (2026-11-09) on an Adafruit ESP32-S3 Feather (product 5477, chip revision
+v0.2) with a 100-LED WS2812B strip on a 4.3 V bench supply, its data straight from
+GPIO5 (3.3 V, no level shifter; at 4.3 V a WS2812B reads 3.0 V and up as high):
+
+- Rounds 1 to 7 (RMT blocking and async, SPI `new` at 3.2 MHz, SPI with DMA blocking
+  and async, UART blocking and async): colors right through to LED 99, the
+  back-to-back frames end blue, the counting marks on LEDs 0, 10 … 90 and 99, and a
+  smooth rainbow.
+- The sweep: a clean blue bar from 1 to 150 LEDs.
+
+The first run found a bug in `ledkit-spi`: in rounds 3 and 4, the first red frame
+showed LED 0 green for a second. The S3's SPI holds its data pin high from set-up
+until its first transfer (GPIO5 read high 1000 times out of 1000 just before the
+first frame, low after it). The strip read that high as one extra bit, which moved
+the whole first frame by a bit and put green into LED 0. Round 5 reuses round 4's
+bus, so its pin was already low. `ClocklessSpi` now starts its first frame with a
+reset gap, and the rerun was clean in every round.

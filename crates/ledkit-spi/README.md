@@ -92,8 +92,15 @@ let output = ClocklessSpi::<Ws2812b, _, _>::new(
 let mut strip = Strip::<Ws2812b, LED_COUNT, _>::new(output);
 strip.fill(Color::BLUE);
 strip.show().unwrap();
+let after_first = strip.output().bus().0;
+strip.show().unwrap();
 
-assert_eq!(strip.output().bus().0, buffer_len::<Ws2812b>(LED_COUNT, SPI_HZ));
+// The first frame starts with a reset gap; every frame after it is
+// exactly the buffer.
+assert_eq!(
+    strip.output().bus().0 - after_first,
+    buffer_len::<Ws2812b>(LED_COUNT, SPI_HZ)
+);
 ```
 
 ## Coming from `smart-leds`?
@@ -201,8 +208,11 @@ the channels wide (at 10%, a level of 2 out of 31 with channels up to about
 47), so dim colors stay smooth and true. Above about half brightness it
 sends the same bytes as plain dimming. Plain dimming would leave each
 channel only 0 to 3 at 10%, and soft colors would round to off. HD
-also lights LEDs that ignore very short pulses: on an Adafruit DotStar HD
-8×8, 10% is dark without HD and lit with it, as tested on an ESP32-C6.
+also lights LEDs that put their own curve on the color values: the
+APA102-2020s of an Adafruit DotStar HD 8×8 draw about (color / 255)^2.6 of
+full current (measured on an ESP32-S3) but follow the 5-bit level almost in
+a straight line, so 10% is dark without HD and lit with it. At low 5-bit
+levels their white turns a little bluish.
 The `esp32c6-dotstar-hd` example shows the two side by side.
 
 The APA102 makes its 5-bit level with a slow flicker, which some cameras
@@ -230,6 +240,8 @@ strip.set_hd_brightness(false);
 | Seeed XIAO nRF52840 (SPIM3, 1 to 32 MHz, embassy-nrf) | DotStar HD 8×8 (APA102-2020, 64 LEDs), through a 74AHCT125 | ✅ pass (2026-11-08): colors and counting clean at every clock up to 32 MHz, async at 8 MHz, and HD brightness down to 5 % |
 | Feather RP2040 SCORPIO (rp2040-hal SPI0, data GPIO19 / clock GPIO18 through the board's 5 V outputs) | DotStar HD 8×8 (APA102-2020, 64 LEDs) | ✅ pass (2026-11-08), `examples/rp2040-pio` round 5: colors, back to back, counting and a rainbow at 4 MHz, then the counting pattern clean at every step of a 1 to 32 MHz sweep (the RP2040 makes 31.25 MHz for 32) |
 | Raspberry Pi Pico 2 W (RP2350, Arm and RISC-V cores; rp235x-hal SPI0, data GPIO19 / clock GPIO18 through a 74AHCT125) | DotStar HD 8×8 (APA102-2020, 64 LEDs) | ✅ pass (2026-11-09), `examples/rp2350-pio` round 5: the pattern at 4 MHz, then the counting pattern clean at every step of the 1 to 32 MHz sweep, on both core types |
+| Adafruit ESP32-S3 Feather (SPI2, esp-hal) | WS2812B strip, 100 LEDs, data straight from GPIO5 on a 4.3 V supply | ✅ pass (2026-11-09), `examples/esp32s3-check` rounds 3 to 5: `new` at 3.2 MHz, and `new_packed` at 4 MHz with DMA, blocking and async. The first run showed LED 0 green on the first frame after setting up the bus: the S3's SPI holds its data pin high until its first transfer, and the strip read that as an extra bit. Fixed by starting the first frame with a reset gap |
+| Adafruit ESP32-S3 Feather (SPI2, 4 MHz) | DotStar HD 8×8 (APA102-2020, 64 LEDs) | ✅ pass (2026-11-09), `examples/esp32s3-dotstar-hd`: HD and plain side by side, as on the ESP32-C6 |
 | other boards (`ClockedSpi`) | | untested on hardware |
 
 Everything else is covered by host tests with a pretend SPI bus. Examples

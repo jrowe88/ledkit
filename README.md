@@ -124,6 +124,8 @@ and wiring, setup and troubleshooting in its README.
 | ESP32-S3 Feather, a strip every way: RMT, SPI ± DMA, UART | `ledkit-esp` + `ledkit-spi` + `ledkit-uart` | [esp32s3-check](examples/esp32s3-check) | ✅ on hardware (100-LED strip, all seven rounds) |
 | ESP32-S3 Feather with ESP-IDF: RMT ± DMA, with Wi-Fi | `ledkit-esp-idf` | [esp32s3-esp-idf](examples/esp32s3-esp-idf) | ✅ on hardware (with and without Wi-Fi) |
 | ESP32-S3: matrix, animations, DotStar HD | as the C6 versions | [esp32s3-matrix](examples/esp32s3-matrix), [esp32s3-anim](examples/esp32s3-anim), [esp32s3-dotstar-hd](examples/esp32s3-dotstar-hd) | ✅ on hardware |
+| Text tour on an 8x8 DotStar, ESP32-S3 | `ledkit-text` + `ledkit-spi` | [esp32s3-text](examples/esp32s3-text) | ✅ on hardware |
+| Text tour on an 8x8 DotStar, Pico 2 W | `ledkit-text` + `ledkit-spi` | [rp2350-text](examples/rp2350-text) | builds |
 | Raspberry Pi Pico | `ledkit-rp` | | 🔜 coming soon |
 
 ## Get started

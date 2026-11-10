@@ -149,5 +149,7 @@ nothing.
 - On your computer, in the terminal: in `examples/anim-preview`, run
   `cargo run -- text "Hello" --font 7seg` for a ticker, or `cargo run -- clock` for a
   date and a 7-segment time. `cargo run -- list` shows the font names.
-- On a board: `examples/esp32c6-text` scrolls a ticker on an 8x8 matrix (not yet tested
+- On a board: `examples/esp32s3-text` (tested on hardware) and `examples/rp2350-text` tour
+  every font that fits an 8x8 DotStar panel, with outlines, backgrounds and effects.
+- `examples/esp32c6-text` scrolls a ticker on an 8x8 matrix (not yet tested
   on hardware).

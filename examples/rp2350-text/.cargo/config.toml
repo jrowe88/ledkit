@@ -1,0 +1,24 @@
+# Build for the RP2350's Arm cores by default. For the RISC-V cores:
+#   cargo build --release --target riscv32imac-unknown-none-elf
+[build]
+target = "thumbv8m.main-none-eabihf"
+
+# The Arm Cortex-M33 cores (hard float). cortex-m-rt's link.x loads memory.x.
+[target.thumbv8m.main-none-eabihf]
+rustflags = [
+    "-C", "link-arg=--nmagic",
+    "-C", "link-arg=-Tlink.x",
+    "-C", "target-cpu=cortex-m33",
+]
+# Hold BOOTSEL while plugging in the board, then `cargo run --release`.
+# picotool turns the ELF into a UF2 with the right RP2350 family ID and loads it.
+runner = "picotool load -u -v -x -t elf"
+
+# The Hazard3 RISC-V cores. rp235x_riscv.x adds what the RP2350 needs and then
+# includes riscv-rt's link.x.
+[target.riscv32imac-unknown-none-elf]
+rustflags = [
+    "-C", "link-arg=--nmagic",
+    "-C", "link-arg=-Trp235x_riscv.x",
+]
+runner = "picotool load -u -v -x -t elf"

@@ -21,7 +21,7 @@ README's "Tested on hardware" table, not here.
 | – | `ledkit-uart`: NeoPixels from a serial port | ✅ passes on the ESP32-C6 and Teensy 4 (blocking, async and DMA) |
 | 6 | `ledkit-layout`: matrices, `Canvas`, segments, `embedded-graphics` | ✅ passes on an Adafruit NeoPixel 8×8 |
 | 7 | `ledkit-anim`: the `Animation` trait, 16 effects, combinators, palettes | ✅ passes on the 8×8 and a 100-LED strip (C6, Teensy 4, S3) |
-| 7b | `ledkit-text`: X11 bitmap fonts, a Tiny 3×5, 7- and 14-segment faces at any height, stencil colours, text areas and a ticker | ✅ built and host-tested; hardware check pending |
+| 7b | `ledkit-text`: X11 bitmap fonts, a Tiny 3×5, 7- and 14-segment faces at any height, stencil colours, text areas and a ticker | ✅ built and host-tested; the 8×8 text tour runs on the ESP32-S3 |
 | 8 | "Just works" packaging: the `ledkit` facade + prelude, `cargo generate` board templates, the numbered example ladder, an mdBook guide with photos, `llms.txt` | not started |
 | 9 | Release 0.1: publish to crates.io in dependency order, docs.rs config, the guide on GitHub Pages | not started |
 | 10 | Phase 1.5: `ledkit-sim` desktop simulator, a Claude Code plugin, remaining effects | not started |
@@ -91,7 +91,8 @@ and 6.4 MHz, and RGBW byte order.
 
 ### Text
 
-- A hardware check by the owner: `examples/esp32c6-text` (the 8×8 ticker).
+- Hardware checks still to do: `examples/esp32c6-text` (the 8×8 ticker) and `examples/rp2350-text`.
+- Smoothing at 1x (the preview page's "smoothed 1x") isn't in the crate yet.
 - On-target timing for 192×64: how long one frame takes on a real chip.
 - The preview running the real crate compiled to WebAssembly, so it can't drift. Today the
   bitmap faces use the crate's generated tables, but the 7- and 14-segment faces are a

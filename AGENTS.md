@@ -6,7 +6,7 @@ An Adafruit-quality family of Rust crates for addressable LEDs (strips, rings
 and matrices), aimed at hobbyists with roughly Arduino-level experience. It
 should "just work": low friction, low research, learn by doing. It works
 alongside the existing ecosystem (`smart-leds`, per-chip drivers) rather than
-replacing it. The design lives in `docs/superpowers/specs/`.
+replacing it. Start with `docs/roadmap.md` (status and open work) and `docs/specs/` (design).
 
 ## Crate map
 
@@ -18,6 +18,7 @@ replacing it. The design lives in `docs/superpowers/specs/`.
 | `ledkit-layout` | Segments, matrices, coordinate mapping, `embedded-graphics` | `ledkit-core` |
 | `ledkit-anim` | `Animation` trait, effects, combinators | `ledkit-color`, `ledkit-layout`, `ledkit-core` |
 | `ledkit-spi` | Backend over `embedded-hal` 1.0 SPI | `ledkit-core` |
+| `ledkit-uart` | Backend over a serial port (`embedded-io`, inverted 8N1, 2 LED bits per byte) | `ledkit-core` |
 | `ledkit-esp` | ESP32 RMT backend (esp-hal, `no_std`) | `ledkit-core`, `esp-hal` |
 | `ledkit-esp-idf` | ESP32 RMT backend (esp-idf-hal, `std`) | `ledkit-core`, `esp-idf-hal` |
 | `ledkit-rp` | RP2040/RP2350 PIO backend (`no_std`; processor-fed and DMA-fed, blocking and async) | `ledkit-core`, `rp2040-hal` or `rp235x-hal` |
@@ -65,3 +66,38 @@ Rule: a backend implements `Output` (and/or `OutputAsync`) using the `wire` and 
   `cargo fmt --all -- --check`, `cargo clippy --workspace --all-features --all-targets -- -D warnings`,
   and the `no_std` builds for `thumbv6m-none-eabi` and `riscv32imc-unknown-none-elf`.
 - Never copy code from LGPL/EUPL projects. MIT/Apache sources may be used with attribution in `NOTICE`.
+
+## Docs: what lives where
+
+- `docs/roadmap.md`: the single status page. Milestone status, decisions worth
+  remembering, and the open follow-ups. Update it in the same PR as the work.
+- `docs/specs/<crate>.md`: design decisions, one file per crate or big feature. Keep them
+  when the work ships; edit them if the design changes.
+- `docs/hardware/`: `test-plan.md` (the T1–T11 checks and per-board sheets),
+  `findings.md` (board quirks and bugs real hardware found: the *why*), and
+  `power-measurements.md` (bench data).
+- Hardware pass/fail: each crate README's "Tested on hardware" table (mirrored in its
+  `lib.rs` docs) and each example README's status line.
+- Implementation plans are working documents. Keep them in `docs/superpowers/` (git-ignored)
+  and don't commit them: once the work merges, the code, the spec and the roadmap are the
+  record.
+- Session notes, hand-overs and measurements kept outside the repo get lost. Anything a
+  later session needs goes into one of the files above.
+
+## Hardware testing
+
+- The owner tests by eye on a bench (the strips and panels are listed in
+  `docs/hardware/findings.md`). Agents build and flash; the owner reports what the LEDs do.
+- Flashing: ESP boards with `espflash` (`cargo run --release` in the example); RP boards in
+  BOOTSEL with `cargo run --release` (picotool), or copy the UF2; the XIAO nRF52840 by
+  double-tapping RESET and copying the UF2.
+- Record every result as described under "Recording results" in
+  `docs/hardware/test-plan.md`.
+
+## Git workflow
+
+- Work on a branch and merge through a PR once CI passes. Delete the branch (locally and
+  on GitHub) once it's merged.
+- One branch per piece of work. Parallel work goes in its own git worktree; remove the
+  worktree when its branch merges.
+- Never leave finished work only on a local branch: push it and open a PR, even as a draft.

@@ -15,7 +15,7 @@ cargo build -p ledkit-core --all-features --target thumbv6m-none-eabi
 cargo build -p ledkit-core --all-features --target riscv32imc-unknown-none-elf
 ```
 
-`ledkit-esp` and `ledkit-esp-idf` are outside the workspace and only build for an ESP32 target. Check them through their examples (`examples/esp32c6-rmt`, `examples/esp32c6-esp-idf`; see AGENTS.md and CI) with `cargo build --release` and `cargo clippy -- -D warnings` in the example's folder.
+`ledkit-esp`, `ledkit-esp-idf`, `ledkit-rp` and `ledkit-nrf` are outside the workspace and only build for their chips' targets. Check them through their examples (for example `examples/esp32c6-rmt`, `examples/rp2350-pio`, `examples/nrf52840-pwm`; see AGENTS.md and CI) with `cargo build --release` and `cargo clippy -- -D warnings` in the example's folder.
 
 The embedded targets come from `rustup target add thumbv6m-none-eabi riscv32imc-unknown-none-elf`.
 See [AGENTS.md](AGENTS.md) for the code conventions.

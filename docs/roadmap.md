@@ -45,6 +45,20 @@ README's "Tested on hardware" table, not here.
 
 ## Open follow-ups
 
+### Release 0.1 (milestone 9)
+
+- All 13 `ledkit*` names were free on crates.io (checked 2026-11-10), and
+  `cargo publish --workspace --dry-run` passes for the seven workspace crates.
+- Order: `cargo publish --workspace` (color, core, layout, spi, uart, anim, text); then
+  `ledkit-esp`, `ledkit-esp-idf`, `ledkit-rp` and `ledkit-nrf` from their folders (they
+  can't be packaged until `ledkit-core` is on crates.io); then the `ledkit` facade.
+  crates.io rate-limits new crate names, so expect a pause partway through.
+- Then: tag `v0.1.0`, switch the README's "depend on it from git" note to `cargo add ledkit`,
+  and check each docs.rs page. `ledkit-esp-idf`'s docs build needs the ESP-IDF tooling and
+  may fail on docs.rs.
+- README photos: the placeholder gallery was dropped (2026-11-10); add real bench photos
+  or GIFs when there are good ones (`assets/README.md` has tips).
+
 ### Brightness and power (next up)
 
 - A per-chip (or per-strip) LED response model, so the brightness curve and the power
@@ -91,7 +105,8 @@ and 6.4 MHz, and RGBW byte order.
 
 ### Text
 
-- Hardware checks still to do: `examples/esp32c6-text` (the 8×8 ticker) and `examples/rp2350-text`.
+- Hardware check still to do: `examples/esp32c6-text` (the 8×8 ticker). `examples/rp2350-text`
+  builds but won't be run on a board (the same tour passed on the ESP32-S3).
 - Smoothing at 1x (the preview page's "smoothed 1x") isn't in the crate yet.
 - On-target timing for 192×64: how long one frame takes on a real chip.
 - The preview running the real crate compiled to WebAssembly, so it can't drift. Today the

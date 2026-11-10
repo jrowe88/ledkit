@@ -10,17 +10,13 @@ and ledkit handles the timing, color order, brightness and power.
 [![CI](https://github.com/jrowe88/ledkit/actions/workflows/ci.yml/badge.svg)](https://github.com/jrowe88/ledkit/actions/workflows/ci.yml)
 ![no_std](https://img.shields.io/badge/no__std-yes-informational)
 ![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue)
-![Boards](https://img.shields.io/badge/boards-ESP32%20%C2%B7%20Raspberry%20Pi%20%C2%B7%20Teensy%20%C2%B7%20any%20SPI-orange)
+![Boards](https://img.shields.io/badge/boards-ESP32%20%C2%B7%20Pico%20%C2%B7%20nRF52%20%C2%B7%20Raspberry%20Pi%20%C2%B7%20Teensy%20%C2%B7%20any%20SPI-orange)
 
 **[Get started](#get-started)** · **[Examples](#pick-your-board)** · **[Supported LEDs](crates/ledkit-core/README.md#which-chip-type-do-i-use)** · **[Roadmap](docs/roadmap.md)**
 
 </div>
 
 ## Light up in a dozen lines
-
-<table>
-<tr>
-<td width="56%">
 
 ```rust
 use ledkit_core::prelude::*;
@@ -39,15 +35,6 @@ strip.set_power_limit(Milliamps(1500)); // caps the LEDs' estimated current, not
 strip.fill(Color::BLUE);
 strip.show()?;
 ```
-
-</td>
-<td>
-
-<img src="assets/first-light.svg" alt="Placeholder for a photo of the ESP32-C6 DevKit lit up" width="100%">
-
-</td>
-</tr>
-</table>
 
 ## Why ledkit
 
@@ -86,8 +73,9 @@ fails to compile with a clear message.
 <td valign="top">
 
 **One API, many boards**<br>
-ESP32 (esp-hal or ESP-IDF), Raspberry Pi, Teensy 4, or anything with an
-`embedded-hal` SPI bus or an `embedded-io` serial port.
+ESP32 (esp-hal or ESP-IDF), Raspberry Pi Pico (RP2040/RP2350), nRF52840,
+Raspberry Pi, Teensy 4, or anything with an `embedded-hal` SPI bus or an
+`embedded-io` serial port.
 
 </td>
 <td valign="top">
@@ -126,7 +114,11 @@ and wiring, setup and troubleshooting in its README.
 | ESP32-S3: matrix, animations, DotStar HD | as the C6 versions | [esp32s3-matrix](examples/esp32s3-matrix), [esp32s3-anim](examples/esp32s3-anim), [esp32s3-dotstar-hd](examples/esp32s3-dotstar-hd) | ✅ on hardware |
 | Text tour on an 8x8 DotStar, ESP32-S3 | `ledkit-text` + `ledkit-spi` | [esp32s3-text](examples/esp32s3-text) | ✅ on hardware |
 | Text tour on an 8x8 DotStar, Pico 2 W | `ledkit-text` + `ledkit-spi` | [rp2350-text](examples/rp2350-text) | builds |
-| Raspberry Pi Pico | `ledkit-rp` | | 🔜 coming soon |
+| Raspberry Pi Pico / Feather RP2040, PIO every way (± DMA, async), plus DotStars | `ledkit-rp` + `ledkit-spi` | [rp2040-pio](examples/rp2040-pio) | ✅ on hardware |
+| Pico 2 W (RP2350, Arm and RISC-V cores), PIO every way, plus DotStars | `ledkit-rp` + `ledkit-spi` | [rp2350-pio](examples/rp2350-pio) | ✅ on hardware |
+| nRF52840 (XIAO), PWM + EasyDMA, blocking and async | `ledkit-nrf` | [nrf52840-pwm](examples/nrf52840-pwm) | ✅ on hardware |
+| nRF52840 (XIAO), NeoPixels or DotStars over SPI | `ledkit-spi` | [nrf52840-spi](examples/nrf52840-spi), [nrf52840-dotstar](examples/nrf52840-dotstar) | ✅ on hardware |
+| Scrolling text on an 8x8 NeoPixel matrix, ESP32-C6 | `ledkit-text` + `ledkit-esp` | [esp32c6-text](examples/esp32c6-text) | builds |
 
 ## Get started
 
@@ -141,16 +133,6 @@ and wiring, setup and troubleshooting in its README.
 ledkit isn't on crates.io yet, so for now depend on it from git or a local
 checkout, as the examples do.
 
-## Gallery
-
-<table>
-<tr>
-<td width="33%"><img src="assets/gallery-ring.svg" alt="Placeholder: a ring spinning a comet" width="100%"></td>
-<td width="33%"><img src="assets/gallery-matrix.svg" alt="Placeholder: a matrix scrolling text" width="100%"></td>
-<td width="33%"><img src="assets/gallery-wiring.svg" alt="Placeholder: Teensy 4 and a level shifter on a breadboard" width="100%"></td>
-</tr>
-</table>
-
 ## The crates
 
 | Crate | What it does | Status |
@@ -164,23 +146,22 @@ checkout, as the examples do.
 | `ledkit-layout` | Segments, matrices, text and shapes | ✅ available |
 | `ledkit-anim` | Effects (rainbow, comet, flames, swirl, …) and ways to combine them | ✅ available |
 | `ledkit-text` | Fonts (X11 sizes, tiny, 7-segment, 14-segment), text areas and a scrolling ticker | ✅ available |
-| `ledkit-rp` | Raspberry Pi Pico (RP2040/RP2350) PIO driver | 🔜 planned |
-| `ledkit` | One crate to add, with everything re-exported | 🔜 planned |
+| `ledkit-rp` | Raspberry Pi Pico (RP2040/RP2350) PIO driver, processor- or DMA-fed, blocking or async | ✅ available |
+| `ledkit-nrf` | nRF52840 PWM + EasyDMA driver, blocking or async | ✅ available |
+| `ledkit` | One crate to add, with everything re-exported | 🚧 in progress |
 | `ledkit-sim` | A desktop simulator, to try effects without hardware | 🔜 planned |
 
 "Available" means it works and is tested, but isn't published to crates.io yet.
 
 ## Status and roadmap
 
-ledkit is young. The core, the SPI driver, both ESP32 drivers and the matrix
-layer (`ledkit-layout`: matrices, text and shapes) work and are tested on real
-hardware. Effects (`ledkit-anim`) are tested on the host and on an 8x8 matrix.
-Text (`ledkit-text`: fonts, text areas and a scrolling ticker) is built and tested on
-the host; see its [README](crates/ledkit-text/README.md), and try the fonts in the
-[text preview](https://jrowe88.github.io/ledkit/text-preview/). It hasn't run on real
-LEDs yet. Next up: LED brightness and power models measured on real LEDs, then the
-`ledkit` facade. See the [roadmap](docs/roadmap.md)
-for the details.
+ledkit is young, but every crate above marked available works and is tested on real
+hardware: the core, the SPI and serial drivers, both ESP32 drivers, the Pico PIO
+driver, the nRF52840 driver, matrices (`ledkit-layout`), effects (`ledkit-anim`, on an
+8x8 matrix and a 100-LED strip) and text (`ledkit-text`, on an 8x8 DotStar; try the
+fonts in the [text preview](https://jrowe88.github.io/ledkit/text-preview/)). Next up:
+the `ledkit` crate, then the first release on crates.io. See the
+[roadmap](docs/roadmap.md) for the details.
 
 Want to help? [CONTRIBUTING.md](CONTRIBUTING.md) has short guides to adding an
 LED type, a new board, a panel preset or an effect.

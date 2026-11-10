@@ -1,0 +1,10 @@
+ledkit-text
+Copyright (c) 2026 Jim Rowe
+
+Attributions
+============
+
+- X11 misc-fixed bitmap fonts (public domain, X.Org misc-misc, Markus Kuhn and others):
+  the bitmap data in `src/faces/data`, converted from `assets/fonts/x11-misc-fixed`
+  in the ledkit repository by `tools/fontgen.py`.
+- The Tiny 3x5, 7-segment and 14-segment faces are original to ledkit.

@@ -5,9 +5,10 @@ Runs `ledkit-anim` effects on a WS2812-style 8x8 matrix or strip, with
 the chip's RMT peripheral, which makes the precisely timed pulses the LEDs need, in
 hardware.
 
-> **Pending hardware test.** This example builds in CI, but it has not been run on a
-> real ESP32-S3 yet. It is a port of the tested `esp32c6-anim` example. If you try it,
-> please report what you see.
+> **Passes on hardware** (2026-11-09, Adafruit ESP32-S3 Feather): both shows, the
+> matrix one on an Adafruit NeoPixel 8×8 and the strip one on a 100-LED WS2812B strip,
+> each animation and transition smooth and the right way up. If you try it on other
+> hardware, please report what you see.
 
 ## What you'll see
 

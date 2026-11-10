@@ -6,13 +6,13 @@ come from the chip's SPI peripheral, through a level shifter.
 
 A DotStar can dim in two ways: with its 8-bit colors, or with a 5-bit "global" level
 that each LED also takes. Plain dimming lowers only the colors, so a dim color has
-only a few steps left, and on some DotStars the shortest color pulses hardly light at
-all. HD brightness, ledkit's default for DotStars, lowers the 5-bit level as well and
+only a few steps left, and on some DotStars low color values give far less light than
+their number says. HD brightness, ledkit's default for DotStars, lowers the 5-bit level as well and
 keeps the colors high, so dim colors keep their steps and really light up.
 
-> **Pending hardware test.** This example builds in CI, but it has not been run on a
-> real ESP32-S3 yet. It is a port of the tested `esp32c6-dotstar-hd` example. If you try it,
-> please report what you see.
+> **Passes on hardware** (2026-11-09, Adafruit ESP32-S3 Feather, Adafruit DotStar HD
+> 8x8): the steps and the sweep look as on the ESP32-C6 (the table below). If you try it
+> on other hardware, please report what you see.
 
 ## What you'll see
 
@@ -32,9 +32,10 @@ The program repeats forever:
    along: it lights one LED for each step's brightness the sweep has passed, so you
    can match the sweep to the steps.
 
-## What we saw (on the ESP32-C6)
+## What we saw
 
-On the ESP32-C6 version of this example, with the Adafruit DotStar HD 8x8:
+On the ESP32-C6 version of this example, with the Adafruit DotStar HD 8x8 (the
+ESP32-S3 showed the same):
 
 | Step | Brightness | HD row | Plain row |
 |---|---|---|---|
@@ -47,12 +48,15 @@ On the ESP32-C6 version of this example, with the Adafruit DotStar HD 8x8:
 | 7 | 60% | lit | equal |
 
 At 5% both rows are off: 5% is below the first brightness level that ledkit sends.
-From 10% to 15% the plain row's colors are only 3 to 5 out of 255, and pulses that
-short don't light this panel's LEDs. HD sends the same light as a lower 5-bit level
-with much higher colors, which does light them. From a little over 50% up, HD leaves
+From 10% to 15% the plain row's colors are only 3 to 5 out of 255. This panel's LEDs
+(APA102-2020) put their own curve on the color values: measured on an ESP32-S3
+(2026-11-09), their current follows about (color / 255)^2.6, so a color of 64 out of
+255 draws about 2% of full, not 25%, and 3 to 5 out of 255 gives next to no light.
+Their 5-bit level is close to straight: 16 out of 31 draws about half. HD sends the
+same light as a lower 5-bit level with much higher colors, which does light them. From a little over 50% up, HD leaves
 the 5-bit level at full (31), so the rows are the same.
 
-Your panel may differ: other DotStars (and the SK9822) light short pulses better.
+Your panel may differ: other DotStars (and the SK9822) haven't been measured yet.
 
 ## How it works
 

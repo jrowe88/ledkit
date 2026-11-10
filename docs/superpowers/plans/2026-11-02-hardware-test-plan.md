@@ -59,7 +59,7 @@ native paths on three of the four boards need backend work before they can be te
 
 ## Backend and example work before testing
 
-1. **ESP32-S3** (done 2026-11-02, builds; hardware pending): `esp32s3-rmt` (onboard
+1. **ESP32-S3** (done 2026-11-02, builds; passed on hardware 2026-11-09): `esp32s3-rmt` (onboard
    NeoPixel), `esp32s3-check` (one strip, seven rounds: RMT blocking and async, SPI `new`,
    SPI DMA `new_packed` blocking and async, UART blocking and async, then a 1–150 LED
    sweep), `esp32s3-esp-idf` (RMT and RMT DMA, Wi-Fi off and scanning, each with the

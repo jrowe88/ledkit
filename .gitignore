@@ -2,3 +2,6 @@
 **/*.rs.bk
 # Cargo.lock is committed: this is a workspace with future binaries and examples.
 .superpowers/
+# Local Claude Code settings and worktrees
+.claude/
+docs/superpowers/

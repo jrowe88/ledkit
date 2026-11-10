@@ -12,7 +12,7 @@ and ledkit handles the timing, color order, brightness and power.
 ![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue)
 ![Boards](https://img.shields.io/badge/boards-ESP32%20%C2%B7%20Raspberry%20Pi%20%C2%B7%20Teensy%20%C2%B7%20any%20SPI-orange)
 
-**[Get started](#get-started)** · **[Examples](#pick-your-board)** · **[Supported LEDs](crates/ledkit-core/README.md#which-chip-type-do-i-use)** · **[Roadmap](docs/superpowers/plans/2026-10-25-ledkit-roadmap.md)**
+**[Get started](#get-started)** · **[Examples](#pick-your-board)** · **[Supported LEDs](crates/ledkit-core/README.md#which-chip-type-do-i-use)** · **[Roadmap](docs/roadmap.md)**
 
 </div>
 
@@ -174,7 +174,7 @@ layer (`ledkit-layout`: matrices, text and shapes) work and are tested on real
 hardware. Effects (`ledkit-anim`) are tested on the host and on an 8x8 matrix.
 Text support (fonts, digits in several sizes, scrolling text) is being designed: try
 the fonts in the [text preview](https://jrowe88.github.io/ledkit/text-preview/).
-Next up: the Raspberry Pi Pico and the `ledkit` facade. See the [roadmap](docs/superpowers/plans/2026-10-25-ledkit-roadmap.md)
+Next up: LED brightness and power models measured on real LEDs, then the `ledkit` facade. See the [roadmap](docs/roadmap.md)
 for the details.
 
 Want to help? [CONTRIBUTING.md](CONTRIBUTING.md) has short guides to adding an

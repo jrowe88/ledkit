@@ -1,4 +1,4 @@
-# Hardware test plan: four new boards
+# Hardware test plan
 
 **Goal:** repeat on four new boards the by-eye checks that passed on the ESP32-C6
 DevKit, the Teensy 4.0 and the Raspberry Pi Zero W (see each crate's "Tested on
@@ -41,9 +41,10 @@ New checks for the DMA and native-peripheral paths:
 
 ## Every way to make one-wire pulses, per board
 
-`ledkit-rp` (PIO) is milestone 5 and doesn't exist yet. There's no nRF backend either:
-**`ledkit-nrf` (PWM sequencer + EasyDMA) would be new** and isn't on the crate map. So the
-native paths on three of the four boards need backend work before they can be tested.
+**Status (2026-11-10):** every board passes T1–T4 and T7 on its native backend and on SPI
+(see each crate README's "Tested on hardware" table); the matrix and animation checks (T5,
+T6) have run on the ESP32-C6, Teensy 4 and ESP32-S3 only. T8–T11 haven't been run on any board yet;
+they are the open rounds in the [roadmap](../roadmap.md).
 
 | Path | ESP32-S3 Feather | SCORPIO (RP2040) | Pico 2 W (RP2350) | XIAO nRF52840 |
 |---|---|---|---|---|
@@ -128,8 +129,6 @@ powers the 74AHCT125, not the strip.
 | T9 | PIO DMA, SPI DMA | Arm |
 | T11 | PIO DMA with CYW43 Wi-Fi running (it uses PIO and DMA too: check channel and state-machine sharing) | Arm |
 
-Until `ledkit-rp` lands, run the SPI and UART rows only.
-
 ### 3. Feather RP2040 SCORPIO
 
 Setup: `rustup target add thumbv6m-none-eabi`, `elf2uf2-rs` / `picotool`; hold BOOT, tap
@@ -167,22 +166,11 @@ pads. MOSI is D10. Avoid P0.09 / P0.10 (NFC by default).
 | 2.4 / 3.2 MHz requested | SPIM | should be a build error or a clear refusal, not a wrong clock |
 | UART | `ledkit-uart` | negative test, see above |
 
-Until `ledkit-nrf` exists, run the SPIM rows only.
-
 ## Recording results
 
 After each pass, add a row to the crate README's "Tested on hardware" table (board,
 peripheral and path such as "PIO + DMA", settings, LEDs, date, what was seen), set the
-example README's status line, and tick the roadmap follow-up. Use the same wording as
-the existing rows. A path that can't work (nRF UART) gets a row too, saying what error
+example README's status line, and update the [roadmap](../roadmap.md)'s open follow-ups.
+Anything surprising (a board quirk, a bug the hardware found) also goes in
+[findings.md](findings.md). Use the same wording as the existing rows. A path that can't work (nRF UART) gets a row too, saying what error
 ledkit gave.
-
-## Suggested order
-
-1. **ESP32-S3**, all paths: closes the open Xtensa roadmap item with crates that exist;
-   adds RMT DMA and SPI DMA.
-2. **Portable SPI/UART examples** on the Pico 2 W, SCORPIO and XIAO: new architectures with
-   existing crates, and a baseline to compare the native backends against.
-3. **Milestone 5, `ledkit-rp`**: PIO on the Pico 2 W (Arm and RISC-V), then the SCORPIO.
-4. **`ledkit-nrf`**: design, then PWM + EasyDMA on the XIAO.
-5. Parallel strips on the SCORPIO once `ledkit-core` has a multi-strip output.

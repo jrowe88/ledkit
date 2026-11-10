@@ -1,0 +1,8 @@
+ledkit-anim
+Copyright (c) 2026 Jim Rowe
+
+Attributions
+============
+
+ledkit-anim contains no third-party code. Its palettes and named colors come from
+ledkit-color; see that crate's NOTICE.

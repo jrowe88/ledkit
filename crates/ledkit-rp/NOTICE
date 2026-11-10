@@ -1,0 +1,11 @@
+ledkit-rp
+Copyright (c) 2026 Jim Rowe
+
+Attributions
+============
+
+ledkit-rp contains no third-party code. Its PIO program has the same four
+instructions as the Raspberry Pi `ws2812.pio` example (pico-examples,
+BSD-3-Clause), written out with the `pio` crate's assembler; the delays are
+computed by ledkit-core's equal-period search instead of being fixed. The pulse
+timings come from ledkit-core; see its NOTICE.

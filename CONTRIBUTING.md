@@ -15,7 +15,7 @@ cargo build -p ledkit-core --all-features --target thumbv6m-none-eabi
 cargo build -p ledkit-core --all-features --target riscv32imc-unknown-none-elf
 ```
 
-`ledkit-esp` and `ledkit-esp-idf` are outside the workspace and only build for an ESP32 target. Check them through their examples (`examples/esp32c6-rmt`, `examples/esp32c6-esp-idf`; see AGENTS.md and CI) with `cargo build --release` and `cargo clippy -- -D warnings` in the example's folder.
+`ledkit-esp`, `ledkit-esp-idf`, `ledkit-rp` and `ledkit-nrf` are outside the workspace and only build for their chips' targets. Check them through their examples (for example `examples/esp32c6-rmt`, `examples/rp2350-pio`, `examples/nrf52840-pwm`; see AGENTS.md and CI) with `cargo build --release` and `cargo clippy -- -D warnings` in the example's folder.
 
 The embedded targets come from `rustup target add thumbv6m-none-eabi riscv32imc-unknown-none-elf`.
 See [AGENTS.md](AGENTS.md) for the code conventions.
@@ -52,7 +52,7 @@ The same table appears in three places, and they must stay identical: the top of
 
 ## Add a backend
 
-A backend turns a `Strip`'s finished frame into signals on a real peripheral. `crates/ledkit-spi` is the model to copy for a bus backend (SPI). Pulse peripherals (the ESP32 RMT, later the RP PIO) are a second model: copy `crates/ledkit-esp-idf` (std) or `crates/ledkit-esp` (`no_std`), which turn the chip's timing into pulses with `PulseTicks` / `BitPulse` and the RMT word helpers in `ledkit_core::encode`. The steps:
+A backend turns a `Strip`'s finished frame into signals on a real peripheral. `crates/ledkit-spi` is the model to copy for a bus backend (SPI). Pulse peripherals (the ESP32 RMT, the RP PIO) are a second model: copy `crates/ledkit-esp-idf` (std) or `crates/ledkit-esp` (`no_std`), which turn the chip's timing into pulses with `PulseTicks` / `BitPulse` and the RMT word helpers in `ledkit_core::encode`. `crates/ledkit-rp` is the model for a program that sends every bit in the same time (`PioTiming`, built on `EqualPeriodTicks`) from a FIFO, fed by the processor or by DMA. A peripheral whose bit length can't change per bit (a PWM sequencer) is the nRF's version of that: copy `crates/ledkit-nrf`, which uses `ClocklessTiming::equal_period_ticks` and the PWM duty-word helpers. The steps:
 
 1. **Implement `Output` (blocking) and `OutputAsync` (if the HAL has async)** from `ledkit-core`. `write` receives the pixels after `Strip` has applied brightness, gamma, dithering and the power limit; never do any of that yourself.
 2. **Check the chip kind at compile time**, with `const { ClocklessTiming::of::<C>() }` (or, for a clocked chip, `const { assert!(matches!(C::PROTOCOL, Protocol::Clocked(_))) }`, as `ClockedSpi::new` does), so a DotStar chip on a clockless backend fails to build instead of misbehaving.

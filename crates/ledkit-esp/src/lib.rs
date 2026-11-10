@@ -175,7 +175,9 @@
 //!
 //! The ESP32-C3 and C6 are RISC-V chips and build with plain stable Rust. The
 //! ESP32, S2 and S3 use Xtensa cores and need the `esp` toolchain (installed by
-//! `espup`).
+//! `espup`). For those, copy the setup of `examples/esp32s3-rmt` instead: its
+//! `rust-toolchain.toml` picks the `esp` toolchain and its `.cargo/config.toml`
+//! builds `core` from source (`build-std`).
 //!
 //! ## Tested on hardware
 //!
@@ -184,6 +186,9 @@
 //! | ESP32-C6 dev kit | the onboard LED (`examples/esp32c6-rmt`) | pass (2026-10-30): colors, back-to-back frames, rainbow |
 //! | ESP32-C6 dev kit | Adafruit NeoPixel 8×8, 64 LEDs (`examples/esp32c6-matrix`), blocking | pass (2026-10-31): wiring finder, shapes, scrolling text |
 //! | ESP32-C6 dev kit | WS2812-type strip, 100 LEDs, through a 74AHCT125 | pass (2026-10-31), blocking and async: solid colors, a counting pattern and a rainbow at 50 frames a second, with no glitches |
+//! | Adafruit ESP32-S3 Feather (Xtensa, chip rev v0.2) | the onboard NeoPixel (`examples/esp32s3-rmt`) | pass (2026-11-09): colors, back-to-back frames, rainbow |
+//! | Adafruit ESP32-S3 Feather | WS2812B strip, 100 LEDs, data straight from GPIO5 on a 4.3 V supply (`examples/esp32s3-check`) | pass (2026-11-09), blocking and async: colors, back-to-back frames, counting and a rainbow at 50 frames a second through to LED 99, and a clean 1 to 150 LED sweep |
+//! | Adafruit ESP32-S3 Feather | Adafruit NeoPixel 8×8 (`examples/esp32s3-matrix`, `examples/esp32s3-anim`) and the 100-LED strip (`esp32s3-anim --features strip`) | pass (2026-11-09): wiring finder, shapes, scrolling text, and both animation shows |
 //!
 //! The onboard LED is a strip of 1, which fits in the RMT channel's memory. The matrix
 //! and the strip are far longer than the channel's 48 codes, so they exercise the

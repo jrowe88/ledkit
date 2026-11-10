@@ -83,6 +83,15 @@ pub enum TimingError {
         /// The closest usable baud above it, if there is one.
         nearest_higher_baud: Option<u32>,
     },
+    /// No bit length gives this LED's `0` and `1` bits the same period on this clock,
+    /// which a PWM or PIO peripheral needs. The clock is too slow (or `max_period` too
+    /// small).
+    EqualPeriodUnusable {
+        /// The clock that was given, in hertz.
+        ticks_per_second: u32,
+        /// The longest bit that was allowed, in ticks.
+        max_period: u32,
+    },
 }
 
 /// Prints a rate in millions using integer math, never rounding it: one
@@ -184,6 +193,15 @@ impl fmt::Display for TimingError {
                     (None, None) => f.write_str("; no serial baud works for this LED"),
                 }
             }
+            Self::EqualPeriodUnusable {
+                ticks_per_second,
+                max_period,
+            } => write!(
+                f,
+                "a clock of {} can't give this LED's 0 and 1 bits the same length \
+                 (in at most {max_period} ticks); try a faster clock",
+                Mega::mhz(ticks_per_second)
+            ),
         }
     }
 }
@@ -325,5 +343,17 @@ mod tests {
         };
         let msg = format!("{e}");
         assert!(msg.contains("1.0 MHz") && msg.contains("2.0 MHz"), "{msg}");
+    }
+    #[test]
+    fn equal_period_message_is_readable() {
+        let e = TimingError::EqualPeriodUnusable {
+            ticks_per_second: 1_000_000,
+            max_period: 32_767,
+        };
+        assert_eq!(
+            format!("{e}"),
+            "a clock of 1.0 MHz can't give this LED's 0 and 1 bits the same length \
+             (in at most 32767 ticks); try a faster clock"
+        );
     }
 }

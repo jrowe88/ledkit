@@ -1,0 +1,32 @@
+[package]
+name = "esp32s3-esp-idf"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+# This example is its own little project. The empty [workspace] table keeps
+# Cargo from treating it as part of the ledkit workspace two folders up.
+[workspace]
+
+[[bin]]
+name = "esp32s3-esp-idf"
+# The built-in test harness does not run on the device; disabling it also keeps
+# rust-analyzer from reporting spurious errors.
+harness = false
+
+[profile.release]
+opt-level = "s"
+
+[profile.dev]
+debug = true # Symbols are nice, and they don't increase the size on flash
+opt-level = "z"
+
+[dependencies]
+ledkit-core = { path = "../../crates/ledkit-core" }
+ledkit-esp-idf = { path = "../../crates/ledkit-esp-idf" }
+esp-idf-hal = "0.47"
+# Only for the Wi-Fi rounds: the radio scans in the background to keep it busy.
+esp-idf-svc = "0.53"
+
+[build-dependencies]
+embuild = "0.33.5"

@@ -5,14 +5,14 @@ Runs `ledkit-anim` effects on a WS2812-style 8x8 matrix or strip, with
 the chip's RMT peripheral, which makes the precisely timed pulses the LEDs need, in
 hardware.
 
-> **Status: builds; waiting for a check on hardware.** Written for an ESP32-C6
-> DevKit with an Adafruit NeoPixel 8x8 (WS2812B) or a 100-LED WS2812 strip, through
-> a 74AHCT125.
+> **Tested on hardware (2026-11-02):** an ESP32-C6 DevKit through a 74AHCT125,
+> with an Adafruit NeoPixel 8x8 and, with `--features strip`, a 100-LED WS2812
+> strip: every part of both shows looks right.
 
 ## What you'll see
 
-Set `MATRIX` at the top of `src/main.rs`: `true` for the 8x8 (the default),
-`false` for a strip of `STRIP_LEDS` LEDs. Each animation plays for 8 seconds and the
+`cargo run --release` builds the show for the 8x8; `cargo run --release --features strip`
+builds it for a strip of `STRIP_LEDS` LEDs (100). Each animation plays for 8 seconds and the
 show loops forever.
 
 On the **matrix**:

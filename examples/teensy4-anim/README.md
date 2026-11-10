@@ -5,9 +5,9 @@ driven from a Teensy 4.0 or 4.1. Handy as a hardware test of the whole animation
 library. The LED data goes out on pin 11 through the SPI hardware, wired exactly
 as in the [teensy4-spi](../teensy4-spi) example.
 
-> **Tested on hardware (2026-11-02):** Teensy 4.0 and an Adafruit NeoPixel 8x8
-> through a 74AHCT125: the check and every animation and transition look right.
-> The strip build (`--features strip`) hasn't been tried on hardware yet.
+> **Tested on hardware (2026-11-02):** Teensy 4.0 through a 74AHCT125, on an
+> Adafruit NeoPixel 8x8 and, with `--features strip`, on a 100-LED WS2812B strip:
+> the check and every animation and transition look right on both.
 
 ## What you'll see
 

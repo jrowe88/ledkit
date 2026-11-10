@@ -1,0 +1,37 @@
+[package]
+name = "nrf52840-pwm"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85"
+publish = false
+
+# This example is its own little project. The empty [workspace] table keeps
+# Cargo from treating it as part of the ledkit workspace one folder up.
+[workspace]
+
+[dependencies]
+ledkit-core = { path = "../../crates/ledkit-core" }
+ledkit-nrf = { path = "../../crates/ledkit-nrf", features = ["nrf52840"] }
+
+# The nRF52840's drivers. `rt` adds the start-up code, `time-driver-rtc1` lets
+# `embassy-time` keep time with the RTC1 timer, and `unstable-pac` gives the
+# panic handler direct access to the onboard LED pins.
+embassy-nrf = { version = "0.11", features = ["nrf52840", "rt", "time-driver-rtc1", "time", "unstable-pac"] }
+# Runs async tasks; `main` below is one.
+embassy-executor = { version = "0.10", features = ["platform-cortex-m", "executor-thread"] }
+embassy-time = "0.5"
+embassy-futures = "0.1"
+cortex-m = { version = "0.7", features = ["critical-section-single-core"] }
+cortex-m-rt = "0.7"
+# Holds the frame buffer in static memory instead of on the stack.
+static_cell = "2"
+
+[profile.dev]
+# Rust code is very slow without optimization on a microcontroller.
+opt-level = "s"
+
+[profile.release]
+opt-level = "s"
+lto = "fat"
+codegen-units = 1
+debug = 2

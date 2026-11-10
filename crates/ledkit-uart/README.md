@@ -102,6 +102,8 @@ driver might not.
 |---|---|---|
 | ESP32-C6 (UART1, 4 Mbaud, inverted in the GPIO matrix) | WS2812-type strip, 100 LEDs | ✅ pass (2026-11-01): colors, counting and a fast rainbow clean through to LED 99, blocking and async |
 | Teensy 4 (LPUART6, 4 Mbaud from a 24 MHz UART clock, blocking and DMA) | WS2812-type strip, 100 LEDs | ✅ pass (2026-11-01): full cycles of colors, counting and a rainbow in both rounds, through an SN74LVC245AN buffer |
+| Seeed XIAO nRF52840 (UARTE0, 1 Mbaud, its fastest) | – | ✅ refused as expected (2026-11-08) with `UartBaudUnusable`: the nRF's serial port is too slow for WS2812-type LEDs and can't invert its output |
+| Adafruit ESP32-S3 Feather (UART1, 4 Mbaud from the 40 MHz crystal, inverted in the GPIO matrix) | WS2812B strip, 100 LEDs | ✅ pass (2026-11-09), `examples/esp32s3-check` rounds 6 and 7: colors, back-to-back frames, counting and a fast rainbow clean through to LED 99, blocking and async |
 
 Examples are in the `examples` folder of the repository: `esp32c6-uart` and `teensy4-uart`.
 If you try one on your hardware, please report what you see.

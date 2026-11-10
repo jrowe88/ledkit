@@ -1,0 +1,5 @@
+[toolchain]
+# The ESP32-S3 is an Xtensa chip. Plain Rust can't build for it yet, so this uses
+# Espressif's `esp` toolchain (installed once with `espup install`), which can also
+# rebuild `std` from source for ESP-IDF.
+channel = "esp"

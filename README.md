@@ -12,7 +12,7 @@ and ledkit handles the timing, color order, brightness and power.
 ![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue)
 ![Boards](https://img.shields.io/badge/boards-ESP32%20%C2%B7%20Raspberry%20Pi%20%C2%B7%20Teensy%20%C2%B7%20any%20SPI-orange)
 
-**[Get started](#get-started)** · **[Examples](#pick-your-board)** · **[Supported LEDs](crates/ledkit-core/README.md#which-chip-type-do-i-use)** · **[Roadmap](docs/superpowers/plans/2026-10-25-ledkit-roadmap.md)**
+**[Get started](#get-started)** · **[Examples](#pick-your-board)** · **[Supported LEDs](crates/ledkit-core/README.md#which-chip-type-do-i-use)** · **[Roadmap](docs/roadmap.md)**
 
 </div>
 
@@ -114,12 +114,16 @@ and wiring, setup and troubleshooting in its README.
 | Raspberry Pi (Linux) | `ledkit-spi` | [linux-spidev](examples/linux-spidev) | ✅ on hardware |
 | Teensy 4 | `ledkit-spi` | [teensy4-spi](examples/teensy4-spi) | ✅ on hardware |
 | LED matrix on the ESP32-C6 | `ledkit-layout` + `ledkit-esp` | [esp32c6-matrix](examples/esp32c6-matrix) | ✅ on hardware |
-| Animations on a matrix or strip, ESP32-C6 | `ledkit-anim` + `ledkit-esp` | [esp32c6-anim](examples/esp32c6-anim) | ⏳ builds; hardware check pending |
-| Every animation on a matrix or strip, Teensy 4 | `ledkit-anim` + `ledkit-spi` | [teensy4-anim](examples/teensy4-anim) | ✅ on hardware (8x8 matrix) |
+| Animations on a matrix or strip, ESP32-C6 | `ledkit-anim` + `ledkit-esp` | [esp32c6-anim](examples/esp32c6-anim) | ✅ on hardware (8x8 matrix and 100-LED strip) |
+| Every animation on a matrix or strip, Teensy 4 | `ledkit-anim` + `ledkit-spi` | [teensy4-anim](examples/teensy4-anim) | ✅ on hardware (8x8 matrix and 100-LED strip) |
 | Animations in your terminal (no LEDs) | `ledkit-anim` | [anim-preview](examples/anim-preview) | ✅ |
 | DotStar HD vs plain dimming on the ESP32-C6 | `ledkit-core` | [esp32c6-dotstar-hd](examples/esp32c6-dotstar-hd) | ✅ on hardware |
 | NeoPixels from a serial port, ESP32-C6 | `ledkit-uart` | [esp32c6-uart](examples/esp32c6-uart) | ✅ on hardware |
 | NeoPixels from a serial port, Teensy 4 (with DMA) | `ledkit-uart` | [teensy4-uart](examples/teensy4-uart) | ✅ on hardware |
+| ESP32-S3 Feather, onboard NeoPixel (esp-hal) | `ledkit-esp` | [esp32s3-rmt](examples/esp32s3-rmt) | ✅ on hardware |
+| ESP32-S3 Feather, a strip every way: RMT, SPI ± DMA, UART | `ledkit-esp` + `ledkit-spi` + `ledkit-uart` | [esp32s3-check](examples/esp32s3-check) | ✅ on hardware (100-LED strip, all seven rounds) |
+| ESP32-S3 Feather with ESP-IDF: RMT ± DMA, with Wi-Fi | `ledkit-esp-idf` | [esp32s3-esp-idf](examples/esp32s3-esp-idf) | ✅ on hardware (with and without Wi-Fi) |
+| ESP32-S3: matrix, animations, DotStar HD | as the C6 versions | [esp32s3-matrix](examples/esp32s3-matrix), [esp32s3-anim](examples/esp32s3-anim), [esp32s3-dotstar-hd](examples/esp32s3-dotstar-hd) | ✅ on hardware |
 | Raspberry Pi Pico | `ledkit-rp` | | 🔜 coming soon |
 
 ## Get started
@@ -172,7 +176,8 @@ hardware. Effects (`ledkit-anim`) are tested on the host and on an 8x8 matrix.
 Text (`ledkit-text`: fonts, text areas and a scrolling ticker) is built and tested on
 the host; see its [README](crates/ledkit-text/README.md), and try the fonts in the
 [text preview](https://jrowe88.github.io/ledkit/text-preview/). It hasn't run on real
-LEDs yet. Next up: the Raspberry Pi Pico and the `ledkit` facade. See the [roadmap](docs/superpowers/plans/2026-10-25-ledkit-roadmap.md)
+LEDs yet. Next up: LED brightness and power models measured on real LEDs, then the
+`ledkit` facade. See the [roadmap](docs/roadmap.md)
 for the details.
 
 Want to help? [CONTRIBUTING.md](CONTRIBUTING.md) has short guides to adding an

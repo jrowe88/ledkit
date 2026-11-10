@@ -51,6 +51,10 @@ GPIO8.
 `RmtOutput::new` takes the pin and asks ESP-IDF for any free RMT transmit channel,
 so you never pick a channel number. You only choose the LED type and the pin.
 
+On the ESP32-S3, `RmtOutput::new_with_dma` feeds the RMT through DMA instead, which
+keeps long strips clean even when the processor is busy. Other chips (except the
+ESP32-P4) have no RMT DMA, and there it returns an error.
+
 ## The reset gap
 
 The LEDs latch the new colors once the data line has been idle for the chip's reset
@@ -83,7 +87,8 @@ ws.write([RGB8::new(255, 0, 0); 8]).unwrap();
 This crate only builds for ESP-IDF targets (for example `riscv32imac-esp-espidf`), with
 the setup `esp-idf-sys` needs: a nightly Rust with `rust-src`, `ldproxy`, and a
 `.cargo/config.toml` that sets the target, `build-std` and `ESP_IDF_VERSION`.
-Copy the setup of `examples/esp32c6-esp-idf`; its README walks through it.
+Copy the setup of `examples/esp32c6-esp-idf` (RISC-V chips) or
+`examples/esp32s3-esp-idf` (the Xtensa ESP32-S3); their READMEs walk through it.
 On Windows, keep the build folder short (the example's `.cargo/config.toml` sets
 `target-dir = "C:/t/ledkit"`), because `esp-idf-sys` rejects output paths over 88 characters.
 
@@ -118,6 +123,7 @@ not yet released).
 | ESP32-C6 dev kit (chip rev v0.2), 2026-10-30 | the onboard LED, slow rainbow | flickered with dithering on (20% brightness, about 45 frames a second), steady with it off; the example now turns it off, see its troubleshooting |
 | ESP32-C6, the pulse project (first consumer) | its status LED | pass (2026-10-30): breathes as before after pulse raised its own minimum brightness |
 | ESP32-C6 dev kit, 2026-10-31 | WS2812-type strip, 100 LEDs, through a 74AHCT125 | runs after the padding fix below: frames of every length from 1 to 150 LEDs, then colors, a counting pattern and a rainbow on 100 LEDs, with no crash, and all 100 LEDs look right. Before the fix, every frame of 4 or more LEDs whose bit count was a multiple of 48 crashed |
+| Adafruit ESP32-S3 Feather (chip rev v0.2, ESP-IDF v5.5.3), 2026-11-09 | WS2812B strip, 100 LEDs, data straight from GPIO5 on a 4.3 V supply | pass (`examples/esp32s3-esp-idf`): `new` and `new_with_dma`, each with Wi-Fi off and with Wi-Fi scanning nonstop: colors, back-to-back frames, counting, a rainbow, and every frame length from 1 to 150 LEDs with no panic |
 
 The example is `examples/esp32c6-esp-idf` in the repository. If you try it on your
 hardware, please report what you see.

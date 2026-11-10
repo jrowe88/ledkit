@@ -9,6 +9,7 @@ dependencies = [
  "ledkit-anim",
  "ledkit-color",
  "ledkit-layout",
+ "ledkit-text",
 ]
 
 [[package]]
@@ -40,6 +41,14 @@ version = "0.1.0"
 dependencies = [
  "ledkit-color",
  "ledkit-core",
+]
+
+[[package]]
+name = "ledkit-text"
+version = "0.1.0"
+dependencies = [
+ "ledkit-anim",
+ "ledkit-color",
 ]
 
 [[package]]

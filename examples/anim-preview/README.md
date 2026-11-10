@@ -43,6 +43,11 @@ cargo run -- demo --size 64x64
 - `--blocks` draws solid squares with no gaps, and unlit LEDs black. Matrices
   bigger than 32x32 are then drawn at half height (one character per two rows) so
   they fit in a smaller window. With `--char`, the character fills the square.
+- `text "message"` scrolls a message as a ticker (32x8 unless you give `--size`), using
+  `ledkit-text`. `--font NAME` picks the font, for example `--font 10x20`, `tiny`,
+  `7seg` or `14seg`; `list` shows all the names.
+- `clock` shows a small date over a big 7-segment time, from your computer's clock (in
+  UTC), on a 64x64 matrix unless you give `--size`.
 - `demo` (also what you get with no name) plays the matrix show from the
   `esp32c6-anim` example.
 

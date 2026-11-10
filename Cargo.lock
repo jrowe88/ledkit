@@ -137,6 +137,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "ledkit-text"
+version = "0.1.0"
+dependencies = [
+ "ledkit-anim",
+ "ledkit-color",
+ "ledkit-layout",
+]
+
+[[package]]
 name = "ledkit-uart"
 version = "0.1.0"
 dependencies = [

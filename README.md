@@ -161,6 +161,7 @@ checkout, as the examples do.
 | `ledkit-esp-idf` | ESP32 RMT driver for ESP-IDF (`std`) | ✅ available |
 | `ledkit-layout` | Segments, matrices, text and shapes | ✅ available |
 | `ledkit-anim` | Effects (rainbow, comet, flames, swirl, …) and ways to combine them | ✅ available |
+| `ledkit-text` | Fonts (X11 sizes, tiny, 7-segment, 14-segment), text areas and a scrolling ticker | ✅ available |
 | `ledkit-rp` | Raspberry Pi Pico (RP2040/RP2350) PIO driver | 🔜 planned |
 | `ledkit` | One crate to add, with everything re-exported | 🔜 planned |
 | `ledkit-sim` | A desktop simulator, to try effects without hardware | 🔜 planned |
@@ -172,9 +173,11 @@ checkout, as the examples do.
 ledkit is young. The core, the SPI driver, both ESP32 drivers and the matrix
 layer (`ledkit-layout`: matrices, text and shapes) work and are tested on real
 hardware. Effects (`ledkit-anim`) are tested on the host and on an 8x8 matrix.
-Text support (fonts, digits in several sizes, scrolling text) is being designed: try
-the fonts in the [text preview](https://jrowe88.github.io/ledkit/text-preview/).
-Next up: LED brightness and power models measured on real LEDs, then the `ledkit` facade. See the [roadmap](docs/roadmap.md)
+Text (`ledkit-text`: fonts, text areas and a scrolling ticker) is built and tested on
+the host; see its [README](crates/ledkit-text/README.md), and try the fonts in the
+[text preview](https://jrowe88.github.io/ledkit/text-preview/). It hasn't run on real
+LEDs yet. Next up: LED brightness and power models measured on real LEDs, then the
+`ledkit` facade. See the [roadmap](docs/roadmap.md)
 for the details.
 
 Want to help? [CONTRIBUTING.md](CONTRIBUTING.md) has short guides to adding an

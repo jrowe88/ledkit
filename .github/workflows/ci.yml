@@ -196,6 +196,24 @@ jobs:
       - run: cargo clippy --release --locked --target riscv32imac-unknown-none-elf -- -D warnings
         working-directory: examples/rp2350-pio
 
+  example-rp2350-text:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+          targets: thumbv8m.main-none-eabihf,riscv32imac-unknown-none-elf
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: examples/rp2350-text
+      - run: cargo build --release --locked
+        working-directory: examples/rp2350-text
+      - run: cargo build --release --locked --target riscv32imac-unknown-none-elf
+        working-directory: examples/rp2350-text
+      - run: cargo clippy --release --locked -- -D warnings
+        working-directory: examples/rp2350-text
+
   example-esp32c6-matrix:
     runs-on: ubuntu-latest
     steps:
@@ -404,9 +422,10 @@ jobs:
             examples/esp32s3-matrix
             examples/esp32s3-anim
             examples/esp32s3-dotstar-hd
+            examples/esp32s3-text
       - name: Build and lint every esp-hal S3 example
         run: |
-          for example in esp32s3-rmt esp32s3-check esp32s3-matrix esp32s3-anim esp32s3-dotstar-hd; do
+          for example in esp32s3-rmt esp32s3-check esp32s3-matrix esp32s3-anim esp32s3-dotstar-hd esp32s3-text; do
             (cd "examples/$example" && cargo build --release --locked && cargo clippy --release --locked -- -D warnings)
           done
           (cd examples/esp32s3-anim && cargo build --release --locked --features strip && cargo clippy --release --locked --features strip -- -D warnings)

@@ -39,13 +39,11 @@ use esp_hal::{
         master::{Config as SpiConfig, Spi},
         Mode,
     },
-    time::{Instant, Rate},
+    time::Rate,
 };
 use esp_println::println;
-use ledkit_core::prelude::*;
-use ledkit_layout::{Canvas, Corner, MatrixLayout};
-use ledkit_spi::ClockedSpi;
-use ledkit_text::prelude::*;
+use ledkit::prelude::*;
+use ledkit::spi::ClockedSpi;
 
 // The bootloader on the chip wants a small "this is an app" label. This macro
 // writes it for us.
@@ -168,9 +166,8 @@ fn main() -> ! {
     .with_mosi(peripherals.GPIO5)
     .with_sck(peripherals.GPIO6);
 
-    let delay = Delay::new();
-    let boot = Instant::now();
-    let millis = || boot.elapsed().as_millis() as u32;
+    // About 60 frames a second, timed by the chip's clock.
+    let mut frames = Frames::new(ledkit::esp::Clock::start(), Delay::new()).per_second(60);
 
     let mut strip = Strip::<LedType, LED_COUNT, _>::new(ClockedSpi::new(spi));
     strip.set_brightness(BRIGHTNESS);
@@ -202,16 +199,18 @@ fn main() -> ! {
                 Time::from_millis(0),
             );
             strip.show().unwrap();
-            delay.delay_millis(1000);
+            frames.delay().delay_millis(1000);
 
-            // The scene itself. The ticker's clock starts at 0 for each scene.
+            // The scene itself. The time starts at 0 for each scene.
             let mut ticker = scene(number);
-            let start = millis();
-            while millis().wrapping_sub(start) < SCENE_MS {
-                let now = Time::from_millis(millis().wrapping_sub(start));
+            frames.restart();
+            loop {
+                let now = frames.next_frame();
+                if now.as_millis() >= SCENE_MS {
+                    break;
+                }
                 ticker.render(&mut Canvas::new(strip.pixels_mut(), LAYOUT).unwrap(), now);
                 strip.show().unwrap();
-                delay.delay_millis(16);
             }
         }
     }

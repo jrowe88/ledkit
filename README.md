@@ -19,22 +19,27 @@ and ledkit handles the timing, color order, brightness and power.
 ## Light up in a dozen lines
 
 ```rust
-use ledkit_core::prelude::*;
-use ledkit_spi::{buffer_len, ClocklessSpi};
+use esp_hal::delay::Delay;
+use ledkit::prelude::*;
 
-const LEDS: usize = 30;
-const SPI_HZ: u32 = 3_200_000;
+// An ESP32-C6 with esp-hal, and 30 NeoPixels on GPIO4.
+let peripherals = esp_hal::init(esp_hal::Config::default());
+let mut strip = ledkit::esp::strip!(Ws2812b, 30, peripherals.RMT, peripherals.GPIO4)?;
 
-// `spi` is your board's SPI bus, set up as usual.
-let output = ClocklessSpi::new(spi, SPI_HZ,
-    [0u8; buffer_len::<Ws2812b>(LEDS, SPI_HZ)])?;
-let mut strip = Strip::<Ws2812b, LEDS, _>::new(output);
-
-strip.set_brightness(0.3);            // looks 30% as bright
+strip.set_brightness(0.3);              // looks 30% as bright
 strip.set_power_limit(Milliamps(1500)); // caps the LEDs' estimated current, not the board's
-strip.fill(Color::BLUE);
-strip.show()?;
+
+let mut frames = Frames::new(ledkit::esp::Clock::start(), Delay::new());
+let rainbow = Rainbow::new();
+loop {
+    let now = frames.next_frame();      // about 60 times a second
+    rainbow.render(&mut strip, now);
+    strip.show()?;
+}
 ```
+
+Every shortcut here is made of public pieces you can write out yourself; the
+[`ledkit` crate's README](crates/ledkit/README.md) shows how.
 
 ## Why ledkit
 
@@ -96,6 +101,8 @@ and wiring, setup and troubleshooting in its README.
 
 | Board | Crate | Example | Tested |
 |---|---|---|---|
+| **Start here:** ESP32-C6 with esp-hal, a rainbow (blocking or async) | `ledkit` | [esp32c6-start](examples/esp32c6-start) | builds |
+| **Start here:** ESP32-S3 with ESP-IDF, a rainbow | `ledkit` | [esp32s3-start-idf](examples/esp32s3-start-idf) | builds |
 | ESP32-C6 with esp-hal (`no_std`) | `ledkit-esp` | [esp32c6-rmt](examples/esp32c6-rmt) | ✅ on hardware |
 | ESP32-C6 with ESP-IDF (`std`, Wi-Fi) | `ledkit-esp-idf` | [esp32c6-esp-idf](examples/esp32c6-esp-idf) | ✅ on hardware |
 | Any board with an SPI bus | `ledkit-spi` | [esp32c6-spi](examples/esp32c6-spi) | ✅ on hardware |
@@ -112,7 +119,7 @@ and wiring, setup and troubleshooting in its README.
 | ESP32-S3 Feather, a strip every way: RMT, SPI ± DMA, UART | `ledkit-esp` + `ledkit-spi` + `ledkit-uart` | [esp32s3-check](examples/esp32s3-check) | ✅ on hardware (100-LED strip, all seven rounds) |
 | ESP32-S3 Feather with ESP-IDF: RMT ± DMA, with Wi-Fi | `ledkit-esp-idf` | [esp32s3-esp-idf](examples/esp32s3-esp-idf) | ✅ on hardware (with and without Wi-Fi) |
 | ESP32-S3: matrix, animations, DotStar HD | as the C6 versions | [esp32s3-matrix](examples/esp32s3-matrix), [esp32s3-anim](examples/esp32s3-anim), [esp32s3-dotstar-hd](examples/esp32s3-dotstar-hd) | ✅ on hardware |
-| Text tour on an 8x8 DotStar, ESP32-S3 | `ledkit-text` + `ledkit-spi` | [esp32s3-text](examples/esp32s3-text) | ✅ on hardware |
+| Text tour on an 8x8 DotStar, ESP32-S3 | `ledkit` (text, spi) | [esp32s3-text](examples/esp32s3-text) | ✅ on hardware |
 | Text tour on an 8x8 DotStar, Pico 2 W | `ledkit-text` + `ledkit-spi` | [rp2350-text](examples/rp2350-text) | builds |
 | Raspberry Pi Pico / Feather RP2040, PIO every way (± DMA, async), plus DotStars | `ledkit-rp` + `ledkit-spi` | [rp2040-pio](examples/rp2040-pio) | ✅ on hardware |
 | Pico 2 W (RP2350, Arm and RISC-V cores), PIO every way, plus DotStars | `ledkit-rp` + `ledkit-spi` | [rp2350-pio](examples/rp2350-pio) | ✅ on hardware |
@@ -125,7 +132,8 @@ and wiring, setup and troubleshooting in its README.
 1. **Find your LED type.** Look for the name printed on the product or in its
    listing, then find it in the
    ["which chip type do I use?"](crates/ledkit-core/README.md#which-chip-type-do-i-use) table.
-2. **Copy the example for your board** from the table above, and change
+2. **Copy the example for your board** from the table above (on an ESP32, start
+   with `esp32c6-start` or `esp32s3-start-idf`), and change
    `LED_COUNT`, the pin and the LED type at the top of `main.rs`.
 3. **Run it** with `cargo run --release`. If the colors are wrong or nothing
    lights up, the example's README has a troubleshooting section.
@@ -137,6 +145,7 @@ checkout, as the examples do.
 
 | Crate | What it does | Status |
 |---|---|---|
+| `ledkit` | The one crate to add: everything re-exported, a prelude, ESP board helpers and a frame loop | ✅ available |
 | `ledkit-color` | Colors, hues, gradients, gamma | ✅ available |
 | `ledkit-core` | The LED chip catalogue, the `Strip` buffer, brightness, dithering and power limiting | ✅ available |
 | `ledkit-spi` | Drives LEDs from any `embedded-hal` SPI bus, blocking or async | ✅ available |
@@ -148,7 +157,6 @@ checkout, as the examples do.
 | `ledkit-text` | Fonts (X11 sizes, tiny, 7-segment, 14-segment), text areas and a scrolling ticker | ✅ available |
 | `ledkit-rp` | Raspberry Pi Pico (RP2040/RP2350) PIO driver, processor- or DMA-fed, blocking or async | ✅ available |
 | `ledkit-nrf` | nRF52840 PWM + EasyDMA driver, blocking or async | ✅ available |
-| `ledkit` | One crate to add, with everything re-exported | 🚧 in progress |
 | `ledkit-sim` | A desktop simulator, to try effects without hardware | 🔜 planned |
 
 "Available" means it works and is tested, but isn't published to crates.io yet.
@@ -159,8 +167,8 @@ ledkit is young, but every crate above marked available works and is tested on r
 hardware: the core, the SPI and serial drivers, both ESP32 drivers, the Pico PIO
 driver, the nRF52840 driver, matrices (`ledkit-layout`), effects (`ledkit-anim`, on an
 8x8 matrix and a 100-LED strip) and text (`ledkit-text`, on an 8x8 DotStar; try the
-fonts in the [text preview](https://jrowe88.github.io/ledkit/text-preview/)). Next up:
-the `ledkit` crate, then the first release on crates.io. See the
+fonts in the [text preview](https://jrowe88.github.io/ledkit/text-preview/)). The `ledkit`
+crate ties them together. Next up: the first release on crates.io. See the
 [roadmap](docs/roadmap.md) for the details.
 
 Want to help? [CONTRIBUTING.md](CONTRIBUTING.md) has short guides to adding an

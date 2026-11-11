@@ -1,0 +1,103 @@
+[package]
+name = "ledkit"
+description = "Addressable LEDs (NeoPixels, DotStars, strips, rings and matrices) that just work: one crate with chips, colors, effects, text and board helpers. no_std."
+keywords = ["led", "neopixel", "ws2812", "dotstar", "embedded"]
+categories = ["embedded", "no-std", "hardware-support", "graphics"]
+readme = "README.md"
+version = "0.1.0"
+edition = "2021"
+# The host features build on Rust 1.82. The esp-hal features need what esp-hal needs
+# (Rust 1.95 for esp-hal 1.2), and `esp-idf` the pinned toolchain of an ESP-IDF project.
+rust-version = "1.82"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/jrowe88/ledkit"
+authors = ["Jim Rowe"]
+
+# The facade depends on the board crates, which only build for their chips, so it is
+# excluded from the root workspace like them (see the root Cargo.toml).
+
+[dependencies]
+ledkit-color = { path = "../ledkit-color", version = "0.1.0" }
+ledkit-core = { path = "../ledkit-core", version = "0.1.0" }
+ledkit-layout = { path = "../ledkit-layout", version = "0.1.0", optional = true }
+ledkit-anim = { path = "../ledkit-anim", version = "0.1.0", optional = true }
+ledkit-text = { path = "../ledkit-text", version = "0.1.0", optional = true }
+ledkit-spi = { path = "../ledkit-spi", version = "0.1.0", optional = true }
+ledkit-uart = { path = "../ledkit-uart", version = "0.1.0", optional = true }
+ledkit-esp = { path = "../ledkit-esp", version = "0.1.0", optional = true }
+ledkit-esp-idf = { path = "../ledkit-esp-idf", version = "0.1.0", optional = true }
+ledkit-nrf = { path = "../ledkit-nrf", version = "0.1.0", optional = true, default-features = false }
+
+# Only for the board helpers. Your program adds the HAL itself, with the same
+# version, and Cargo uses one copy.
+esp-hal = { version = "1.2", default-features = false, features = ["unstable"], optional = true }
+esp-idf-hal = { version = "0.47", optional = true }
+
+[features]
+default = ["text"]
+
+## Matrices, segments and `Canvas` (`ledkit::layout`).
+layout = ["dep:ledkit-layout"]
+## Effects and the frame loop (`ledkit::anim`).
+anim = ["dep:ledkit-anim", "layout"]
+## Fonts, text areas and the ticker (`ledkit::text`).
+text = ["dep:ledkit-text", "anim"]
+
+## Any embedded-hal SPI bus (`ledkit::spi`): NeoPixels and DotStars.
+spi = ["dep:ledkit-spi"]
+## Any embedded-io serial port (`ledkit::uart`): NeoPixels.
+uart = ["dep:ledkit-uart"]
+
+## ESP32 with esp-hal (`ledkit::esp`). Pick exactly one chip.
+esp32 = ["_esp", "ledkit-esp/esp32", "esp-hal/esp32"]
+esp32c3 = ["_esp", "ledkit-esp/esp32c3", "esp-hal/esp32c3"]
+esp32c6 = ["_esp", "ledkit-esp/esp32c6", "esp-hal/esp32c6"]
+esp32s2 = ["_esp", "ledkit-esp/esp32s2", "esp-hal/esp32s2"]
+esp32s3 = ["_esp", "ledkit-esp/esp32s3", "esp-hal/esp32s3"]
+_esp = ["dep:ledkit-esp", "dep:esp-hal"]
+
+## ESP32 with ESP-IDF (`ledkit::esp_idf`, `std`). The chip comes from the build target.
+esp-idf = ["dep:ledkit-esp-idf", "dep:esp-idf-hal"]
+
+# No Raspberry Pi Pico feature yet: rp235x-hal and esp-hal need different versions of
+# `riscv-rt`, and Cargo allows only one in a dependency graph, even behind features.
+# Pico projects add `ledkit-rp` next to `ledkit`.
+
+## nRF52840 (`ledkit::nrf`).
+nrf52840 = ["dep:ledkit-nrf", "ledkit-nrf/nrf52840"]
+
+## Async outputs where a backend keeps them behind a feature (today: `ledkit-nrf`).
+## The ESP, SPI and serial backends have async built in.
+async = ["ledkit-nrf?/async"]
+
+## `smart-leds` interop for the colors, the core and every backend that's on.
+smart-leds = [
+    "ledkit-color/smart-leds",
+    "ledkit-core/smart-leds",
+    "ledkit-spi?/smart-leds",
+    "ledkit-uart?/smart-leds",
+    "ledkit-esp?/smart-leds",
+    "ledkit-esp-idf?/smart-leds",
+    "ledkit-nrf?/smart-leds",
+]
+## Lets a `Canvas` be an `embedded-graphics` draw target.
+embedded-graphics = ["layout", "ledkit-layout/embedded-graphics"]
+
+[dev-dependencies]
+embedded-hal = "1.0"
+
+[package.metadata.docs.rs]
+features = ["esp32c6", "spi", "uart", "smart-leds", "embedded-graphics"]
+targets = ["riscv32imac-unknown-none-elf"]
+
+# Outside the workspace, so the workspace lint table is copied here.
+[lints.rust]
+missing_docs = "warn"
+unsafe_code = "forbid"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+module_name_repetitions = "allow"
+cast_possible_truncation = "allow"
+cast_lossless = "allow"
+must_use_candidate = "allow"

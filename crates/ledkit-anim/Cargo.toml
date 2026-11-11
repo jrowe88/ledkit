@@ -15,6 +15,12 @@ authors.workspace = true
 ledkit-color = { path = "../ledkit-color", version = "0.1.0" }
 ledkit-core = { path = "../ledkit-core", version = "0.1.0" }
 ledkit-layout = { path = "../ledkit-layout", version = "0.1.0" }
+# The delay traits for the frame loops (`Frames`, `FramesAsync`).
+embedded-hal = "1.0"
+embedded-hal-async = "1.0"
+
+[dev-dependencies]
+embassy-futures = "0.1"
 
 [package.metadata.docs.rs]
 all-features = true

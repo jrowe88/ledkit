@@ -790,10 +790,7 @@ dependencies = [
  "esp-bootloader-esp-idf",
  "esp-hal",
  "esp-println",
- "ledkit-core",
- "ledkit-layout",
- "ledkit-spi",
- "ledkit-text",
+ "ledkit",
 ]
 
 [[package]]
@@ -998,9 +995,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "ledkit"
+version = "0.1.0"
+dependencies = [
+ "esp-hal",
+ "ledkit-anim",
+ "ledkit-color",
+ "ledkit-core",
+ "ledkit-esp",
+ "ledkit-layout",
+ "ledkit-spi",
+ "ledkit-text",
+]
+
+[[package]]
 name = "ledkit-anim"
 version = "0.1.0"
 dependencies = [
+ "embedded-hal 1.0.0",
+ "embedded-hal-async",
  "ledkit-color",
  "ledkit-core",
  "ledkit-layout",
@@ -1018,6 +1031,14 @@ name = "ledkit-core"
 version = "0.1.0"
 dependencies = [
  "ledkit-color",
+]
+
+[[package]]
+name = "ledkit-esp"
+version = "0.1.0"
+dependencies = [
+ "esp-hal",
+ "ledkit-core",
 ]
 
 [[package]]

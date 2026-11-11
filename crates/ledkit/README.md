@@ -103,6 +103,16 @@ details:
 | `ledkit::spi` | [`ledkit-spi`](https://docs.rs/ledkit-spi) | Any SPI bus |
 | `ledkit::uart` | [`ledkit-uart`](https://docs.rs/ledkit-uart) | Any serial port |
 
+## Tested on hardware
+
+| Board | What ran | LEDs | Result |
+|---|---|---|---|
+| Adafruit ESP32-S3 Feather | `esp::strip!` + `esp::Clock` + `Frames` (the `esp32c6-start` program, built for the S3 on GPIO33) | the onboard NeoPixel | pass (2026-11-11), blocking and async (`strip!(.., async)`, `FramesAsync` with an async `OneShotTimer`): a smooth color cycle at 60 frames a second |
+| Adafruit ESP32-S3 Feather | `examples/esp32s3-text` on the facade (`spi` feature, `Frames` with `restart()` per scene) | Adafruit DotStar HD 8×8 | runs (2026-11-10): scenes start on time, every 10 s, over serial; not yet checked by eye |
+
+Not yet run: `examples/esp32c6-start` on the ESP32-C6 and `examples/esp32s3-start-idf`
+(the ESP-IDF helpers). If you try `ledkit` on other hardware, please report what you see.
+
 ## Examples
 
 Complete projects for real boards are in the

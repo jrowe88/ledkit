@@ -225,3 +225,6 @@ adds no error type of its own.
   `example-esp32c6-start` job; `esp32s3-start-idf` joins the ESP-IDF S3 job.
 - `esp32s3-text` now uses `ledkit` (features `esp32s3`, `spi`) and `Frames`; it ran on the
   S3 Feather after the change (scenes advanced on time over serial, 2026-11-10).
+- On hardware (2026-11-11): the `esp32c6-start` program, built for the S3 Feather's
+  onboard NeoPixel, passes blocking and async (owner, by eye). Results are kept in
+  `crates/ledkit/README.md`'s "Tested on hardware" table.

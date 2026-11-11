@@ -16,6 +16,11 @@ would otherwise rediscover.
   color pattern, suspect the wiring first.
 - At 4.3 V supply, a WS2812B reads 3.0 V and up as high, so 3.3 V data works without the
   level shifter (used for the ESP32-S3 run).
+- **Join the LED supply's ground to the board's GND** (2026-11-11). With the board on USB
+  and the LEDs on the bench supply, a missing ground link looks like a software bug: the
+  DotStar 8×8 showed very bright, random pixels at every SPI clock down to 250 kHz, and a
+  known-good DotStar strip stayed dark. It came loose while boards were swapped; tying
+  the grounds fixed it at once. Check this before suspecting code.
 
 ## All chips
 

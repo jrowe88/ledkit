@@ -149,8 +149,12 @@ troubleshooting in its README.
 3. **Run it** with `cargo run --release`. If the colors are wrong or nothing
    lights up, the example's README has a troubleshooting section.
 
-ledkit isn't on crates.io yet, so for now depend on it from git or a local
-checkout, as the examples do.
+To start your own project instead, add `ledkit` with your board's feature
+(the [`ledkit` README](crates/ledkit/README.md) lists them):
+
+```sh
+cargo add ledkit --features esp32c6
+```
 
 ## The crates
 
@@ -181,7 +185,7 @@ checkout, as the examples do.
 | `ledkit-spi` | Any `embedded-hal` SPI bus, blocking or async |
 | `ledkit-uart` | NeoPixels from any `embedded-io` serial port with an inverted output, blocking or async (DMA) |
 
-All of these work and are tested on hardware, but aren't published to crates.io yet.
+All of these are on [crates.io](https://crates.io/search?q=ledkit) and tested on hardware.
 Planned: `ledkit-sim`, a desktop simulator to try effects without hardware.
 
 ## Status and roadmap
@@ -191,7 +195,7 @@ hardware: the core, the SPI and serial drivers, both ESP32 drivers, the Pico PIO
 driver, the nRF52840 driver, matrices (`ledkit-layout`), effects (`ledkit-anim`, on an
 8x8 matrix and a 100-LED strip) and text (`ledkit-text`, on an 8x8 DotStar; try the
 fonts in the [text preview](https://jrowe88.github.io/ledkit/text-preview/)). The `ledkit`
-crate ties them together. Next up: the first release on crates.io. See the
+crate ties them together. Version 0.1 is out on crates.io. See the
 [roadmap](docs/roadmap.md) for the details.
 
 Want to help? [CONTRIBUTING.md](CONTRIBUTING.md) has short guides to adding an

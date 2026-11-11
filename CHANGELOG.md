@@ -7,7 +7,9 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the crates
 
 ## [Unreleased]
 
-The first release, 0.1.0, is being prepared. It will contain:
+## [0.1.0] - 2026-11-11
+
+The first release. It contains:
 
 - `ledkit-color`: RGB and RGBW colors, hues, gradients, gamma, color temperature, named
   colors and palettes.

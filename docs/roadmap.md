@@ -70,9 +70,13 @@ README's "Tested on hardware" table, not here.
   minutes (a 429 says when to retry); new versions of existing crates aren't limited
   that way. If `--workspace` stops partway, publish the rest with `-p <crate>`, since
   rerunning `--workspace` would try the published ones again.
-- Check each docs.rs page. `ledkit-esp-idf`'s docs will likely fail there (its build
-  downloads ESP-IDF); if so, say so in its README and point at the facade's docs or a
-  GitHub Pages copy.
+- docs.rs (2026-11-11): every crate's docs build except `ledkit-esp-idf`. docs.rs has no
+  standard library for `riscv32imac-esp-espidf`, so the build stops before our code
+  (esp-idf-hal's docs fail there too; esp-rs hosts them on GitHub Pages). Its README says
+  so, and links that pointed at those docs now go to the crate on GitHub. The `ledkit`
+  facade's docs.rs build leaves out the `esp-idf` feature for the same reason.
+  Follow-up: build its docs in CI and publish them on the GitHub Pages site, then set
+  `documentation` in its `Cargo.toml` (takes effect from the next release).
 - README photos: the placeholder gallery was dropped (2026-11-10); add real bench photos
   or GIFs when there are good ones (`assets/README.md` has tips).
 

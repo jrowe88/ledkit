@@ -12,6 +12,11 @@ interrupts or task scheduling.
 `ledkit-esp-idf` is for projects built on ESP-IDF. For bare-metal projects with
 `esp-hal`, use `ledkit-esp` instead.
 
+**Reading the docs:** docs.rs can't build this crate, because it has no standard library
+for the ESP-IDF targets (esp-idf-hal's own docs aren't there for the same reason). This
+README covers the main use. For the full API, run `cargo doc --open` in your ESP-IDF
+project, or read the source.
+
 ## Which ESP crate do I use?
 
 | Your project | Use |

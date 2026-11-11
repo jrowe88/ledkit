@@ -1,7 +1,7 @@
 //! ESP32 boards with ESP-IDF (`std`): NeoPixels from the RMT peripheral, plus board
 //! helpers. Turn it on with the `esp-idf` feature; the chip comes from your build target.
 //!
-//! Everything from [`ledkit-esp-idf`](https://docs.rs/ledkit-esp-idf) is here
+//! Everything from [`ledkit-esp-idf`](https://github.com/jrowe88/ledkit/tree/main/crates/ledkit-esp-idf) is here
 //! ([`RmtOutput`], [`Error`]), plus:
 //!
 //! - [`strip`] and [`strip_with_dma`]: a ready-to-use [`Strip`] from a pin.

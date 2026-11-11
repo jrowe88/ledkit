@@ -61,6 +61,13 @@ would otherwise rediscover.
 - The S3's SPI holds MOSI high from set-up until its first transfer, so the first frame
   arrived one bit late. `ClocklessSpi` now starts its first frame with a reset gap.
 - Native USB: if `espflash` can't connect, hold BOOT and tap RESET.
+- esp-idf-hal 0.47's transmit-only `UartTxDriver` can't start on ESP-IDF 5.5: it installs
+  the driver with a zero-size receive buffer, and ESP-IDF requires one bigger than the
+  128-byte FIFO (`uart rx buffer length error`). `esp32s3-esp-idf` uses `UartDriver` with
+  an unconnected receive pin instead, and inverts the line with `uart_set_line_inverse`
+  (esp-idf-hal has no setting for it). Found 2026-11-11.
+- ESP-IDF SPI without DMA sends at most 64 bytes per transfer, with pauses in between,
+  so `esp32s3-esp-idf` turns DMA on (`Dma::Auto`) and the frame goes out in one piece.
 - The ESP-IDF examples set a short `target-dir` because `esp-idf-sys` rejects output
   paths over 88 characters on Windows.
 

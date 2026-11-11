@@ -101,20 +101,27 @@ third way to drive NeoPixels when the others are busy.
 
 | Board | Own peripheral | SPI | Serial port | Start with |
 |---|---|---|---|---|
-| ESP32-C6, esp-hal | ✅ RMT | ✅ | ✅ | [esp32c6-start](examples/esp32c6-start)* |
-| ESP32-S3, esp-hal | ✅ RMT | ✅ ± DMA | ✅ | [esp32s3-check](examples/esp32s3-check) |
-| ESP32-C6 / S3, ESP-IDF (`std`, Wi-Fi) | ✅ RMT (± DMA on S3) | | | [esp32s3-start-idf](examples/esp32s3-start-idf)* |
-| Raspberry Pi Pico, Feather RP2040 | ✅ PIO ± DMA, async | ✅ | | [rp2040-pio](examples/rp2040-pio) |
-| Pico 2 (RP2350, Arm or RISC-V) | ✅ PIO ± DMA, async | ✅ | | [rp2350-pio](examples/rp2350-pio) |
-| nRF52840 (Seeed XIAO) | ✅ PWM + EasyDMA, async | ✅ | ✗ (can't invert) | [nrf52840-pwm](examples/nrf52840-pwm) |
-| Teensy 4 | | ✅ | ✅ DMA | [teensy4-spi](examples/teensy4-spi) |
-| Raspberry Pi (Linux) | | ✅ | | [linux-spidev](examples/linux-spidev) |
+| ESP32-C6, esp-hal | ⭐ RMT | ✅ | ✅ | [esp32c6-start](examples/esp32c6-start)* |
+| ESP32-S3, esp-hal | ⭐ RMT | ✅ ± DMA | ✅ | [esp32s3-check](examples/esp32s3-check) |
+| ESP32-C6 / S3, ESP-IDF (`std`, Wi-Fi) | ⭐ RMT (± DMA on S3) | ✅ | ✅ | [esp32s3-start-idf](examples/esp32s3-start-idf)* |
+| Raspberry Pi Pico, Feather RP2040 | ⭐ PIO ± DMA, async | ✅ | | [rp2040-pio](examples/rp2040-pio) |
+| Pico 2 (RP2350, Arm or RISC-V) | ⭐ PIO ± DMA, async | ✅ | | [rp2350-pio](examples/rp2350-pio) |
+| nRF52840 (Seeed XIAO) | ⭐ PWM + EasyDMA, async | ✅ | ❌ can't invert | [nrf52840-pwm](examples/nrf52840-pwm) |
+| Teensy 4 | — not yet (FlexIO) | ✅ | ⭐ DMA | [teensy4-uart](examples/teensy4-uart) |
+| Raspberry Pi (Linux) | — | ⭐ | | [linux-spidev](examples/linux-spidev) |
 | Anything else | | `embedded-hal` SPI | `embedded-io` serial | |
 | Crate | `ledkit-esp`, `ledkit-esp-idf`, `ledkit-rp`, `ledkit-nrf` | `ledkit-spi` | `ledkit-uart` | |
 
-✅ = tested on hardware. A blank cell hasn't been tried yet. * builds; not yet run on
-hardware. All of these come through the one `ledkit` crate except `ledkit-rp`, which you
-add next to it.
+- ⭐ tested on hardware, and the best pick for NeoPixels on that board: the timing is done
+  in hardware, so the processor is free while a frame goes out.
+- ✅ tested on hardware.
+- ❌ doesn't work on this board, and ledkit tells you so when it builds or starts.
+- — no driver for it. A blank cell hasn't been tried yet.
+- \* builds; not yet run on hardware.
+
+DotStars (APA102, SK9822) always use SPI: they have a clock wire, so any SPI bus drives
+them. All of these come through the one `ledkit` crate except `ledkit-rp`, which you add
+next to it.
 
 ### Examples
 

@@ -1,12 +1,15 @@
 //! A hardware check for the ESP32-S3 on ESP-IDF: drive a NeoPixel strip through the
-//! RMT, with and without DMA, with the Wi-Fi radio quiet and then busy.
+//! RMT (with and without DMA), an SPI bus and a serial port, then the RMT again with
+//! the Wi-Fi radio busy.
 //!
 //! | Round | Output | Wi-Fi |
 //! |---|---|---|
 //! | 1 | `RmtOutput::new` (ESP-IDF refills the RMT from an interrupt) | off |
 //! | 2 | `RmtOutput::new_with_dma` (the RMT reads the frame through DMA) | off |
-//! | 3 | `RmtOutput::new` | scanning nonstop |
-//! | 4 | `RmtOutput::new_with_dma` | scanning nonstop |
+//! | 3 | `ClocklessSpi` on esp-idf-hal's `SpiBusDriver`, with DMA | off |
+//! | 4 | `ClocklessUart` on esp-idf-hal's `UartDriver`, the pin inverted | off |
+//! | 5 | `RmtOutput::new` | scanning nonstop |
+//! | 6 | `RmtOutput::new_with_dma` | scanning nonstop |
 //!
 //! Every round shows the same pattern:
 //!
@@ -25,13 +28,21 @@
 use std::thread::sleep;
 use std::time::Duration;
 
+use esp_idf_hal::delay::Ets;
 use esp_idf_hal::peripherals::Peripherals;
+use esp_idf_hal::spi::config::{Config as SpiConfig, DriverConfig};
+use esp_idf_hal::spi::{Dma, SpiBusDriver, SpiDriver};
+use esp_idf_hal::uart::config::Config as UartConfig;
+use esp_idf_hal::uart::UartDriver;
+use esp_idf_hal::units::Hertz;
 use esp_idf_svc::eventloop::EspSystemEventLoop;
 use esp_idf_svc::nvs::EspDefaultNvsPartition;
 use esp_idf_svc::wifi::{BlockingWifi, ClientConfiguration, Configuration, EspWifi};
 use ledkit_core::prelude::*;
 use ledkit_core::Output;
 use ledkit_esp_idf::RmtOutput;
+use ledkit_spi::ClocklessSpi;
+use ledkit_uart::ClocklessUart;
 
 // ---------------------------------------------------------------------------
 // Settings you may want to change
@@ -55,7 +66,20 @@ const BRIGHTNESS: Brightness = Brightness::from_percent(20);
 const POWER_LIMIT: Milliamps = Milliamps(500);
 
 // The data wire is GPIO5 (marked "5" on the Feather), through a 74AHCT125 level
-// shifter. To use another pin, change `gpio5` in `main` below.
+// shifter. To use another pin, change `gpio5` in `main` below. The SPI round also
+// needs a clock pin, GPIO6 ("6"): leave it unconnected.
+
+/// The SPI speed for round 3. 3.2 MHz is exact on the S3 (80 MHz / 25).
+const SPI_HZ: u32 = 3_200_000;
+
+/// The serial port's speed for round 4. 4 Mbaud suits a WS2812B, and is exact from
+/// the 80 MHz clock ESP-IDF runs the port from (80 MHz / 20).
+const BAUD: u32 = 4_000_000;
+
+// Buffer sizes, worked out when the program is compiled, big enough for the sweep's
+// longest frame. A speed that can't drive `LedType` stops the build.
+const SPI_LEN: usize = ledkit_spi::buffer_len::<LedType>(SWEEP_MAX, SPI_HZ);
+const UART_LEN: usize = ledkit_uart::buffer_len::<LedType>(SWEEP_MAX, BAUD);
 
 fn main() {
     // Makes sure some ESP-IDF patches are linked in. Always the first line.
@@ -87,6 +111,52 @@ fn main() {
         run_round(output, &mut hue);
     }
 
+    println!("ROUND 3: SPI with DMA ({SPI_HZ} Hz)");
+    {
+        // With DMA, ESP-IDF sends the whole frame as one transfer. Without it, the
+        // SPI sends 64 bytes at a time, with pauses in between.
+        let driver = SpiDriver::new(
+            unsafe { peripherals.spi2.reborrow() },
+            unsafe { peripherals.pins.gpio6.reborrow() }, // clock, unused
+            unsafe { peripherals.pins.gpio5.reborrow() }, // data
+            None::<esp_idf_hal::gpio::AnyIOPin>,
+            &DriverConfig::new().dma(Dma::Auto(4096)),
+        )
+        .unwrap();
+        let spi = SpiBusDriver::new(driver, &SpiConfig::new().baudrate(Hertz(SPI_HZ))).unwrap();
+        let output = ClocklessSpi::<LedType, _, _>::new(spi, SPI_HZ, [0u8; SPI_LEN]).unwrap();
+        run_round(output, &mut hue);
+    }
+
+    println!("ROUND 4: serial port ({BAUD} baud, pin inverted)");
+    {
+        // The transmit-only `UartTxDriver` would do, but esp-idf-hal 0.47 asks ESP-IDF
+        // for no receive buffer, which ESP-IDF 5.5 refuses. So use the full driver,
+        // with its receive side on GPIO6 (unconnected, also the SPI round's clock).
+        let uart = UartDriver::new(
+            unsafe { peripherals.uart1.reborrow() },
+            unsafe { peripherals.pins.gpio5.reborrow() }, // transmit: the data wire
+            unsafe { peripherals.pins.gpio6.reborrow() }, // receive: unused
+            None::<esp_idf_hal::gpio::AnyIOPin>,
+            None::<esp_idf_hal::gpio::AnyIOPin>,
+            &UartConfig::new().baudrate(Hertz(BAUD)),
+        )
+        .unwrap();
+        println!("  the port runs at {} baud", uart.baudrate().unwrap());
+        // Invert the transmit line, so it rests low as NeoPixels need. esp-idf-hal
+        // has no setting for this, so call ESP-IDF directly.
+        let inverted = unsafe {
+            esp_idf_hal::sys::uart_set_line_inverse(
+                uart.port(),
+                esp_idf_hal::sys::uart_signal_inv_t_UART_SIGNAL_TXD_INV,
+            )
+        };
+        esp_idf_hal::sys::esp!(inverted).unwrap();
+        let output =
+            ClocklessUart::<LedType, _, _, _>::new(uart, BAUD, Ets, [0u8; UART_LEN]).unwrap();
+        run_round(output, &mut hue);
+    }
+
     println!("Starting Wi-Fi: scanning nonstop from now on");
     let sysloop = EspSystemEventLoop::take().unwrap();
     let nvs = EspDefaultNvsPartition::take().unwrap();
@@ -108,14 +178,14 @@ fn main() {
         })
         .unwrap();
 
-    println!("ROUND 3: RMT, Wi-Fi scanning");
+    println!("ROUND 5: RMT, Wi-Fi scanning");
     {
         let output =
             RmtOutput::<LedType>::new(unsafe { peripherals.pins.gpio5.reborrow() }).unwrap();
         run_round(output, &mut hue);
     }
 
-    println!("ROUND 4: RMT with DMA, Wi-Fi scanning");
+    println!("ROUND 6: RMT with DMA, Wi-Fi scanning");
     let output = RmtOutput::<LedType>::new_with_dma(peripherals.pins.gpio5).unwrap();
     let mut strip = run_round(output, &mut hue);
 
@@ -127,10 +197,11 @@ fn main() {
 }
 
 /// Shows one round of the test pattern on `output`, then hands the strip back.
-fn run_round<'d>(
-    output: RmtOutput<'d, LedType>,
-    hue: &mut Hue,
-) -> Strip<LedType, LED_COUNT, RmtOutput<'d, LedType>> {
+fn run_round<O>(output: O, hue: &mut Hue) -> Strip<LedType, LED_COUNT, O>
+where
+    O: Output<LedType>,
+    O::Error: core::fmt::Debug,
+{
     let mut strip = Strip::<LedType, LED_COUNT, _>::new(output);
     strip.set_brightness(BRIGHTNESS);
     strip.set_power_limit(POWER_LIMIT);
@@ -200,7 +271,11 @@ fn run_round<'d>(
 
 /// Fills the strip with a moving rainbow (a full color circle every 60 LEDs) and
 /// shows it.
-fn rainbow_frame(strip: &mut Strip<LedType, LED_COUNT, RmtOutput<'_, LedType>>, hue: &mut Hue) {
+fn rainbow_frame<O>(strip: &mut Strip<LedType, LED_COUNT, O>, hue: &mut Hue)
+where
+    O: Output<LedType>,
+    O::Error: core::fmt::Debug,
+{
     for i in 0..LED_COUNT {
         let spread = (i * 65_536 / 60) as u16;
         strip.set(i, Rgb::from_hue(hue.shifted(spread)));

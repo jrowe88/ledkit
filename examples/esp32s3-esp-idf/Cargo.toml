@@ -24,6 +24,8 @@ opt-level = "z"
 [dependencies]
 ledkit-core = { path = "../../crates/ledkit-core" }
 ledkit-esp-idf = { path = "../../crates/ledkit-esp-idf" }
+ledkit-spi = { path = "../../crates/ledkit-spi" }
+ledkit-uart = { path = "../../crates/ledkit-uart" }
 esp-idf-hal = "0.47"
 # Only for the Wi-Fi rounds: the radio scans in the background to keep it busy.
 esp-idf-svc = "0.53"

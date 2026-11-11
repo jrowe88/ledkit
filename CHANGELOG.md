@@ -22,4 +22,12 @@ The first release, 0.1.0, is being prepared. It will contain:
 - Backends: `ledkit-spi` (any `embedded-hal` SPI bus), `ledkit-uart` (any `embedded-io`
   serial port), `ledkit-esp` (ESP32 RMT, esp-hal), `ledkit-esp-idf` (ESP32 RMT,
   ESP-IDF), `ledkit-rp` (RP2040/RP2350 PIO) and `ledkit-nrf` (nRF52840 PWM).
-- `ledkit`: the one crate to add, with a prelude and a feature per backend.
+- `ledkit`: the one crate to add, with a prelude and a feature per backend, and board
+  helpers for the ESP32: `esp::strip!` (esp-hal, blocking or async) and `esp_idf::strip`
+  (ESP-IDF), each with a `Clock`. Every helper is made of public pieces you can write out
+  by hand.
+- `Frames` and `FramesAsync` (in `ledkit-anim`): a frame loop that waits until the next
+  frame is due and gives the time, from any clock and any `embedded-hal` delay.
+- Examples for real boards (ESP32-C6, ESP32-S3, RP2040, RP2350, nRF52840, Teensy 4,
+  Raspberry Pi), each with a hardware status line; start with `esp32c6-start` (esp-hal)
+  or `esp32s3-start-idf` (ESP-IDF).

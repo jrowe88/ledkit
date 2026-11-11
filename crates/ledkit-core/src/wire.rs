@@ -137,7 +137,7 @@ impl<C: Chip, I: FusedIterator<Item = C::Pixel>> FusedIterator for ClocklessByte
 ///
 /// That is a 4-byte start frame, 4 bytes per LED and the chip's end frame:
 ///
-/// - APA102: one byte for every 16 LEDs (rounded up).
+/// - APA102: one 4-byte black LED frame for every 64 LEDs (rounded up).
 /// - SK9822: 4 reset bytes, then one byte for every 16 LEDs (rounded up).
 ///
 /// For zero LEDs the APA102 frame is just the 4-byte start frame.
@@ -152,7 +152,7 @@ impl<C: Chip, I: FusedIterator<Item = C::Pixel>> FusedIterator for ClocklessByte
 /// use ledkit_core::wire::clocked_frame_len;
 /// use ledkit_core::{Apa102, Sk9822};
 ///
-/// assert_eq!(clocked_frame_len::<Apa102>(2), 13);
+/// assert_eq!(clocked_frame_len::<Apa102>(2), 16);
 /// assert_eq!(clocked_frame_len::<Sk9822>(2), 17);
 /// ```
 pub const fn clocked_frame_len<C: Chip>(led_count: usize) -> usize {
@@ -173,16 +173,20 @@ pub const fn clocked_frame_len<C: Chip>(led_count: usize) -> usize {
 ///
 /// The LEDs sit in a chain and each one passes the data on half a clock late,
 /// so the last LEDs only show their colors if the strip gets about `n / 2` more
-/// clock edges after the data. `ceil(n / 16)` bytes is `n / 2` bits or more.
-/// What those extra bytes contain depends on the chip.
+/// clock edges after the data. What those extra bits contain depends on the
+/// chip. Your strip may also be longer than the LED count you gave: the LEDs
+/// past the end read the end frame as pixels, so it must leave them dark.
 ///
-/// - **APA102** ([`ClockedFormat::Apa102`]): `ceil(n / 16)` bytes of `0xFF`.
-///   They are ones rather than zeros because the APA102 reads a run of 32 or
-///   more zero bits as a new start frame, which made the last LEDs (60 to 63
-///   of 64 on an APA102-2020 DotStar HD 8x8) miss their colors. A full 32-bit
-///   frame of ones is avoided too, since an LED past the end of the strip would
-///   see it as pixel data. This is the end frame Adafruit's DotStar library
-///   sends, and it is verified on hardware.
+/// - **APA102** ([`ClockedFormat::Apa102`]): `ceil(n / 64)` black LED frames,
+///   `0xFF 00 00 00` each. One frame is 32 clock edges, so that is at least the
+///   `n / 2` the chain needs. An LED past the end takes each frame as a black
+///   pixel and stays dark, and whole frames leave nothing over for the next
+///   one. They are never all zeros: the APA102 reads a run of 32 zero bits as
+///   a new start frame, and an end frame of zeros made the last LEDs (60 to 63
+///   of 64 on an APA102-2020 DotStar HD 8x8) miss their colors. The longest
+///   run of zeros here is 24 bits, as in a black pixel at full level. (An end
+///   frame of `0xFF` bytes, as Adafruit's DotStar library sends, lights the
+///   LED after the last one: it reads those ones as a bright pixel.)
 /// - **SK9822** ([`ClockedFormat::Sk9822`]): a reset frame of 4 bytes of
 ///   `0x00`, then `ceil(n / 16)` bytes of `0x00` for the propagation clocks.
 ///   The SK9822 only latches its colors after it sees 32 zero bits, so an
@@ -198,7 +202,7 @@ pub const fn clocked_frame_len<C: Chip>(led_count: usize) -> usize {
 /// use ledkit_core::{wire::clocked_frame, Apa102, Rgb};
 ///
 /// let frame: Vec<u8> = clocked_frame::<Apa102, _>([Rgb::new(1, 2, 3)]).collect();
-/// assert_eq!(frame, [0, 0, 0, 0, 0xFF, 3, 2, 1, 0xFF]);
+/// assert_eq!(frame, [0, 0, 0, 0, 0xFF, 3, 2, 1, 0xFF, 0, 0, 0]);
 /// ```
 pub fn clocked_frame<C, I>(pixels: I) -> ClockedFrame<C, I::IntoIter>
 where
@@ -214,6 +218,7 @@ where
         current: None,
         next_byte: 0,
         body_done: false,
+        end_sent: 0,
         end_left,
         header: 0xFF,
         chip: PhantomData,
@@ -241,6 +246,8 @@ pub struct ClockedFrame<C: Chip, I> {
     /// 0 is the header byte, then one per channel.
     next_byte: usize,
     body_done: bool,
+    /// End-frame bytes sent so far.
+    end_sent: usize,
     end_left: usize,
     /// Each LED's first byte: `0xE0` plus the global brightness.
     header: u8,
@@ -259,7 +266,7 @@ impl<C: Chip, I> ClockedFrame<C, I> {
     /// let frame: Vec<u8> = clocked_frame::<Apa102, _>([Rgb::new(1, 2, 3)])
     ///     .with_global_brightness(4)
     ///     .collect();
-    /// assert_eq!(frame, [0, 0, 0, 0, 0xE4, 3, 2, 1, 0xFF]);
+    /// assert_eq!(frame, [0, 0, 0, 0, 0xE4, 3, 2, 1, 0xFF, 0, 0, 0]);
     /// ```
     #[must_use]
     pub fn with_global_brightness(mut self, level: u8) -> Self {
@@ -284,6 +291,7 @@ impl<C: Chip, I: Clone> Clone for ClockedFrame<C, I> {
             current: self.current,
             next_byte: self.next_byte,
             body_done: self.body_done,
+            end_sent: self.end_sent,
             end_left: self.end_left,
             header: self.header,
             chip: PhantomData,
@@ -299,6 +307,7 @@ impl<C: Chip, I: fmt::Debug> fmt::Debug for ClockedFrame<C, I> {
             .field("current", &self.current)
             .field("next_byte", &self.next_byte)
             .field("body_done", &self.body_done)
+            .field("end_sent", &self.end_sent)
             .field("end_left", &self.end_left)
             .field("header", &self.header)
             .finish()
@@ -334,8 +343,10 @@ impl<C: Chip, I: Iterator<Item = C::Pixel>> Iterator for ClockedFrame<C, I> {
             }
         }
         if self.end_left > 0 {
+            let byte = ClockedFormat::of::<C>().end_frame_byte_at(self.end_sent);
+            self.end_sent += 1;
             self.end_left -= 1;
-            return Some(ClockedFormat::of::<C>().end_frame_byte());
+            return Some(byte);
         }
         None
     }
@@ -419,8 +430,11 @@ mod tests {
     fn dotstar_frame() {
         let frame =
             clocked_frame::<Apa102, _>([Rgb::new(1, 2, 3), Rgb::new(4, 5, 6)]).collect::<Vec<_>>();
-        assert_eq!(frame, [0, 0, 0, 0, 0xFF, 3, 2, 1, 0xFF, 6, 5, 4, 0xFF]);
-        assert_eq!(clocked_frame_len::<Apa102>(2), 13);
+        assert_eq!(
+            frame,
+            [0, 0, 0, 0, 0xFF, 3, 2, 1, 0xFF, 6, 5, 4, 0xFF, 0, 0, 0]
+        );
+        assert_eq!(clocked_frame_len::<Apa102>(2), 16);
     }
 
     #[test]
@@ -441,10 +455,60 @@ mod tests {
     }
 
     #[test]
-    fn apa102_end_frame_is_ceil_n_over_16_bytes_of_ff() {
-        for (n, bytes) in [(0, 0), (1, 1), (15, 1), (16, 1), (17, 2), (64, 4)] {
-            assert_eq!(end_frame::<Apa102>(n), vec![0xFF; bytes], "n = {n}");
-            assert_eq!(clocked_frame_len::<Apa102>(n), 4 + 4 * n + bytes, "n = {n}");
+    fn apa102_end_frame_is_a_black_led_frame_per_64_leds() {
+        let black = [0xFF, 0, 0, 0];
+        for (n, frames) in [
+            (0, 0),
+            (1, 1),
+            (17, 1),
+            (64, 1),
+            (65, 2),
+            (128, 2),
+            (300, 5),
+        ] {
+            assert_eq!(end_frame::<Apa102>(n), black.repeat(frames), "n = {n}");
+            assert_eq!(
+                clocked_frame_len::<Apa102>(n),
+                4 + 4 * n + 4 * frames,
+                "n = {n}"
+            );
+        }
+    }
+
+    #[test]
+    fn apa102_end_frame_never_gives_fewer_clocks_than_the_0xff_one() {
+        for n in 0..=2048 {
+            let bits = 8 * ClockedFormat::Apa102.end_frame_len(n);
+            assert!(bits >= n.div_ceil(2), "n = {n}: {bits} bits");
+            // The end frame of ceil(n / 16) 0xFF bytes ran a 300-LED strip.
+            assert!(bits >= 8 * n.div_ceil(16), "n = {n}: {bits} bits");
+        }
+    }
+
+    #[test]
+    fn apa102_frame_has_no_false_start_frame() {
+        // The darkest data there is: black LEDs at 5-bit level 0.
+        for n in [0, 1, 64, 65, 300] {
+            let frame: Vec<u8> = clocked_frame::<Apa102, _>(vec![Rgb::BLACK; n])
+                .with_global_brightness(0)
+                .collect();
+            let mut zeros = 0;
+            let mut longest = 0;
+            for byte in &frame[4..] {
+                for bit in (0..8).rev() {
+                    zeros = if byte >> bit & 1 == 1 { 0 } else { zeros + 1 };
+                    longest = longest.max(zeros);
+                }
+            }
+            assert!(longest < 32, "n = {n}: {longest} zero bits in a row");
+        }
+    }
+
+    #[test]
+    #[allow(deprecated)]
+    fn end_frame_byte_is_the_first_byte() {
+        for format in [ClockedFormat::Apa102, ClockedFormat::Sk9822] {
+            assert_eq!(format.end_frame_byte(), format.end_frame_byte_at(0));
         }
     }
 
@@ -456,11 +520,116 @@ mod tests {
         }
     }
 
+    /// The 4 bytes one LED took as its own: the level byte, then the colors
+    /// in wire order.
+    type LedFrame = [u8; 4];
+
+    /// A model of a chain of DotStars, after cpldcpu's measurements
+    /// ("Understanding the APA102 Superled", 2014). Each LED waits for a start
+    /// frame (a run of at least 32 zero bits), takes the 32 bits from the next
+    /// 1 bit on as its own frame while sending zeros on, then passes every bit
+    /// on until it sees another run of 32 zero bits. Each LED delays the data
+    /// by half a clock, so when the clock stops LED `k` has not yet seen the
+    /// last `ceil(k / 2)` bits.
+    ///
+    /// Returns every frame each LED took, in order.
+    fn chain(stream: &[u8], leds: usize) -> Vec<Vec<LedFrame>> {
+        let mut input: Vec<bool> = stream
+            .iter()
+            .flat_map(|byte| (0..8).rev().map(move |bit| byte >> bit & 1 == 1))
+            .collect();
+        let sent = input.len();
+        let mut taken = Vec::new();
+        for k in 0..leds {
+            let arrived = sent.saturating_sub(k.div_ceil(2));
+            let mut output = Vec::with_capacity(arrived);
+            let mut frames = Vec::new();
+            let mut zeros = 0;
+            let mut armed = false;
+            // While taking its own frame: (bits so far, their value).
+            let mut own: Option<(u32, u32)> = None;
+            for &bit in &input[..arrived] {
+                if let Some((count, value)) = own.as_mut() {
+                    *value = *value << 1 | u32::from(bit);
+                    *count += 1;
+                    output.push(false);
+                    if *count == 32 {
+                        frames.push(value.to_be_bytes());
+                        own = None;
+                        zeros = 0;
+                    }
+                } else if armed && bit {
+                    armed = false;
+                    own = Some((1, 1));
+                    output.push(false);
+                } else {
+                    output.push(bit);
+                    zeros = if bit { 0 } else { zeros + 1 };
+                    armed |= zeros >= 32;
+                }
+            }
+            taken.push(frames);
+            input = output;
+        }
+        taken
+    }
+
+    /// `n` pixels that are never black, so a lit LED can't pass for a dark one.
+    fn lit_pixels(n: usize) -> Vec<Rgb> {
+        (0..n).map(|i| Rgb::new(i as u8, 0x55, 0xAA)).collect()
+    }
+
+    /// Lengths around every end-frame step, and the bench strips.
+    const LED_COUNTS: [usize; 16] = [
+        1, 15, 16, 17, 32, 33, 48, 49, 63, 64, 65, 100, 128, 129, 150, 300,
+    ];
+
+    fn every_led_gets_its_color_from_one_frame<C: Chip<Pixel = Rgb>>() {
+        for n in LED_COUNTS {
+            let pixels = lit_pixels(n);
+            let frame: Vec<u8> = clocked_frame::<C, _>(pixels.iter().copied()).collect();
+            let taken = chain(&frame, n);
+            for (k, pixel) in pixels.iter().enumerate() {
+                assert_eq!(
+                    taken[k],
+                    [[0xFF, pixel.b, pixel.g, pixel.r]],
+                    "n = {n}, LED {k}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn the_end_frame_clocks_the_last_led() {
+        every_led_gets_its_color_from_one_frame::<Apa102>();
+        every_led_gets_its_color_from_one_frame::<Sk9822>();
+    }
+
+    fn leds_past_the_end_stay_dark<C: Chip<Pixel = Rgb>>() {
+        for n in LED_COUNTS {
+            let frame: Vec<u8> = clocked_frame::<C, _>(lit_pixels(n)).collect();
+            // Two frames in a row: the second one's clocks push on whatever
+            // the first one left halfway down the chain.
+            let taken = chain(&[frame.clone(), frame].concat(), n + 64);
+            for (k, frames) in taken.iter().enumerate().skip(n) {
+                for led in frames {
+                    assert_eq!(led[1..], [0, 0, 0], "n = {n}: LED {k} lit, {led:02X?}");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn a_strip_longer_than_the_led_count_stays_dark_past_the_end() {
+        leds_past_the_end_stay_dark::<Apa102>();
+        leds_past_the_end_stay_dark::<Sk9822>();
+    }
+
     #[test]
     fn dotstar_frame_lengths() {
         assert_eq!(clocked_frame_len::<Apa102>(0), 4);
-        assert_eq!(clocked_frame_len::<Apa102>(16), 4 + 64 + 1);
-        assert_eq!(clocked_frame_len::<Apa102>(17), 4 + 68 + 2);
+        assert_eq!(clocked_frame_len::<Apa102>(16), 4 + 64 + 4);
+        assert_eq!(clocked_frame_len::<Apa102>(17), 4 + 68 + 4);
         assert_eq!(clocked_frame_len::<Sk9822>(0), 8);
         assert_eq!(clocked_frame_len::<Sk9822>(16), 4 + 64 + 5);
         assert_eq!(clocked_frame_len::<Sk9822>(17), 4 + 68 + 6);

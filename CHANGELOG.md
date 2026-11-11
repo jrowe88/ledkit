@@ -7,6 +7,23 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the crates
 
 ## [Unreleased]
 
+### Added
+
+- `ledkit-core`: `ClockedFormat::end_frame_byte_at`, the end-frame byte at a position.
+
+### Deprecated
+
+- `ledkit-core`: `ClockedFormat::end_frame_byte`. The APA102 end frame is no longer one
+  byte repeated; use `end_frame_byte_at`.
+
+### Fixed
+
+- `ledkit-core`, `ledkit-spi`: LEDs past the end of an APA102 frame stay dark. A strip
+  longer than its LED count used to light the LED after the last one (full white with 49
+  LEDs or more; by a model of the chain, blue or cyan from 17), because the end frame was
+  `ceil(n / 16)` bytes of `0xFF`. It is now `ceil(n / 64)` black LED frames (`FF 00 00 00`), which give the last
+  LEDs at least as many clocks as before.
+
 ## [0.1.0] - 2026-11-11
 
 The first release. It contains:

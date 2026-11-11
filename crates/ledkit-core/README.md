@@ -121,10 +121,10 @@ using one of these techniques, and `ledkit-core` provides the pieces:
   lengths in clock ticks for the ESP32 RMT or RP2040 PIO
   (`encode::PulseTicks`).
 - DotStars are sent as plain SPI frames with `wire::clocked_frame`. The
-  frame ends with `ceil(n / 16)` bytes of `0xFF` for the APA102, like
-  Adafruit's library (verified on hardware). The SK9822 instead gets a
-  4-byte zero reset frame plus `ceil(n / 16)` zero bytes, which it needs to
-  latch its colors (verified on a 144-LED strip).
+  frame ends with `ceil(n / 64)` black LED frames for the APA102, which
+  clock the last LEDs and leave any LEDs past the end dark. The SK9822
+  instead gets a 4-byte zero reset frame plus `ceil(n / 16)` zero bytes,
+  which it needs to latch its colors (verified on a 144-LED strip).
 
 You only meet these when writing a backend; see `Output`.
 

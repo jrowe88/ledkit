@@ -103,7 +103,7 @@ third way to drive NeoPixels when the others are busy.
 |---|---|---|---|---|
 | ESP32-C6, esp-hal | ⭐ RMT | ✅ | ✅ | [esp32c6-start](examples/esp32c6-start) |
 | ESP32-S3, esp-hal | ⭐ RMT | ✅ ± DMA | ✅ | [esp32s3-check](examples/esp32s3-check) |
-| ESP32-C6 / S3, ESP-IDF (`std`, Wi-Fi) | ⭐ RMT (± DMA on S3) | ✅ | ✅ | [esp32s3-start-idf](examples/esp32s3-start-idf)* |
+| ESP32-C6 / S3, ESP-IDF (`std`, Wi-Fi) | ⭐ RMT (± DMA on S3) | ✅ | ✅ | [esp32s3-start-idf](examples/esp32s3-start-idf) |
 | Raspberry Pi Pico, Feather RP2040 | ⭐ PIO ± DMA, async | ✅ | | [rp2040-pio](examples/rp2040-pio) |
 | Pico 2 (RP2350, Arm or RISC-V) | ⭐ PIO ± DMA, async | ✅ | | [rp2350-pio](examples/rp2350-pio) |
 | nRF52840 (Seeed XIAO) | ⭐ PWM + EasyDMA, async | ✅ | ❌ can't invert | [nrf52840-pwm](examples/nrf52840-pwm) |
@@ -132,7 +132,7 @@ troubleshooting in its README.
 | Board | Drivers | Matrices, effects, text |
 |---|---|---|
 | ESP32-C6 | [esp32c6-start](examples/esp32c6-start), [esp32c6-rmt](examples/esp32c6-rmt), [esp32c6-esp-idf](examples/esp32c6-esp-idf), [esp32c6-spi](examples/esp32c6-spi), [esp32c6-uart](examples/esp32c6-uart) | [esp32c6-matrix](examples/esp32c6-matrix), [esp32c6-anim](examples/esp32c6-anim), [esp32c6-dotstar-hd](examples/esp32c6-dotstar-hd), [esp32c6-text](examples/esp32c6-text)* |
-| ESP32-S3 Feather | [esp32s3-start-idf](examples/esp32s3-start-idf)*, [esp32s3-rmt](examples/esp32s3-rmt), [esp32s3-esp-idf](examples/esp32s3-esp-idf), [esp32s3-check](examples/esp32s3-check) (RMT, SPI ± DMA, UART) | [esp32s3-matrix](examples/esp32s3-matrix), [esp32s3-anim](examples/esp32s3-anim), [esp32s3-dotstar-hd](examples/esp32s3-dotstar-hd), [esp32s3-text](examples/esp32s3-text) |
+| ESP32-S3 Feather | [esp32s3-start-idf](examples/esp32s3-start-idf), [esp32s3-rmt](examples/esp32s3-rmt), [esp32s3-esp-idf](examples/esp32s3-esp-idf), [esp32s3-check](examples/esp32s3-check) (RMT, SPI ± DMA, UART) | [esp32s3-matrix](examples/esp32s3-matrix), [esp32s3-anim](examples/esp32s3-anim), [esp32s3-dotstar-hd](examples/esp32s3-dotstar-hd), [esp32s3-text](examples/esp32s3-text) |
 | RP2040 / RP2350 | [rp2040-pio](examples/rp2040-pio), [rp2350-pio](examples/rp2350-pio) (both with DotStars) | [rp2350-text](examples/rp2350-text)* |
 | nRF52840 | [nrf52840-pwm](examples/nrf52840-pwm), [nrf52840-spi](examples/nrf52840-spi), [nrf52840-dotstar](examples/nrf52840-dotstar) | |
 | Teensy 4 | [teensy4-spi](examples/teensy4-spi), [teensy4-uart](examples/teensy4-uart) | [teensy4-anim](examples/teensy4-anim) |

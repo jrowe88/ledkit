@@ -7,9 +7,9 @@ a NeoPixel strip, about 60 frames a second. It depends only on `ledkit` and esp-
   (`strip_with_dma` lets the RMT read the frame through DMA, which only the S3 has).
 - `Frames` waits until each frame is due and gives the time to draw it at.
 
-> **Status: builds, not yet tested on hardware.** Written for an Adafruit ESP32-S3
-> Feather and a 100-LED WS2812B strip through a 74AHCT125, as in
-> [esp32s3-esp-idf](../esp32s3-esp-idf).
+> **Passes on hardware** (2026-11-11, Adafruit ESP32-S3 Feather, a 100-LED WS2812B strip
+> through a 74AHCT125, as in [esp32s3-esp-idf](../esp32s3-esp-idf)): a smooth rainbow
+> along the whole strip. If you try it on other hardware, please report what you see.
 
 ## What you'll see
 

@@ -109,9 +109,10 @@ details:
 |---|---|---|---|
 | Adafruit ESP32-S3 Feather | `esp::strip!` + `esp::Clock` + `Frames` (the `esp32c6-start` program, built for the S3 on GPIO33) | the onboard NeoPixel | pass (2026-11-11), blocking and async (`strip!(.., async)`, `FramesAsync` with an async `OneShotTimer`): a smooth color cycle at 60 frames a second |
 | ESP32-C6-DevKitC-1 | `examples/esp32c6-start`, blocking and `--features async` | WS2812B strip (64 of 100 LEDs) through a 74AHCT125 | pass (2026-11-11): a smooth rainbow at 60 frames a second; a faint shimmer at color blends at 20% brightness is low-brightness stepping (it fades at 50%, and turning dithering off barely changes it) |
+| Adafruit ESP32-S3 Feather | `examples/esp32s3-start-idf` (`esp_idf::strip`, `esp_idf::Clock`, `Frames` with ESP-IDF's `Delay`) | WS2812B strip, 100 LEDs, through a 74AHCT125 | pass (2026-11-11): a smooth rainbow along the whole strip |
 | Adafruit ESP32-S3 Feather | `examples/esp32s3-text` on the facade (`spi` feature, `Frames` with `restart()` per scene) | Adafruit DotStar HD 8×8 | pass (2026-11-11): all 18 scenes play in order and scroll smoothly, as before the facade |
 
-Not yet run: `examples/esp32s3-start-idf` (the ESP-IDF helpers). If you try `ledkit` on other hardware, please report what you see.
+If you try `ledkit` on other hardware, please report what you see.
 
 ## Examples
 

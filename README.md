@@ -95,45 +95,49 @@ blocking or async (Embassy).
 
 ## Pick your board
 
-Each example is a complete project, with the settings you'd change
-(`LED_COUNT`, the pin, the LED type, brightness) at the top of `main.rs`
-and wiring, setup and troubleshooting in its README.
+Every board drives LEDs at least one way. Its own pulse peripheral (RMT, PIO, PWM) is
+the usual pick for NeoPixels; SPI drives DotStars, and NeoPixels too; a serial port is a
+third way to drive NeoPixels when the others are busy.
 
-| Board | Crate | Example | Tested |
-|---|---|---|---|
-| **Start here:** ESP32-C6 with esp-hal, a rainbow (blocking or async) | `ledkit` | [esp32c6-start](examples/esp32c6-start) | builds |
-| **Start here:** ESP32-S3 with ESP-IDF, a rainbow | `ledkit` | [esp32s3-start-idf](examples/esp32s3-start-idf) | builds |
-| ESP32-C6 with esp-hal (`no_std`) | `ledkit-esp` | [esp32c6-rmt](examples/esp32c6-rmt) | ✅ on hardware |
-| ESP32-C6 with ESP-IDF (`std`, Wi-Fi) | `ledkit-esp-idf` | [esp32c6-esp-idf](examples/esp32c6-esp-idf) | ✅ on hardware |
-| Any board with an SPI bus | `ledkit-spi` | [esp32c6-spi](examples/esp32c6-spi) | ✅ on hardware |
-| Raspberry Pi (Linux) | `ledkit-spi` | [linux-spidev](examples/linux-spidev) | ✅ on hardware |
-| Teensy 4 | `ledkit-spi` | [teensy4-spi](examples/teensy4-spi) | ✅ on hardware |
-| LED matrix on the ESP32-C6 | `ledkit-layout` + `ledkit-esp` | [esp32c6-matrix](examples/esp32c6-matrix) | ✅ on hardware |
-| Animations on a matrix or strip, ESP32-C6 | `ledkit-anim` + `ledkit-esp` | [esp32c6-anim](examples/esp32c6-anim) | ✅ on hardware (8x8 matrix and 100-LED strip) |
-| Every animation on a matrix or strip, Teensy 4 | `ledkit-anim` + `ledkit-spi` | [teensy4-anim](examples/teensy4-anim) | ✅ on hardware (8x8 matrix and 100-LED strip) |
-| Animations in your terminal (no LEDs) | `ledkit-anim` | [anim-preview](examples/anim-preview) | ✅ |
-| DotStar HD vs plain dimming on the ESP32-C6 | `ledkit-core` | [esp32c6-dotstar-hd](examples/esp32c6-dotstar-hd) | ✅ on hardware |
-| NeoPixels from a serial port, ESP32-C6 | `ledkit-uart` | [esp32c6-uart](examples/esp32c6-uart) | ✅ on hardware |
-| NeoPixels from a serial port, Teensy 4 (with DMA) | `ledkit-uart` | [teensy4-uart](examples/teensy4-uart) | ✅ on hardware |
-| ESP32-S3 Feather, onboard NeoPixel (esp-hal) | `ledkit-esp` | [esp32s3-rmt](examples/esp32s3-rmt) | ✅ on hardware |
-| ESP32-S3 Feather, a strip every way: RMT, SPI ± DMA, UART | `ledkit-esp` + `ledkit-spi` + `ledkit-uart` | [esp32s3-check](examples/esp32s3-check) | ✅ on hardware (100-LED strip, all seven rounds) |
-| ESP32-S3 Feather with ESP-IDF: RMT ± DMA, with Wi-Fi | `ledkit-esp-idf` | [esp32s3-esp-idf](examples/esp32s3-esp-idf) | ✅ on hardware (with and without Wi-Fi) |
-| ESP32-S3: matrix, animations, DotStar HD | as the C6 versions | [esp32s3-matrix](examples/esp32s3-matrix), [esp32s3-anim](examples/esp32s3-anim), [esp32s3-dotstar-hd](examples/esp32s3-dotstar-hd) | ✅ on hardware |
-| Text tour on an 8x8 DotStar, ESP32-S3 | `ledkit` (text, spi) | [esp32s3-text](examples/esp32s3-text) | ✅ on hardware |
-| Text tour on an 8x8 DotStar, Pico 2 W | `ledkit-text` + `ledkit-spi` | [rp2350-text](examples/rp2350-text) | builds |
-| Raspberry Pi Pico / Feather RP2040, PIO every way (± DMA, async), plus DotStars | `ledkit-rp` + `ledkit-spi` | [rp2040-pio](examples/rp2040-pio) | ✅ on hardware |
-| Pico 2 W (RP2350, Arm and RISC-V cores), PIO every way, plus DotStars | `ledkit-rp` + `ledkit-spi` | [rp2350-pio](examples/rp2350-pio) | ✅ on hardware |
-| nRF52840 (XIAO), PWM + EasyDMA, blocking and async | `ledkit-nrf` | [nrf52840-pwm](examples/nrf52840-pwm) | ✅ on hardware |
-| nRF52840 (XIAO), NeoPixels or DotStars over SPI | `ledkit-spi` | [nrf52840-spi](examples/nrf52840-spi), [nrf52840-dotstar](examples/nrf52840-dotstar) | ✅ on hardware |
-| Scrolling text on an 8x8 NeoPixel matrix, ESP32-C6 | `ledkit-text` + `ledkit-esp` | [esp32c6-text](examples/esp32c6-text) | builds |
+| Board | Own peripheral | SPI | Serial port | Start with |
+|---|---|---|---|---|
+| ESP32-C6, esp-hal | ✅ RMT | ✅ | ✅ | [esp32c6-start](examples/esp32c6-start)* |
+| ESP32-S3, esp-hal | ✅ RMT | ✅ ± DMA | ✅ | [esp32s3-check](examples/esp32s3-check) |
+| ESP32-C6 / S3, ESP-IDF (`std`, Wi-Fi) | ✅ RMT (± DMA on S3) | | | [esp32s3-start-idf](examples/esp32s3-start-idf)* |
+| Raspberry Pi Pico, Feather RP2040 | ✅ PIO ± DMA, async | ✅ | | [rp2040-pio](examples/rp2040-pio) |
+| Pico 2 (RP2350, Arm or RISC-V) | ✅ PIO ± DMA, async | ✅ | | [rp2350-pio](examples/rp2350-pio) |
+| nRF52840 (Seeed XIAO) | ✅ PWM + EasyDMA, async | ✅ | ✗ (can't invert) | [nrf52840-pwm](examples/nrf52840-pwm) |
+| Teensy 4 | | ✅ | ✅ DMA | [teensy4-spi](examples/teensy4-spi) |
+| Raspberry Pi (Linux) | | ✅ | | [linux-spidev](examples/linux-spidev) |
+| Anything else | | `embedded-hal` SPI | `embedded-io` serial | |
+| Crate | `ledkit-esp`, `ledkit-esp-idf`, `ledkit-rp`, `ledkit-nrf` | `ledkit-spi` | `ledkit-uart` | |
+
+✅ = tested on hardware. A blank cell hasn't been tried yet. * builds; not yet run on
+hardware. All of these come through the one `ledkit` crate except `ledkit-rp`, which you
+add next to it.
+
+### Examples
+
+Each example is a complete project, with the settings you'd change (`LED_COUNT`, the
+pin, the LED type, brightness) at the top of `main.rs` and wiring, setup and
+troubleshooting in its README.
+
+| Board | Drivers | Matrices, effects, text |
+|---|---|---|
+| ESP32-C6 | [esp32c6-start](examples/esp32c6-start)*, [esp32c6-rmt](examples/esp32c6-rmt), [esp32c6-esp-idf](examples/esp32c6-esp-idf), [esp32c6-spi](examples/esp32c6-spi), [esp32c6-uart](examples/esp32c6-uart) | [esp32c6-matrix](examples/esp32c6-matrix), [esp32c6-anim](examples/esp32c6-anim), [esp32c6-dotstar-hd](examples/esp32c6-dotstar-hd), [esp32c6-text](examples/esp32c6-text)* |
+| ESP32-S3 Feather | [esp32s3-start-idf](examples/esp32s3-start-idf)*, [esp32s3-rmt](examples/esp32s3-rmt), [esp32s3-esp-idf](examples/esp32s3-esp-idf), [esp32s3-check](examples/esp32s3-check) (RMT, SPI ± DMA, UART) | [esp32s3-matrix](examples/esp32s3-matrix), [esp32s3-anim](examples/esp32s3-anim), [esp32s3-dotstar-hd](examples/esp32s3-dotstar-hd), [esp32s3-text](examples/esp32s3-text) |
+| RP2040 / RP2350 | [rp2040-pio](examples/rp2040-pio), [rp2350-pio](examples/rp2350-pio) (both with DotStars) | [rp2350-text](examples/rp2350-text)* |
+| nRF52840 | [nrf52840-pwm](examples/nrf52840-pwm), [nrf52840-spi](examples/nrf52840-spi), [nrf52840-dotstar](examples/nrf52840-dotstar) | |
+| Teensy 4 | [teensy4-spi](examples/teensy4-spi), [teensy4-uart](examples/teensy4-uart) | [teensy4-anim](examples/teensy4-anim) |
+| Raspberry Pi | [linux-spidev](examples/linux-spidev) | |
+| No LEDs | | [anim-preview](examples/anim-preview) (effects in your terminal) |
 
 ## Get started
 
 1. **Find your LED type.** Look for the name printed on the product or in its
    listing, then find it in the
    ["which chip type do I use?"](crates/ledkit-core/README.md#which-chip-type-do-i-use) table.
-2. **Copy the example for your board** from the table above (on an ESP32, start
-   with `esp32c6-start` or `esp32s3-start-idf`), and change
+2. **Copy the example for your board** (the "Start with" column above), and change
    `LED_COUNT`, the pin and the LED type at the top of `main.rs`.
 3. **Run it** with `cargo run --release`. If the colors are wrong or nothing
    lights up, the example's README has a troubleshooting section.
@@ -143,23 +147,35 @@ checkout, as the examples do.
 
 ## The crates
 
-| Crate | What it does | Status |
-|---|---|---|
-| `ledkit` | The one crate to add: everything re-exported, a prelude, ESP board helpers and a frame loop | ✅ available |
-| `ledkit-color` | Colors, hues, gradients, gamma | ✅ available |
-| `ledkit-core` | The LED chip catalogue, the `Strip` buffer, brightness, dithering and power limiting | ✅ available |
-| `ledkit-spi` | Drives LEDs from any `embedded-hal` SPI bus, blocking or async | ✅ available |
-| `ledkit-uart` | Drives NeoPixels from any `embedded-io` serial port with an inverted output, blocking or async (DMA) | ✅ available |
-| `ledkit-esp` | ESP32 RMT driver for esp-hal (`no_std`, blocking or async) | ✅ available |
-| `ledkit-esp-idf` | ESP32 RMT driver for ESP-IDF (`std`) | ✅ available |
-| `ledkit-layout` | Segments, matrices, text and shapes | ✅ available |
-| `ledkit-anim` | Effects (rainbow, comet, flames, swirl, …) and ways to combine them | ✅ available |
-| `ledkit-text` | Fonts (X11 sizes, tiny, 7-segment, 14-segment), text areas and a scrolling ticker | ✅ available |
-| `ledkit-rp` | Raspberry Pi Pico (RP2040/RP2350) PIO driver, processor- or DMA-fed, blocking or async | ✅ available |
-| `ledkit-nrf` | nRF52840 PWM + EasyDMA driver, blocking or async | ✅ available |
-| `ledkit-sim` | A desktop simulator, to try effects without hardware | 🔜 planned |
+**Add this one.** It brings in the rest:
 
-"Available" means it works and is tested, but isn't published to crates.io yet.
+| Crate | What it does |
+|---|---|
+| `ledkit` | Everything re-exported, a prelude, ESP board helpers and a frame loop |
+
+**What you draw with:**
+
+| Crate | What it does |
+|---|---|
+| `ledkit-color` | Colors, hues, gradients, gamma, palettes |
+| `ledkit-core` | The LED chip catalogue, the `Strip` buffer, brightness, dithering and power limiting |
+| `ledkit-layout` | Segments, matrices, text and shapes |
+| `ledkit-anim` | Effects (rainbow, comet, flames, swirl, …), ways to combine them, and the frame loop |
+| `ledkit-text` | Fonts (X11 sizes, tiny, 7-segment, 14-segment), text areas and a scrolling ticker |
+
+**How the LEDs are driven** (pick by board, see [Pick your board](#pick-your-board)):
+
+| Crate | What it does |
+|---|---|
+| `ledkit-esp` | ESP32 RMT, esp-hal (`no_std`, blocking or async) |
+| `ledkit-esp-idf` | ESP32 RMT, ESP-IDF (`std`) |
+| `ledkit-rp` | Raspberry Pi Pico (RP2040/RP2350) PIO, processor- or DMA-fed, blocking or async |
+| `ledkit-nrf` | nRF52840 PWM + EasyDMA, blocking or async |
+| `ledkit-spi` | Any `embedded-hal` SPI bus, blocking or async |
+| `ledkit-uart` | NeoPixels from any `embedded-io` serial port with an inverted output, blocking or async (DMA) |
+
+All of these work and are tested on hardware, but aren't published to crates.io yet.
+Planned: `ledkit-sim`, a desktop simulator to try effects without hardware.
 
 ## Status and roadmap
 

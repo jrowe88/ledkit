@@ -10,14 +10,19 @@ esp-hal:
 Build it with `--features async` for the same program written with `async`/`.await`
 (`strip!(.., async)`, `show_async().await` and `FramesAsync`).
 
-> **Status: builds, not yet tested on hardware.** Written for an ESP32-C6-DevKitC-1 and an
-> Adafruit NeoPixel 8x8 (WS2812B) through a 74AHCT125, as in
-> [esp32c6-text](../esp32c6-text).
+> **Passes on hardware** (2026-11-11, ESP32-C6-DevKitC-1, a WS2812B strip through a
+> 74AHCT125): a smooth rainbow on the first 64 LEDs, blocking and async. If you try it on
+> other hardware, please report what you see.
 
 ## What you'll see
 
 A rainbow moving along the LEDs, at 20% brightness. The serial monitor prints
 `Rainbow on 64 LEDs, blocking` (or `async`).
+
+Look closely where one color blends into the next and you may see a faint shimmer. That's
+normal at low brightness: at 20% each color has only about 50 steps, and a slow blend
+moves through them visibly. It fades as you turn the brightness up. (Dithering, on by
+default, makes little difference here.)
 
 ## Wiring
 

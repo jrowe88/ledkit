@@ -71,8 +71,10 @@ README's "Tested on hardware" table, not here.
   3. `crates/ledkit` last: `cargo publish --features esp32c6 --target riscv32imac-unknown-none-elf`.
   crates.io rate-limits new crate names (a burst, then one every few minutes), so expect
   a wait partway through; rerun the step that stopped.
-- Then: tag `v0.1.0`, date the CHANGELOG entry, switch the README's "depend on it from
-  git" notes to `cargo add ledkit`, and check each docs.rs page. `ledkit-esp-idf`'s docs
+- Then: date the CHANGELOG entry, switch the README's "depend on it from git" notes to
+  `cargo add ledkit`, and publish the GitHub Release `v0.1.0` (a draft is waiting, with
+  the changelog's 0.1.0 notes; publishing it creates the tag on `main`), and check each
+  docs.rs page. `ledkit-esp-idf`'s docs
   will likely fail on docs.rs (its build downloads ESP-IDF); if so, say so in its README
   and point at the facade's docs or a GitHub Pages copy.
 - README photos: the placeholder gallery was dropped (2026-11-10); add real bench photos

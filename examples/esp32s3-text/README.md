@@ -5,7 +5,8 @@ the smoothing (edge) settings, outlines, backgrounds, reversed text and effect-c
 letters, one scene at a time. Use it to pick a look for your own project.
 
 > **Runs on hardware** (2026-11-10, Adafruit ESP32-S3 Feather, Adafruit DotStar HD 8x8):
-> all 18 scenes play in order. If you try it on other hardware, please report what you
+> all 18 scenes play in order. Moved to the `ledkit` crate and `Frames` on 2026-11-11 and
+> checked again: the same. If you try it on other hardware, please report what you
 > see.
 
 ## What you'll see

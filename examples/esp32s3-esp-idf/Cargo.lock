@@ -600,6 +600,8 @@ dependencies = [
  "esp-idf-svc",
  "ledkit-core",
  "ledkit-esp-idf",
+ "ledkit-spi",
+ "ledkit-uart",
 ]
 
 [[package]]
@@ -883,6 +885,26 @@ name = "ledkit-esp-idf"
 version = "0.1.0"
 dependencies = [
  "esp-idf-hal",
+ "ledkit-core",
+]
+
+[[package]]
+name = "ledkit-spi"
+version = "0.1.0"
+dependencies = [
+ "embedded-hal 1.0.0",
+ "embedded-hal-async",
+ "ledkit-core",
+]
+
+[[package]]
+name = "ledkit-uart"
+version = "0.1.0"
+dependencies = [
+ "embedded-hal 1.0.0",
+ "embedded-hal-async",
+ "embedded-io",
+ "embedded-io-async",
  "ledkit-core",
 ]
 

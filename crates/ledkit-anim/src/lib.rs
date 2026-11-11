@@ -6,6 +6,7 @@ mod colors;
 mod combine;
 mod effect;
 mod effects;
+mod frames;
 pub mod math;
 mod surface;
 mod time;
@@ -15,6 +16,7 @@ pub use colors::Colors;
 pub use combine::*;
 pub use effect::Effect;
 pub use effects::*;
+pub use frames::{Clock, Frames, FramesAsync, DEFAULT_FRAMES_PER_SECOND};
 pub use surface::Surface;
 pub use time::Time;
 
@@ -30,5 +32,6 @@ pub mod prelude {
         Blink, Breathe, Chase, ColorCycle, ColorWipe, Comet, Flames, GradientScroll, Pinwheel,
         Plasma, Rain, Rainbow, Rings, Solid, Sparkle, Swirl,
     };
+    pub use crate::{Clock, Frames, FramesAsync};
     pub use ledkit_color::{palettes, Color, ColorMap, Rgb};
 }

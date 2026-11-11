@@ -16,6 +16,11 @@ would otherwise rediscover.
   color pattern, suspect the wiring first.
 - At 4.3 V supply, a WS2812B reads 3.0 V and up as high, so 3.3 V data works without the
   level shifter (used for the ESP32-S3 run).
+- **Join the LED supply's ground to the board's GND** (2026-11-11). With the board on USB
+  and the LEDs on the bench supply, a missing ground link looks like a software bug: the
+  DotStar 8×8 showed very bright, random pixels at every SPI clock down to 250 kHz, and a
+  known-good DotStar strip stayed dark. It came loose while boards were swapped; tying
+  the grounds fixed it at once. Check this before suspecting code.
 
 ## All chips
 
@@ -56,6 +61,13 @@ would otherwise rediscover.
 - The S3's SPI holds MOSI high from set-up until its first transfer, so the first frame
   arrived one bit late. `ClocklessSpi` now starts its first frame with a reset gap.
 - Native USB: if `espflash` can't connect, hold BOOT and tap RESET.
+- esp-idf-hal 0.47's transmit-only `UartTxDriver` can't start on ESP-IDF 5.5: it installs
+  the driver with a zero-size receive buffer, and ESP-IDF requires one bigger than the
+  128-byte FIFO (`uart rx buffer length error`). `esp32s3-esp-idf` uses `UartDriver` with
+  an unconnected receive pin instead, and inverts the line with `uart_set_line_inverse`
+  (esp-idf-hal has no setting for it). Found 2026-11-11.
+- ESP-IDF SPI without DMA sends at most 64 bytes per transfer, with pauses in between,
+  so `esp32s3-esp-idf` turns DMA on (`Dma::Auto`) and the frame goes out in one piece.
 - The ESP-IDF examples set a short `target-dir` because `esp-idf-sys` rejects output
   paths over 88 characters on Windows.
 

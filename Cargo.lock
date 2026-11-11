@@ -92,6 +92,9 @@ dependencies = [
 name = "ledkit-anim"
 version = "0.1.0"
 dependencies = [
+ "embassy-futures",
+ "embedded-hal",
+ "embedded-hal-async",
  "ledkit-color",
  "ledkit-core",
  "ledkit-layout",

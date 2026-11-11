@@ -10,10 +10,7 @@ publish = false
 [workspace]
 
 [dependencies]
-ledkit-core = { path = "../../crates/ledkit-core" }
-ledkit-layout = { path = "../../crates/ledkit-layout" }
-ledkit-spi = { path = "../../crates/ledkit-spi" }
-ledkit-text = { path = "../../crates/ledkit-text" }
+ledkit = { path = "../../crates/ledkit", features = ["esp32s3", "spi"] }
 
 esp-hal = { version = "1.2", features = ["esp32s3", "unstable"] }
 esp-bootloader-esp-idf = { version = "0.6", features = ["esp32s3"] }

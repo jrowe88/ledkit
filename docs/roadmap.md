@@ -22,7 +22,7 @@ README's "Tested on hardware" table, not here.
 | 6 | `ledkit-layout`: matrices, `Canvas`, segments, `embedded-graphics` | ✅ passes on an Adafruit NeoPixel 8×8 |
 | 7 | `ledkit-anim`: the `Animation` trait, 16 effects, combinators, palettes | ✅ passes on the 8×8 and a 100-LED strip (C6, Teensy 4, S3) |
 | 7b | `ledkit-text`: X11 bitmap fonts, a Tiny 3×5, 7- and 14-segment faces at any height, stencil colours, text areas and a ticker | ✅ built and host-tested; the 8×8 text tour runs on the ESP32-S3 |
-| 8 | "Just works" packaging: the `ledkit` facade + prelude, `cargo generate` board templates, the numbered example ladder, an mdBook guide with photos, `llms.txt` | not started |
+| 8 | "Just works" packaging: the `ledkit` facade + prelude, `cargo generate` board templates, the numbered example ladder, an mdBook guide with photos, `llms.txt` | 🚧 the `ledkit` facade is built ([spec](specs/ledkit.md)): prelude, ESP board helpers, `Frames`; the `esp32s3-text` tour runs on it. Templates, guide and `llms.txt` to come |
 | 9 | Release 0.1: publish to crates.io in dependency order, docs.rs config, the guide on GitHub Pages | not started |
 | 10 | Phase 1.5: `ledkit-sim` desktop simulator, a Claude Code plugin, remaining effects | not started |
 
@@ -42,6 +42,12 @@ README's "Tested on hardware" table, not here.
   (3×5, 7- and 14-segment); 1x exactly as drawn, or 1.25x–2x anti-aliased, never shrunk.
   The [preview page](https://jrowe88.github.io/ledkit/text-preview/) is how font
   choices get made; later it should run ledkit's own code compiled to WebAssembly.
+- **The `ledkit` facade** (2026-11-10): users add the HAL themselves (no HAL
+  re-exports); board helpers are shortcuts made of public pieces, never a second API; the
+  esp-hal helper is a macro (`strip!`) because the pulse buffer's length can't be
+  computed from `N` in a generic function on stable Rust. No `ledkit-rp` in the facade
+  yet: rp235x-hal and esp-hal pin different `riscv-rt` versions, and Cargo won't put both
+  in one dependency graph, even as optional features.
 
 ## Open follow-ups
 
@@ -123,6 +129,17 @@ and 6.4 MHz, and RGBW byte order.
   caller-sized buffer.
 - A border marquee, rectangular regions as segments, mirroring by chain order.
 - Non-`'static` palettes, if palettes built at run time are wanted.
+
+### The `ledkit` facade
+
+- Hardware: all facade checks pass (2026-11-11; see `crates/ledkit/README.md`):
+  `esp32c6-start` on the C6, blocking and async; `esp32s3-start-idf` (the ESP-IDF
+  helpers) on the S3 Feather; the esp-hal helpers and `Frames` on the S3's onboard
+  NeoPixel; and the `esp32s3-text` tour on the facade.
+- Board helpers for the other boards, following the ESP pattern: Pico (once `ledkit-rp`
+  can join the facade, see the decisions), nRF52840, an ESP SPI helper for DotStars.
+- A `ledkit-rp` feature, when rp235x-hal and esp-hal agree on `riscv-rt`.
+- An async ESP-IDF output, if wanted.
 
 ### Consumers
 

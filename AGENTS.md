@@ -12,7 +12,7 @@ replacing it. Start with `docs/roadmap.md` (status and open work) and `docs/spec
 
 | Crate | Purpose | Depends on |
 |---|---|---|
-| `ledkit` | The one crate hobbyists add; re-exports with a `prelude`; features pick the backend | all below (optional) |
+| `ledkit` | The one crate hobbyists add; re-exports with a `prelude`; features pick the backend; ESP board helpers (`esp::strip!`, `esp_idf::strip`, the `Clock`s) | all below (optional) except `ledkit-rp` |
 | `ledkit-color` | Color types and utilities | nothing (optional `rgb`) |
 | `ledkit-core` | Chip catalogue, color orders, encoders, `Strip`, output traits | `ledkit-color` |
 | `ledkit-layout` | Segments, matrices, coordinate mapping, `embedded-graphics` | `ledkit-core` |
@@ -26,14 +26,15 @@ replacing it. Start with `docs/roadmap.md` (status and open work) and `docs/spec
 | `ledkit-nrf` | nRF52840 PWM + EasyDMA backend (`no_std`, blocking + async) | `ledkit-core`, `embassy-nrf` |
 | `ledkit-sim` | Desktop simulator (`std`) | `ledkit-anim` |
 
-Exist so far: `ledkit-color`, `ledkit-core`, `ledkit-layout`, `ledkit-anim`, `ledkit-text`, `ledkit-spi`, `ledkit-uart`, `ledkit-esp`, `ledkit-esp-idf`, `ledkit-rp` and `ledkit-nrf`. The rest are planned.
+Exist so far: `ledkit`, `ledkit-color`, `ledkit-core`, `ledkit-layout`, `ledkit-anim`, `ledkit-text`, `ledkit-spi`, `ledkit-uart`, `ledkit-esp`, `ledkit-esp-idf`, `ledkit-rp` and `ledkit-nrf`. The rest are planned.
 
-`ledkit-esp`, `ledkit-esp-idf`, `ledkit-rp` and `ledkit-nrf` live outside the root workspace (they only build for their chips' targets), so `cargo test --workspace` doesn't touch them. They are built and linted through their examples (`examples/esp32c6-rmt`, `examples/esp32c6-esp-idf`, `examples/esp32c6-matrix`, the Xtensa `examples/esp32s3-*`, which use the `esp` toolchain from `espup`, `examples/rp2040-pio`, `examples/rp2350-pio`, `examples/nrf52840-pwm`) and in CI. `ledkit-rp` picks its HAL with a feature, `rp2040` or `rp235x` (exactly one); the RP2350 builds for both `thumbv8m.main-none-eabihf` and `riscv32imac-unknown-none-elf`. Its testable logic lives in `ledkit-core` (`encode::equal_period`, `encode::pio_timing`, `encode::pio`). Inside a `.claude/worktrees/` checkout, cargo finds the main checkout's workspace above, so build `ledkit-rp` and `ledkit-nrf` through their examples or a small wrapper project with an empty `[workspace]`. The ESP-IDF examples set a short `target-dir` (`C:/t/ledkit`, `C:/t/ledkit-s3`) in their `.cargo/config.toml`, because `esp-idf-sys` rejects output paths over 88 characters on Windows; on macOS/Linux (and in CI) set `CARGO_TARGET_DIR=target`. Hardware status is recorded in each crate's README.
+`ledkit`, `ledkit-esp`, `ledkit-esp-idf`, `ledkit-rp` and `ledkit-nrf` live outside the root workspace (they only build for their chips' targets), so `cargo test --workspace` doesn't touch them. The `ledkit` facade is tested and linted in its own folder (`crates/ledkit`): host tests with the features that build there, clippy for the ESP32-C6 and nRF52840. It has no `rp2040`/`rp235x` feature: rp235x-hal and esp-hal need different `riscv-rt` versions, which Cargo can't put in one dependency graph even behind features. The board crates are built and linted through their examples (`examples/esp32c6-start`, `examples/esp32s3-start-idf`, `examples/esp32c6-rmt`, `examples/esp32c6-esp-idf`, `examples/esp32c6-matrix`, the Xtensa `examples/esp32s3-*`, which use the `esp` toolchain from `espup`, `examples/rp2040-pio`, `examples/rp2350-pio`, `examples/nrf52840-pwm`) and in CI. `ledkit-rp` picks its HAL with a feature, `rp2040` or `rp235x` (exactly one); the RP2350 builds for both `thumbv8m.main-none-eabihf` and `riscv32imac-unknown-none-elf`. Its testable logic lives in `ledkit-core` (`encode::equal_period`, `encode::pio_timing`, `encode::pio`). Inside a `.claude/worktrees/` checkout, cargo finds the main checkout's workspace above, so build `ledkit-rp` and `ledkit-nrf` through their examples or a small wrapper project with an empty `[workspace]`. The ESP-IDF examples set a short `target-dir` (`C:/t/ledkit`, `C:/t/ledkit-s3`) in their `.cargo/config.toml`, because `esp-idf-sys` rejects output paths over 88 characters on Windows; on macOS/Linux (and in CI) set `CARGO_TARGET_DIR=target`. Hardware status is recorded in each crate's README.
 
 Writing a new backend? Follow the "Add a backend" guide in `CONTRIBUTING.md`; `ledkit-spi` is the model for a bus backend, and `ledkit-esp` / `ledkit-esp-idf` for a pulse (RMT) backend that times the reset gap itself.
 
 ## ledkit-anim modules
 
+- `frames`: `Clock` (anything that gives a `Time`; closures too) and the frame loops `Frames` / `FramesAsync` (wait to a deadline, then give the time).
 - `animation`: the `Animation` trait (`color_at(Position, &Frame) -> Rgb`, plus `render`), `Position`, `Frame`, `Direction`. `surface`: `Surface`, implemented for `Strip`, `Canvas`, `SegmentMut`, arrays and slices. `time`: `Time` (milliseconds, `u32`).
 - `colors`: `Colors` (one color, two to blend, or a `&'static dyn ColorMap`). The `ColorMap` trait and the named `palettes` live in `ledkit-color`.
 - `effects/`: one file per effect, each a `Copy` struct with `const fn new()` and `const fn` setters; `geometry` (distance and angle from the center) is shared. `effect`: the `Effect` enum, by name, with aliases.

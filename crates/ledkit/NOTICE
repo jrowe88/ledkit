@@ -1,0 +1,9 @@
+ledkit
+Copyright (c) 2026 Jim Rowe
+
+Attributions
+============
+
+The ledkit crate contains no third-party code of its own. The crates it brings in
+carry their own NOTICE files: ledkit-color (color values and palettes) and
+ledkit-text (the X11 misc-fixed fonts).

@@ -269,6 +269,60 @@ jobs:
       - run: cargo clippy --release --locked -- -D warnings
         working-directory: examples/esp32c6-text
 
+  # The `ledkit` facade lives outside the workspace (it depends on the board crates), so
+  # it is checked here: on the host with the features that build there, and for the
+  # ESP32-C6 and nRF52840 with their board features.
+  ledkit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+          targets: riscv32imac-unknown-none-elf, thumbv7em-none-eabihf
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: crates/ledkit
+      - run: cargo fmt -- --check
+        working-directory: crates/ledkit
+      - run: cargo test
+        working-directory: crates/ledkit
+      - run: cargo test --features spi,uart,smart-leds,embedded-graphics
+        working-directory: crates/ledkit
+      - run: cargo check --no-default-features
+        working-directory: crates/ledkit
+      - run: cargo clippy --all-targets --features spi,uart,smart-leds,embedded-graphics -- -D warnings
+        working-directory: crates/ledkit
+      - run: cargo clippy --target riscv32imac-unknown-none-elf --features esp32c6,spi,uart,smart-leds,embedded-graphics -- -D warnings
+        working-directory: crates/ledkit
+      - run: cargo build --target thumbv7em-none-eabihf --no-default-features --features nrf52840,async
+        working-directory: crates/ledkit
+      - run: cargo doc --target riscv32imac-unknown-none-elf --features esp32c6,spi,uart,smart-leds,embedded-graphics --no-deps
+        working-directory: crates/ledkit
+        env:
+          RUSTDOCFLAGS: -D warnings
+
+  example-esp32c6-start:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+          targets: riscv32imac-unknown-none-elf
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            examples/esp32c6-start
+      - run: cargo build --release --locked
+        working-directory: examples/esp32c6-start
+      - run: cargo build --release --locked --features async
+        working-directory: examples/esp32c6-start
+      - run: cargo clippy --release --locked -- -D warnings
+        working-directory: examples/esp32c6-start
+      - run: cargo clippy --release --locked --features async -- -D warnings
+        working-directory: examples/esp32c6-start
+
   example-anim-preview:
     runs-on: ubuntu-latest
     steps:
@@ -449,7 +503,9 @@ jobs:
           ldproxy: true
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: examples/esp32s3-esp-idf
+          workspaces: |
+            examples/esp32s3-esp-idf
+            examples/esp32s3-start-idf
       - uses: actions/cache@v4
         with:
           path: ~/.espressif
@@ -459,6 +515,10 @@ jobs:
         working-directory: examples/esp32s3-esp-idf
       - run: cargo clippy --locked -- -D warnings
         working-directory: examples/esp32s3-esp-idf
+      - run: cargo build --release --locked
+        working-directory: examples/esp32s3-start-idf
+      - run: cargo clippy --locked -- -D warnings
+        working-directory: examples/esp32s3-start-idf
 
   # The text preview page is built from a template and the fonts in assets/fonts;
   # this fails if someone changed one without rebuilding the page.

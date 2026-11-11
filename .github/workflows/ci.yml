@@ -476,10 +476,11 @@ jobs:
             examples/esp32s3-matrix
             examples/esp32s3-anim
             examples/esp32s3-dotstar-hd
+            examples/esp32s3-dotstar-strip
             examples/esp32s3-text
       - name: Build and lint every esp-hal S3 example
         run: |
-          for example in esp32s3-rmt esp32s3-check esp32s3-matrix esp32s3-anim esp32s3-dotstar-hd esp32s3-text; do
+          for example in esp32s3-rmt esp32s3-check esp32s3-matrix esp32s3-anim esp32s3-dotstar-hd esp32s3-dotstar-strip esp32s3-text; do
             (cd "examples/$example" && cargo build --release --locked && cargo clippy --release --locked -- -D warnings)
           done
           (cd examples/esp32s3-anim && cargo build --release --locked --features strip && cargo clippy --release --locked --features strip -- -D warnings)

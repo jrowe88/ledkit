@@ -34,6 +34,15 @@ would otherwise rediscover.
   frame left LEDs 60–63 of the 8×8 unlit); verified on the 8×8 and the 300-LED strip.
   The SK9822 keeps a 4-byte zero reset frame plus `ceil(n / 16)` zero bytes; verified on
   the 144-LED strip.
+- **The APA102 end frame lights the LED after the last one** (2026-11-11): with the LED
+  count set lower than the strip's length, the next two LEDs stayed bright and never
+  changed. LED n+1 reads the first 4 end-frame bytes (`0xFF`) as its pixel: full white
+  at full 5-bit level, past brightness and the power limit. Found driving 100 LEDs of a
+  dense DotStar strip of about 150 from the ESP32-S3 (`esp32s3-dotstar-strip`). The
+  `wire` docs say a full frame of ones is avoided, but that holds only up to 48 LEDs
+  (`ceil(n / 16)` under 4 bytes). Workaround: set the count to the strip's length or
+  more. A fix to try on hardware: end with black pixel frames (`0xE0 00 00 00`), which
+  give the same clock edges, never hold 32 zero bits in a row, and leave extra LEDs dark.
 - **DotStar HD brightness** (on by default): lowers the 5-bit level only below raw level
   64 (about 52%), because on the APA102-2020 a lowered 5-bit level gives less light than
   the math says. Side by side, HD lights from 10%, plain only from 20%.

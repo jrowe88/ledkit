@@ -111,6 +111,7 @@ details:
 | ESP32-C6-DevKitC-1 | `examples/esp32c6-start`, blocking and `--features async` | WS2812B strip (64 of 100 LEDs) through a 74AHCT125 | pass (2026-11-11): a smooth rainbow at 60 frames a second; a faint shimmer at color blends at 20% brightness is low-brightness stepping (it fades at 50%, and turning dithering off barely changes it) |
 | Adafruit ESP32-S3 Feather | `examples/esp32s3-start-idf` (`esp_idf::strip`, `esp_idf::Clock`, `Frames` with ESP-IDF's `Delay`) | WS2812B strip, 100 LEDs, through a 74AHCT125 | pass (2026-11-11): a smooth rainbow along the whole strip |
 | Adafruit ESP32-S3 Feather | `examples/esp32s3-text` on the facade (`spi` feature, `Frames` with `restart()` per scene) | Adafruit DotStar HD 8×8 | pass (2026-11-11): all 18 scenes play in order and scroll smoothly, as before the facade |
+| Adafruit ESP32-S3 Feather | `examples/esp32s3-dotstar-strip` on the facade (`spi` feature, `esp::Clock`, `Frames` at 100 a second, a `Playlist` of three custom animations) | Dense DotStar strip, about 150 LEDs | pass (2026-11-11): the show runs, with no stray LEDs once the count matches the strip |
 
 If you try `ledkit` on other hardware, please report what you see.
 

@@ -253,6 +253,7 @@
 //! | Raspberry Pi Pico 2 W (RP2350, Arm and RISC-V cores; rp235x-hal SPI0, data GPIO19 / clock GPIO18 through a 74AHCT125) | DotStar HD 8×8 (APA102-2020, 64 LEDs) | ✅ pass (2026-11-09), `examples/rp2350-pio` round 5: the pattern at 4 MHz, then the counting pattern clean at every step of the 1 to 32 MHz sweep, on both core types |
 //! | Adafruit ESP32-S3 Feather (SPI2, esp-hal) | WS2812B strip, 100 LEDs, data straight from GPIO5 on a 4.3 V supply | ✅ pass (2026-11-09), `examples/esp32s3-check` rounds 3 to 5: `new` at 3.2 MHz, and `new_packed` at 4 MHz with DMA, blocking and async. The first run showed LED 0 green on the first frame after setting up the bus: the S3's SPI holds its data pin high until its first transfer, and the strip read that as an extra bit. Fixed by starting the first frame with a reset gap |
 //! | Adafruit ESP32-S3 Feather (SPI2, 4 MHz) | DotStar HD 8×8 (APA102-2020, 64 LEDs) | ✅ pass (2026-11-09), `examples/esp32s3-dotstar-hd`: HD and plain side by side, as on the ESP32-C6 |
+//! | Adafruit ESP32-S3 Feather (SPI2, 4 MHz) | Dense DotStar strip, about 150 LEDs, run as `Apa102` | ✅ pass (2026-11-11), `examples/esp32s3-dotstar-strip`: a slow show at 100 frames a second, clean with the count at 150. With 100 set, LEDs 101 and 102 lit bright and never changed: the APA102 end frame (see `docs/hardware/findings.md`) |
 //! | other boards (`ClockedSpi`) | | untested on hardware |
 //!
 //! Everything else is covered by host tests with a pretend SPI bus. Examples

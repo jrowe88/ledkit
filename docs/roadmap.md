@@ -150,7 +150,8 @@ and 6.4 MHz, and RGBW byte order.
 - Hardware: all facade checks pass (2026-11-11; see `crates/ledkit/README.md`):
   `esp32c6-start` on the C6, blocking and async; `esp32s3-start-idf` (the ESP-IDF
   helpers) on the S3 Feather; the esp-hal helpers and `Frames` on the S3's onboard
-  NeoPixel; and the `esp32s3-text` tour on the facade.
+  NeoPixel; the `esp32s3-text` tour on the facade; and `esp32s3-dotstar-strip`, a
+  show for a dense DotStar strip.
 - Board helpers for the other boards, following the ESP pattern: Pico (once `ledkit-rp`
   can join the facade, see the decisions), nRF52840, an ESP SPI helper for DotStars.
 - A `ledkit-rp` feature, when rp235x-hal and esp-hal agree on `riscv-rt`.

@@ -23,7 +23,7 @@ README's "Tested on hardware" table, not here.
 | 7 | `ledkit-anim`: the `Animation` trait, 16 effects, combinators, palettes | ✅ passes on the 8×8 and a 100-LED strip (C6, Teensy 4, S3) |
 | 7b | `ledkit-text`: X11 bitmap fonts, a Tiny 3×5, 7- and 14-segment faces at any height, stencil colours, text areas and a ticker | ✅ built and host-tested; the 8×8 text tour runs on the ESP32-S3 |
 | 8 | "Just works" packaging: the `ledkit` facade + prelude, `cargo generate` board templates, the numbered example ladder, an mdBook guide with photos, `llms.txt` | 🚧 the `ledkit` facade passes on hardware ([spec](specs/ledkit.md)): prelude, ESP board helpers (esp-hal and ESP-IDF), `Frames`, start examples for the C6 and S3. Templates, guide and `llms.txt` to come |
-| 9 | Release 0.1: publish to crates.io in dependency order, docs.rs config, the guide on GitHub Pages | 🚧 every crate packages cleanly (2026-11-11); publishing is next (steps below) |
+| 9 | Release 0.1: publish to crates.io in dependency order, docs.rs config, the guide on GitHub Pages | ✅ all 12 crates published at 0.1.0 (2026-11-11) |
 | 10 | Phase 1.5: `ledkit-sim` desktop simulator, a Claude Code plugin, remaining effects | not started |
 
 ## Decisions worth remembering
@@ -53,30 +53,30 @@ README's "Tested on hardware" table, not here.
 
 ### Release 0.1 (milestone 9)
 
-- Checked 2026-11-11 on `main` after the facade merged: `cargo publish --workspace
-  --dry-run` packages and verifies the seven workspace crates. The five crates outside it
-  can't be verified until `ledkit-core` is on crates.io, but their file lists are clean
-  when the local crates stand in (`cargo package --list` with
-  `--config 'patch.crates-io.ledkit-core.path="../ledkit-core"'` and the same for each
-  `ledkit-*` dependency). All 13 names were free on 2026-11-10.
-- The owner publishes, from a clean `main`, with their own crates.io token
-  (`cargo login` once):
-  1. `cargo publish --workspace` (color, core, layout, spi, uart, anim, text).
-  2. From each board crate's folder (they only build for their chip, so name it):
-     - `crates/ledkit-esp`: `cargo publish --features esp32c6 --target riscv32imac-unknown-none-elf`
-     - `crates/ledkit-nrf`: `cargo publish --features nrf52840 --target thumbv7em-none-eabihf`
-     - `crates/ledkit-rp`: `cargo publish --features rp2040 --target thumbv6m-none-eabi`
-     - `crates/ledkit-esp-idf`: `cargo publish --no-verify` (verifying needs a full
-       ESP-IDF build; the examples already build it in CI)
-  3. `crates/ledkit` last: `cargo publish --features esp32c6 --target riscv32imac-unknown-none-elf`.
-  crates.io rate-limits new crate names (a burst, then one every few minutes), so expect
-  a wait partway through; rerun the step that stopped.
-- Then: date the CHANGELOG entry, switch the README's "depend on it from git" notes to
-  `cargo add ledkit`, and publish the GitHub Release `v0.1.0` (a draft is waiting, with
-  the changelog's 0.1.0 notes; publishing it creates the tag on `main`), and check each
-  docs.rs page. `ledkit-esp-idf`'s docs
-  will likely fail on docs.rs (its build downloads ESP-IDF); if so, say so in its README
-  and point at the facade's docs or a GitHub Pages copy.
+- Published 2026-11-11: all 12 crates at 0.1.0, and the GitHub Release `v0.1.0`.
+- How a release goes (for 0.2): the owner publishes from a clean `main` with their own
+  crates.io token. `cargo publish --workspace` first (color, core, layout, spi, uart,
+  anim, text), then each board crate from its folder, naming its chip, since they only
+  build for it:
+  - `crates/ledkit-esp`: `cargo publish --features esp32c6 --target riscv32imac-unknown-none-elf`
+  - `crates/ledkit-nrf`: `cargo publish --features nrf52840 --target thumbv7em-none-eabihf`
+  - `crates/ledkit-rp`: `cargo publish --features rp2040 --target thumbv6m-none-eabi`
+  - `crates/ledkit-esp-idf`: `cargo publish --no-verify` (verifying needs a full ESP-IDF
+    build; the examples already build it in CI)
+  - `crates/ledkit` last: `cargo publish --features esp32c6 --target riscv32imac-unknown-none-elf`
+
+  Then date the CHANGELOG and publish the GitHub Release (publishing a draft creates
+  the tag). crates.io allows a burst of five *new* crate names, then about one every 10
+  minutes (a 429 says when to retry); new versions of existing crates aren't limited
+  that way. If `--workspace` stops partway, publish the rest with `-p <crate>`, since
+  rerunning `--workspace` would try the published ones again.
+- docs.rs (2026-11-11): every crate's docs build except `ledkit-esp-idf`. docs.rs has no
+  standard library for `riscv32imac-esp-espidf`, so the build stops before our code
+  (esp-idf-hal's docs fail there too; esp-rs hosts them on GitHub Pages). Its README says
+  so, and links that pointed at those docs now go to the crate on GitHub. The `ledkit`
+  facade's docs.rs build leaves out the `esp-idf` feature for the same reason.
+  Follow-up: build its docs in CI and publish them on the GitHub Pages site, then set
+  `documentation` in its `Cargo.toml` (takes effect from the next release).
 - README photos: the placeholder gallery was dropped (2026-11-10); add real bench photos
   or GIFs when there are good ones (`assets/README.md` has tips).
 

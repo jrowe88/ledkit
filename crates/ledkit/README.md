@@ -21,7 +21,7 @@ esp-hal = { version = "1.2", features = ["esp32c6", "unstable"] }
 | Your board | Feature | Module |
 |---|---|---|
 | ESP32-C6, S3 (also ESP32, C3, S2) with esp-hal | `esp32c6`, `esp32s3`, ... | [`ledkit::esp`](https://docs.rs/ledkit/latest/ledkit/esp/) |
-| ESP32 with ESP-IDF (`std`) | `esp-idf` | [`ledkit::esp_idf`](https://docs.rs/ledkit/latest/ledkit/esp_idf/) |
+| ESP32 with ESP-IDF (`std`) | `esp-idf` | [`ledkit::esp_idf`](https://github.com/jrowe88/ledkit/tree/main/crates/ledkit-esp-idf) |
 | nRF52840 | `nrf52840` (and `async`) | `ledkit::nrf` |
 | Anything with an `embedded-hal` SPI bus (DotStars too) | `spi` | `ledkit::spi` |
 | Anything with an `embedded-io` serial port | `uart` | `ledkit::uart` |
@@ -98,7 +98,7 @@ details:
 | `ledkit::anim` | [`ledkit-anim`](https://docs.rs/ledkit-anim) | Effects, combinators, the frame loop |
 | `ledkit::text` | [`ledkit-text`](https://docs.rs/ledkit-text) | Fonts, text areas, a ticker |
 | `ledkit::esp` | [`ledkit-esp`](https://docs.rs/ledkit-esp) | ESP32 RMT, esp-hal |
-| `ledkit::esp_idf` | [`ledkit-esp-idf`](https://docs.rs/ledkit-esp-idf) | ESP32 RMT, ESP-IDF |
+| `ledkit::esp_idf` | [`ledkit-esp-idf`](https://github.com/jrowe88/ledkit/tree/main/crates/ledkit-esp-idf) | ESP32 RMT, ESP-IDF |
 | `ledkit::nrf` | [`ledkit-nrf`](https://docs.rs/ledkit-nrf) | nRF52840 PWM |
 | `ledkit::spi` | [`ledkit-spi`](https://docs.rs/ledkit-spi) | Any SPI bus |
 | `ledkit::uart` | [`ledkit-uart`](https://docs.rs/ledkit-uart) | Any serial port |

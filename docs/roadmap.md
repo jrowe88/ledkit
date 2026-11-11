@@ -23,7 +23,7 @@ README's "Tested on hardware" table, not here.
 | 7 | `ledkit-anim`: the `Animation` trait, 16 effects, combinators, palettes | ✅ passes on the 8×8 and a 100-LED strip (C6, Teensy 4, S3) |
 | 7b | `ledkit-text`: X11 bitmap fonts, a Tiny 3×5, 7- and 14-segment faces at any height, stencil colours, text areas and a ticker | ✅ built and host-tested; the 8×8 text tour runs on the ESP32-S3 |
 | 8 | "Just works" packaging: the `ledkit` facade + prelude, `cargo generate` board templates, the numbered example ladder, an mdBook guide with photos, `llms.txt` | 🚧 the `ledkit` facade passes on hardware ([spec](specs/ledkit.md)): prelude, ESP board helpers (esp-hal and ESP-IDF), `Frames`, start examples for the C6 and S3. Templates, guide and `llms.txt` to come |
-| 9 | Release 0.1: publish to crates.io in dependency order, docs.rs config, the guide on GitHub Pages | ✅ all 13 crates published at 0.1.0 (2026-11-11) |
+| 9 | Release 0.1: publish to crates.io in dependency order, docs.rs config, the guide on GitHub Pages | ✅ all 12 crates published at 0.1.0 (2026-11-11) |
 | 10 | Phase 1.5: `ledkit-sim` desktop simulator, a Claude Code plugin, remaining effects | not started |
 
 ## Decisions worth remembering
@@ -53,7 +53,7 @@ README's "Tested on hardware" table, not here.
 
 ### Release 0.1 (milestone 9)
 
-- Published 2026-11-11: all 13 crates at 0.1.0, and the GitHub Release `v0.1.0`.
+- Published 2026-11-11: all 12 crates at 0.1.0, and the GitHub Release `v0.1.0`.
 - How a release goes (for 0.2): the owner publishes from a clean `main` with their own
   crates.io token. `cargo publish --workspace` first (color, core, layout, spi, uart,
   anim, text), then each board crate from its folder, naming its chip, since they only

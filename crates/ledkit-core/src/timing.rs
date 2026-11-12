@@ -204,6 +204,8 @@ impl ResetGap {
 pub enum ClockedFormat {
     /// The APA102 frame format: the end frame is `ceil(n / 64)` black LED
     /// frames (`0xFF 00 00 00`), so LEDs past the end of the frame stay dark.
+    /// Verified on hardware (an APA102-2020 8x8, a 300-LED strip and a dense
+    /// strip).
     Apa102,
     /// The SK9822 frame format: the end frame is a 4-byte reset frame of
     /// `0x00`, then `ceil(n / 16)` more `0x00` bytes. The SK9822 needs the

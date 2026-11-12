@@ -99,11 +99,12 @@ README's "Tested on hardware" table, not here.
 
 ### Hardware rounds not run yet
 
-- The black APA102 end frame: the 300-LED strip at its full count, and an APA102-2020
-  panel through switches between LED counts with only the black frame (the 8×8 showed
-  glitches at switches to and from the old `0xFF` frame; see findings). Passed
-  (2026-11-12): a dense strip driven with fewer LEDs than it has (nothing lights past the
-  end), and all 64 LEDs of the DotStar HD 8×8.
+- The black APA102 end frame on an APA102-2020 panel, switching between LED counts with
+  only the black frame: the 8×8 showed glitches at switches to and from the old `0xFF`
+  frame (see findings), and was damaged before this rerun. Everything else passed
+  (2026-11-12): a dense strip and the 300-LED strip driven with fewer LEDs than they have
+  (nothing lights past the end), the 300-LED strip at its full count, and all 64 LEDs of
+  the DotStar HD 8×8.
 
 From [hardware/test-plan.md](hardware/test-plan.md), on every board where they apply:
 busy CPU (T8), non-blocking frame (T9), long frame (T10), and radio on (T11: Pico 2 W

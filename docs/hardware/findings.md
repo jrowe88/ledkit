@@ -60,8 +60,10 @@ would otherwise rediscover.
   driving 48 LEDs, LED 49 did not stay lit, and the old sweep showed no dot ahead of the
   bar, so the 2020 seems to drop the leftover partial frame. Switching between the old
   and the black frame gave a one-frame blip on LED 49, and at times garbage in the top two
-  rows. A rerun with only the black frame, to confirm those came from the old frame, is
-  still to do (the panel was damaged before it could be watched), as is the 300-LED strip.
+  rows. The 300-LED APA102 5050 strip, with only the black frame, ran clean: the last LED
+  lit at 300, nothing past LED 200 when driving 200, and no blips at the switches between
+  them. A rerun on an APA102-2020 with only the black frame, to confirm the 8×8's
+  glitches came from the old frame, is still to do (the panel was damaged first).
 - **DotStar HD brightness** (on by default): lowers the 5-bit level only below raw level
   64 (about 52%), because on the APA102-2020 a lowered 5-bit level gives less light than
   the math says. Side by side, HD lights from 10%, plain only from 20%.

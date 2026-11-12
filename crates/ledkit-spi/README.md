@@ -245,6 +245,7 @@ strip.set_hd_brightness(false);
 | Adafruit ESP32-S3 Feather (SPI2, 4 MHz) | DotStar HD 8×8 (APA102-2020, 64 LEDs) | ✅ pass (2026-11-09), `examples/esp32s3-dotstar-hd`: HD and plain side by side, as on the ESP32-C6 |
 | Adafruit ESP32-S3 Feather (SPI2, 4 MHz, esp-hal) | Dense DotStar strip (APA102), about 150 LEDs, through a 74AHCT125 | ✅ pass (2026-11-12), the black APA102 end frame, with a before/after check program: driving 100 LEDs, everything past LED 100 stayed dark, where the 0.1.0 `0xFF` end frame lit LEDs 101 and 102 bright; a sweep of every frame length from 1 to 150 lit nothing past the last LED (with the old frame a bright dot ran ahead of it) |
 | Adafruit ESP32-S3 Feather (SPI2, 4 MHz, esp-hal) | DotStar HD 8×8 (APA102-2020, 64 LEDs) | ✅ pass (2026-11-12), the black APA102 end frame: all 64 LEDs lit at the full count (LED 61 white, LED 64 blue), on the panel where an all-zero end frame had left LEDs 60–63 dark |
+| Adafruit ESP32-S3 Feather (SPI2, 4 MHz, esp-hal) | DotStar strip (APA102-type 5050), 300 LEDs, through a 74AHCT125 | ✅ pass (2026-11-12), the black APA102 end frame only: at the full 300 the last LED lit (5 black end frames); driving 200, LEDs 201 to 300 stayed dark, with no blips at the switches between 300 and 200; a sweep of every frame length from 1 to 300 lit nothing past the last LED |
 | other boards (`ClockedSpi`) | | untested on hardware |
 
 Everything else is covered by host tests with a pretend SPI bus. Examples

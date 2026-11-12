@@ -28,7 +28,7 @@ board's pinout card before wiring.
 | T4 | **Frame-length sweep** 1 to 150 LEDs | no crash, every length lights | C6 `ledkit-esp-idf` (found the multiple-of-48 padding bug) |
 | T5 | **8×8 matrix** (`ledkit-layout`): wiring finder, shapes, scrolling text | finder matches `.columns_first().starting_at(Corner::BottomLeft)` | C6 (RMT), Teensy (SPI) |
 | T6 | **Animation show** (`ledkit-anim`) on the 8×8 and with `--features strip` | every animation and transition looks right | C6, Teensy |
-| T7 | **DotStars** (`ClockedSpi`): HD 8×8 brightness sweep, 1 to 40 MHz clock sweep, SK9822 144 (zero end frame), APA102 300 (`0xFF` end frame) | every frame latches to the last LED; HD lights at 10% | C6, Teensy (HD 8×8) |
+| T7 | **DotStars** (`ClockedSpi`): HD 8×8 brightness sweep, 1 to 40 MHz clock sweep, SK9822 144 (zero end frame), APA102 300 (black end frame), and a strip driven with fewer LEDs than it has | every frame latches to the last LED; nothing lights past the last LED; HD lights at 10% | C6, Teensy (HD 8×8), S3 (end frame) |
 
 New checks for the DMA and native-peripheral paths:
 

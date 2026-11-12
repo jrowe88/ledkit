@@ -52,7 +52,10 @@ would otherwise rediscover.
   at full level, so the chain can't read a false start frame), and an LED past the end reads each
   frame as black. FastLED's APA102 end frame was the same black frame for years (3.x);
   in 2026 it moved to all ones, for the datasheet, which brings the stray LED back past 64
-  LEDs. Hardware check: pending.
+  LEDs. On the bench (2026-11-12), the same dense strip from the S3 Feather with 100 LEDs
+  driven: the old frame lit 101 and 102, the black frame left everything past 100 dark,
+  and a sweep of every frame length from 1 to 150 lit nothing past the last LED (with the
+  old frame a bright dot ran ahead of it). The 8×8 and 300-LED checks are still to do.
 - **DotStar HD brightness** (on by default): lowers the 5-bit level only below raw level
   64 (about 52%), because on the APA102-2020 a lowered 5-bit level gives less light than
   the math says. Side by side, HD lights from 10%, plain only from 20%.

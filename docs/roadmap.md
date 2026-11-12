@@ -99,8 +99,9 @@ README's "Tested on hardware" table, not here.
 
 ### Hardware rounds not run yet
 
-- The black APA102 end frame: the DotStar HD 8×8 (all 64 light), the 300-LED strip at its
-  full count, and a strip driven with fewer LEDs than it has (no stray LED past the end).
+- The black APA102 end frame: the DotStar HD 8×8 (all 64 light) and the 300-LED strip at
+  its full count. A strip driven with fewer LEDs than it has passes (2026-11-12): nothing
+  lights past the end.
 
 From [hardware/test-plan.md](hardware/test-plan.md), on every board where they apply:
 busy CPU (T8), non-blocking frame (T9), long frame (T10), and radio on (T11: Pico 2 W

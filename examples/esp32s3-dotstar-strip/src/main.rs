@@ -47,9 +47,8 @@ esp_bootloader_esp_idf::esp_app_desc!();
 // Settings you may want to change
 // ---------------------------------------------------------------------------
 
-/// How many LEDs the strip has. The scenes stretch to fit. Don't set it lower
-/// than the real count: the LED just past the last one would catch the end of
-/// each frame and light up bright white (see the README's troubleshooting).
+/// How many LEDs the strip has. The scenes stretch to fit; with a lower number
+/// they cover only the first LEDs, and the rest stay dark.
 const LED_COUNT: usize = 150;
 
 /// Which kind of DotStar it is. Adafruit's DotStar strips are APA102s (some

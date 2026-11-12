@@ -82,18 +82,25 @@ const fn ph(typical: u32, min: u32, max: u32) -> Phase {
     Phase::new(typical, min, max)
 }
 
+// Each entry below is kept on a line or two, like a table, so the chips are
+// easy to compare. `rustfmt::skip` keeps it that way: from Rust 1.100,
+// rustfmt would spread every entry over a dozen lines.
+
+#[rustfmt::skip]
 clockless_chip!(
     /// The original WS2812: the chip in early NeoPixel strips and sticks.
     Ws2812, "WS2812", Rgb, GRB,
     [ph(350, 200, 500), ph(800, 650, 5000), ph(700, 550, 850), ph(600, 450, 5000)], 50
 );
 
+#[rustfmt::skip]
 clockless_chip!(
     /// The WS2812B: the chip in most NeoPixel strips, rings and matrices sold today.
     Ws2812b, "WS2812B", Rgb, GRB,
     [ph(400, 220, 450), ph(900, 580, 5000), ph(800, 580, 1000), ph(600, 450, 5000)], 280
 );
 
+#[rustfmt::skip]
 clockless_chip!(
     /// The WS2813: like the WS2812B but with a backup data line, found in
     /// more robust 5 V strips.
@@ -101,6 +108,7 @@ clockless_chip!(
     [ph(375, 300, 450), ph(875, 300, 5000), ph(875, 750, 1000), ph(375, 300, 5000)], 300
 );
 
+#[rustfmt::skip]
 clockless_chip!(
     /// The WS2815: the 12 V cousin of the WS2813, found in 12 V addressable strips.
     ///
@@ -109,6 +117,7 @@ clockless_chip!(
     [ph(375, 300, 450), ph(875, 300, 5000), ph(875, 750, 1000), ph(375, 300, 5000)], 300
 );
 
+#[rustfmt::skip]
 clockless_chip!(
     /// The WS2811: the driver chip in 12 V pixel strings, bullet pixels and
     /// some cheap strips (one chip drives three LEDs).
@@ -116,12 +125,14 @@ clockless_chip!(
     [ph(250, 100, 400), ph(1000, 850, 5000), ph(600, 450, 750), ph(650, 500, 5000)], 280
 );
 
+#[rustfmt::skip]
 clockless_chip!(
     /// A WS2811 running in its slow 400 kHz mode, found in very old pixel strings.
     Ws2811Slow, "WS2811 (400 kHz)", Rgb, RGB,
     [ph(500, 350, 650), ph(2000, 1850, 10000), ph(1200, 1050, 1350), ph(1300, 1150, 10000)], 280
 );
 
+#[rustfmt::skip]
 clockless_chip!(
     /// The SK6812: a WS2812B look-alike found in NeoPixel-style strips,
     /// minis and tiny LEDs.
@@ -129,23 +140,27 @@ clockless_chip!(
     [ph(300, 150, 450), ph(900, 750, 5000), ph(600, 450, 750), ph(600, 450, 5000)], 80
 );
 
+#[rustfmt::skip]
 clockless_chip!(
     /// The SK6812 RGBW: RGBW NeoPixels with a separate white LED.
     Sk6812Rgbw, "SK6812 RGBW", Rgbw, GRBW,
     [ph(300, 150, 450), ph(900, 750, 5000), ph(600, 450, 750), ph(600, 450, 5000)], 80
 );
 
+#[rustfmt::skip]
 clockless_chip!(
     /// The APA106: the chip in 8 mm through-hole RGB pixels.
     Apa106, "APA106", Rgb, RGB,
     [ph(350, 200, 500), ph(1360, 1210, 5000), ph(1360, 1210, 1510), ph(350, 200, 5000)], 50
 );
 
+#[rustfmt::skip]
 clocked_chip!(
     /// The APA102: the chip in DotStar strips.
     Apa102, "APA102", Apa102
 );
 
+#[rustfmt::skip]
 clocked_chip!(
     /// The SK9822: an APA102 clone found in cheaper DotStar-style strips. It
     /// uses the [`ClockedFormat::Sk9822`] frame, whose end frame starts with

@@ -202,8 +202,10 @@ impl ResetGap {
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum ClockedFormat {
-    /// The APA102 frame format: the end frame is `ceil(n / 16)` bytes of
-    /// `0xFF`. Verified on hardware (APA102-2020).
+    /// The APA102 frame format: the end frame is `ceil(n / 64)` black LED
+    /// frames (`0xFF 00 00 00`), so LEDs past the end of the frame stay dark.
+    /// Verified on hardware (an APA102-2020 8x8, a 300-LED strip and a dense
+    /// strip).
     Apa102,
     /// The SK9822 frame format: the end frame is a 4-byte reset frame of
     /// `0x00`, then `ceil(n / 16)` more `0x00` bytes. The SK9822 needs the
@@ -235,43 +237,75 @@ impl ClockedFormat {
 
     /// How many bytes the end frame has for `led_count` LEDs.
     ///
-    /// - APA102: `ceil(n / 16)` bytes.
+    /// - APA102: one 4-byte black LED frame for every 64 LEDs (rounded up).
     /// - SK9822: 4 reset bytes plus `ceil(n / 16)` bytes.
+    ///
+    /// Either way that is at least `n / 2` bits, the extra clock edges the
+    /// last LEDs need.
     ///
     /// # Example
     ///
     /// ```
     /// use ledkit_core::ClockedFormat;
     ///
-    /// assert_eq!(ClockedFormat::Apa102.end_frame_len(17), 2);
+    /// assert_eq!(ClockedFormat::Apa102.end_frame_len(17), 4);
+    /// assert_eq!(ClockedFormat::Apa102.end_frame_len(65), 8);
     /// assert_eq!(ClockedFormat::Sk9822.end_frame_len(17), 6);
     /// ```
     #[must_use]
     pub const fn end_frame_len(self, led_count: usize) -> usize {
-        let clocks = led_count.div_ceil(16);
         match self {
-            ClockedFormat::Apa102 => clocks,
-            ClockedFormat::Sk9822 => 4 + clocks,
+            ClockedFormat::Apa102 => 4 * led_count.div_ceil(64),
+            ClockedFormat::Sk9822 => 4 + led_count.div_ceil(16),
         }
     }
 
-    /// The value of every byte in the end frame: `0xFF` for the APA102,
-    /// `0x00` for the SK9822.
+    /// The byte at `index` (counting from 0) of the end frame.
+    ///
+    /// - APA102: black LED frames, `0xFF 00 00 00` over and over, so `0xFF`
+    ///   at every fourth byte and `0x00` in between.
+    /// - SK9822: always `0x00`.
     ///
     /// # Example
     ///
     /// ```
+    /// use ledkit_core::ClockedFormat;
+    ///
+    /// let apa102: Vec<u8> = (0..8).map(|i| ClockedFormat::Apa102.end_frame_byte_at(i)).collect();
+    /// assert_eq!(apa102, [0xFF, 0, 0, 0, 0xFF, 0, 0, 0]);
+    /// assert_eq!(ClockedFormat::Sk9822.end_frame_byte_at(0), 0x00);
+    /// ```
+    #[must_use]
+    pub const fn end_frame_byte_at(self, index: usize) -> u8 {
+        match self {
+            // The level byte of a black LED, then its three zero colors.
+            ClockedFormat::Apa102 if index % 4 == 0 => 0xFF,
+            ClockedFormat::Apa102 | ClockedFormat::Sk9822 => 0x00,
+        }
+    }
+
+    /// The first byte of the end frame: `0xFF` for the APA102, `0x00` for
+    /// the SK9822.
+    ///
+    /// Up to ledkit 0.1.0 every byte of the end frame had this value. The
+    /// APA102 end frame is now made of black LED frames, so its bytes differ;
+    /// use [`end_frame_byte_at`](Self::end_frame_byte_at).
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # #![allow(deprecated)]
     /// use ledkit_core::ClockedFormat;
     ///
     /// assert_eq!(ClockedFormat::Apa102.end_frame_byte(), 0xFF);
     /// assert_eq!(ClockedFormat::Sk9822.end_frame_byte(), 0x00);
     /// ```
+    #[deprecated(
+        note = "the APA102 end frame is no longer one repeated byte; use `end_frame_byte_at`"
+    )]
     #[must_use]
     pub const fn end_frame_byte(self) -> u8 {
-        match self {
-            ClockedFormat::Apa102 => 0xFF,
-            ClockedFormat::Sk9822 => 0x00,
-        }
+        self.end_frame_byte_at(0)
     }
 }
 

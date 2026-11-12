@@ -5,9 +5,10 @@ metre and up), set up for 150 LEDs, on the Adafruit ESP32-S3 Feather. It uses th
 `ledkit` crate, and the strip's data and clock come from the chip's SPI peripheral.
 
 > **Runs on hardware** (2026-11-11, Adafruit ESP32-S3 Feather, a dense DotStar strip of
-> about 150 LEDs): the show plays, with no stray LEDs once `LED_COUNT` matched the strip.
-> With it set to 100, LEDs 101 and 102 lit bright and stuck (see "Troubleshooting").
-> If you try it on other hardware, please report what you see.
+> about 150 LEDs): the show plays along the whole strip. (Run with `LED_COUNT` at 100, it
+> found a bug: ledkit 0.1.0 lit the two LEDs after the last one bright white. Fixed since;
+> see `docs/hardware/findings.md`.) If you try it on other hardware, please report what
+> you see.
 
 ## What you'll see
 
@@ -112,12 +113,6 @@ DotStar show on 150 LEDs: aurora, fireflies, silk
   you used the strip's DI and CI, not DO and CO.
 - **Wrong colors** (the aurora's blues come out red, say): `LedType` in `src/main.rs`
   doesn't match your LEDs.
-- **One or two LEDs just past the show are bright white (or cyan) and never change**:
-  `LED_COUNT` is lower than the number of LEDs on your strip. To end each frame,
-  ledkit sends a few bytes of all ones, which give the strip the extra clock pulses
-  it needs to pass the data along to the last LED. The LED after the last one
-  reads those bytes as its own color: full white at full brightness. Set
-  `LED_COUNT` to your strip's length (or a little more).
 - **The show only covers part of the strip, or looks squashed**: set `LED_COUNT` to
   the number of LEDs on your strip.
 - **Can't flash** ("port busy" or access denied): another program holds the serial

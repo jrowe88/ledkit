@@ -55,7 +55,13 @@ would otherwise rediscover.
   LEDs. On the bench (2026-11-12), the same dense strip from the S3 Feather with 100 LEDs
   driven: the old frame lit 101 and 102, the black frame left everything past 100 dark,
   and a sweep of every frame length from 1 to 150 lit nothing past the last LED (with the
-  old frame a bright dot ran ahead of it). The 8×8 and 300-LED checks are still to do.
+  old frame a bright dot ran ahead of it). The DotStar HD 8×8 (APA102-2020) lit all 64
+  LEDs with the black frame. It took the old frame differently from the dense strip:
+  driving 48 LEDs, LED 49 did not stay lit, and the old sweep showed no dot ahead of the
+  bar, so the 2020 seems to drop the leftover partial frame. Switching between the old
+  and the black frame gave a one-frame blip on LED 49, and at times garbage in the top two
+  rows. A rerun with only the black frame, to confirm those came from the old frame, is
+  still to do (the panel was damaged before it could be watched), as is the 300-LED strip.
 - **DotStar HD brightness** (on by default): lowers the 5-bit level only below raw level
   64 (about 52%), because on the APA102-2020 a lowered 5-bit level gives less light than
   the math says. Side by side, HD lights from 10%, plain only from 20%.

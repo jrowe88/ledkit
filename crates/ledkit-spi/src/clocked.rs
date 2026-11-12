@@ -264,9 +264,9 @@ enum Stage {
 
 /// The bytes of a DotStar frame, made on demand from any pixel iterator.
 ///
-/// The end frame depends on the chip's [`ClockedFormat`]: `ceil(n / 16)` bytes
-/// of `0xFF` for the APA102, or 4 reset bytes plus `ceil(n / 16)` bytes, all
-/// `0x00`, for the SK9822 (see
+/// The end frame depends on the chip's [`ClockedFormat`]: `ceil(n / 64)`
+/// black LED frames (`0xFF 00 00 00`) for the APA102, or 4 reset bytes plus
+/// `ceil(n / 16)` bytes, all `0x00`, for the SK9822 (see
 /// [`wire::clocked_frame`](ledkit_core::wire::clocked_frame) for why). It
 /// depends on the LED count `n`, which is counted as the pixels stream
 /// through, so the iterator needs no known length.
@@ -315,8 +315,10 @@ impl<C: Chip, I: Iterator<Item = C::Pixel>> Iterator for FrameBytes<C, I> {
                     return Some(0x00);
                 }
                 Stage::End(left) if *left > 0 => {
+                    let format = ClockedFormat::of::<C>();
+                    let index = format.end_frame_len(self.led_count) - *left;
                     *left -= 1;
-                    return Some(ClockedFormat::of::<C>().end_frame_byte());
+                    return Some(format.end_frame_byte_at(index));
                 }
                 Stage::Start(_) => self.stage = Stage::Leds,
                 Stage::Leds => {
@@ -345,7 +347,7 @@ mod tests {
     use ledkit_core::{wire, Apa102, Brightness, Output, OutputAsync, Rgb, Sk9822, Strip};
 
     fn frame_matches_core_for<C: Chip<Pixel = Rgb>>() {
-        for n in [0usize, 1, 15, 16, 17, 40, 64] {
+        for n in [0usize, 1, 15, 16, 17, 40, 64, 65, 100, 300] {
             let pixels: Vec<Rgb> = (0..n).map(|i| Rgb::new(i as u8, 2, 3)).collect();
             let mut out = ClockedSpi::<C, _>::new(FakeBus::default());
             Output::<C>::write(&mut out, pixels.iter().copied()).unwrap();
@@ -369,13 +371,18 @@ mod tests {
 
     #[test]
     fn end_frames_by_chip() {
-        for n in [0usize, 1, 15, 16, 17, 64] {
+        for n in [0usize, 1, 15, 16, 17, 64, 65, 100] {
             let clocks = n.div_ceil(16);
             let pixels = vec![Rgb::new(1, 2, 3); n];
 
             let mut apa = FakeBus::default();
             write_frame::<Apa102, _, _>(&mut apa, 0xFF, pixels.iter().copied()).unwrap();
-            assert_eq!(apa.bytes[4 + 4 * n..], vec![0xFF; clocks], "apa102 n = {n}");
+            // One black LED frame for every 64 LEDs.
+            assert_eq!(
+                apa.bytes[4 + 4 * n..],
+                [0xFF, 0, 0, 0].repeat(n.div_ceil(64)),
+                "apa102 n = {n}"
+            );
 
             let mut sk = FakeBus::default();
             write_frame::<Sk9822, _, _>(&mut sk, 0xFF, pixels.iter().copied()).unwrap();

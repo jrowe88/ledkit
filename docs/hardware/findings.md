@@ -30,10 +30,40 @@ would otherwise rediscover.
   and every slow-rainbow example turn it off and say why.
 - **Perceptual brightness below about 6% is off**, documented on `Brightness` (found
   porting the pulse project's minimum brightness).
-- **DotStar end frame:** the APA102 needs `ceil(n / 16)` bytes of `0xFF` (a zero end
-  frame left LEDs 60–63 of the 8×8 unlit); verified on the 8×8 and the 300-LED strip.
-  The SK9822 keeps a 4-byte zero reset frame plus `ceil(n / 16)` zero bytes; verified on
-  the 144-LED strip.
+- **DotStar end frame:** the APA102 must not end on zeros: an end frame of zeros left
+  LEDs 60–63 of the 8×8 unlit, and a hand-built frame ending in zero bytes gave garbage
+  (it reads 32 zero bits as a start frame). Up to 0.1.0 it ended with `ceil(n / 16)`
+  bytes of `0xFF`, verified on the 8×8 and the 300-LED strip, but that lights the LED
+  after the last one (next entry). It now ends with `ceil(n / 64)` black LED frames
+  (`FF 00 00 00`). The SK9822 keeps a 4-byte zero reset frame plus `ceil(n / 16)` zero
+  bytes; verified on the 144-LED strip.
+- **The APA102 end frame lit the LED after the last one** (2026-11-11): with the LED
+  count set lower than the strip's length, the next two LEDs stayed bright and never
+  changed. Found driving 100 LEDs of a dense DotStar strip of about 150 from the ESP32-S3
+  (`esp32s3-dotstar-strip`): LEDs 101 and 102 lit, past brightness and the power limit.
+  LED n+1 reads the first 4 bytes of a `0xFF` end frame as its pixel (full white at full
+  5-bit level), and LED n+2 the rest, finished by the next frame's start zeros. The old
+  docs said a full frame of ones was avoided, which held only up to 48 LEDs, and not even
+  then: a model of the chain (`chain` in `wire.rs`'s tests, after cpldcpu) gives the next
+  LED full blue from 17 LEDs and cyan from 33, because the start zeros finish its partial
+  frame. Adafruit's DotStar library has the same end frame. The fix: end with whole black
+  LED frames, `FF 00 00 00`, one per 64 LEDs. That is at least the `n / 2` clocks (never
+  fewer than the old frame), never more than 24 zero bits in a row (as in a black pixel
+  at full level, so the chain can't read a false start frame), and an LED past the end reads each
+  frame as black. FastLED's APA102 end frame was the same black frame for years (3.x);
+  in 2026 it moved to all ones, for the datasheet, which brings the stray LED back past 64
+  LEDs. On the bench (2026-11-12), the same dense strip from the S3 Feather with 100 LEDs
+  driven: the old frame lit 101 and 102, the black frame left everything past 100 dark,
+  and a sweep of every frame length from 1 to 150 lit nothing past the last LED (with the
+  old frame a bright dot ran ahead of it). The DotStar HD 8×8 (APA102-2020) lit all 64
+  LEDs with the black frame. It took the old frame differently from the dense strip:
+  driving 48 LEDs, LED 49 did not stay lit, and the old sweep showed no dot ahead of the
+  bar, so the 2020 seems to drop the leftover partial frame. Switching between the old
+  and the black frame gave a one-frame blip on LED 49, and at times garbage in the top two
+  rows. The 300-LED APA102 5050 strip, with only the black frame, ran clean: the last LED
+  lit at 300, nothing past LED 200 when driving 200, and no blips at the switches between
+  them. A rerun on an APA102-2020 with only the black frame, to confirm the 8×8's
+  glitches came from the old frame, is still to do (the panel was damaged first).
 - **DotStar HD brightness** (on by default): lowers the 5-bit level only below raw level
   64 (about 52%), because on the APA102-2020 a lowered 5-bit level gives less light than
   the math says. Side by side, HD lights from 10%, plain only from 20%.

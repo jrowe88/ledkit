@@ -32,6 +32,10 @@ README's "Tested on hardware" table, not here.
   flicker and turned off in the slow-rainbow examples.
 - **DotStar HD brightness is on by default** (2026-10-31), and only lowers the 5-bit level
   below about 52%.
+- **The APA102 end frame is black LED frames** (2026-11-11): `ceil(n / 64)` frames of
+  `FF 00 00 00`. Not `0xFF` bytes (Adafruit's), which light the LED after the last one
+  when a strip is longer than its LED count, and not zeros, which the APA102-2020 reads
+  as a start frame. See [findings](hardware/findings.md).
 - **rp-hal, not embassy-rp,** for `ledkit-rp`: embassy-rp can't build for the RP2350's
   RISC-V cores.
 - **An animation is a pure function of position and time** (`ledkit-anim`): no state
@@ -94,6 +98,13 @@ README's "Tested on hardware" table, not here.
 - Later, if wanted: a per-LED HD split (FastLED-style) for dim pixels in a bright frame.
 
 ### Hardware rounds not run yet
+
+- The black APA102 end frame on an APA102-2020 panel, switching between LED counts with
+  only the black frame: the 8×8 showed glitches at switches to and from the old `0xFF`
+  frame (see findings), and was damaged before this rerun. Everything else passed
+  (2026-11-12): a dense strip and the 300-LED strip driven with fewer LEDs than they have
+  (nothing lights past the end), the 300-LED strip at its full count, and all 64 LEDs of
+  the DotStar HD 8×8.
 
 From [hardware/test-plan.md](hardware/test-plan.md), on every board where they apply:
 busy CPU (T8), non-blocking frame (T9), long frame (T10), and radio on (T11: Pico 2 W
